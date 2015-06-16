@@ -4,6 +4,10 @@ RESTful JSON API ignorant of front end.
 The API should pull together data surrounding concerts from multiple sources and use the data to provide accurate and readable entries.
 
 
+### Endpoints ###
+  /i/venue/
+
+
 ### Models ###
 #### Venues ####
 * Name (String)
