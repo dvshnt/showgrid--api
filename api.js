@@ -45,6 +45,21 @@ app.use(function(req, res, next) {
 });
 
 
+/*
+
+to enable dev mode (print stack trace)
+
+type { export NODE_ENV=production }  this sets a local node variable
+
+
+to debug { export DEBUG=api}
+
+type { }
+
+*/
+
+
+
 
 // development error handler
 // will print stacktrace
