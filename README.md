@@ -6,17 +6,26 @@ The API should pull together data surrounding concerts from multiple sources and
 
 ### Endpoints ###
 Basic Rest endpoints that handle GET requests for users and apps and POST, PUT and DELETE for admins.
-    
-    /v1/venue/
-    /v1/venue/:id
-    /v1/venue/:id/show
-    /v1/venue/:id/show/:id
-    
-    /v1/show/
-    /v1/show/:id
-    
-    /v1/band
-    /v1/band/:id
+
+ Endpoint        | Action        | Description      
+ --------------- | ------------- | -----------------
+  /v1/venue/ | POST    | Add Venue
+             | GET     | Get all venues (accepts parameters)
+  /v1/venue/:id | GET    | Get venue of :id
+                | PUT    | Edit venue of :id
+                | DELETE | Delete venue of :id
+ --------------- | ------------- | -----------------
+  /v1/show/ | GET    | Get all shows (accepts parameters)
+            | POST   | Add show
+  /v1/show/:id  | GET    | Get show of :id
+                | PUT    | Edit show of :id
+                | DELETE | Delete show of :id
+ --------------- | ------------- | -----------------
+  /v1/band/ | GET    | Get all bands (accepts parameters)
+            | POST   | Add band
+  /v1/band/:id  | GET    | Get band of :id
+                | PUT    | Edit band of :id
+                | DELETE | Delete band of :id
 
 
 ### Models ###
