@@ -6,6 +6,7 @@ The API should pull together data surrounding concerts from multiple sources and
 
 ### Endpoints ###
 Basic Rest endpoints that handle GET requests for users and apps and POST, PUT and DELETE for admins.
+    
     /v1/venue/
     /v1/venue/:id
     /v1/venue/:id/show
