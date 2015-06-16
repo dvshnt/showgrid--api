@@ -1,0 +1,4 @@
+{
+	"dev_db":"mongodb://localhost/test",
+	"live_db":"mongodb://localhost/live"
+}
