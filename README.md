@@ -9,21 +9,19 @@ Basic Rest endpoints that handle GET requests for users and apps and POST, PUT a
 
  Endpoint        | Action        | Description      
  --------------- | ------------- | -----------------
-  /v1/venue/ | POST    | Add Venue
+  */v1/venue/* | POST    | Add Venue
              | GET     | Get all venues (accepts parameters)
-  /v1/venue/:id | GET    | Get venue of :id
+  */v1/venue/:id* | GET    | Get venue of :id
                 | PUT    | Edit venue of :id
                 | DELETE | Delete venue of :id
- --------------- | ------------- | -----------------
-  /v1/show/ | GET    | Get all shows (accepts parameters)
+  */v1/show/* | GET    | Get all shows (accepts parameters)
             | POST   | Add show
-  /v1/show/:id  | GET    | Get show of :id
+  */v1/show/:id*  | GET    | Get show of :id
                 | PUT    | Edit show of :id
                 | DELETE | Delete show of :id
- --------------- | ------------- | -----------------
-  /v1/band/ | GET    | Get all bands (accepts parameters)
+  */v1/band/* | GET    | Get all bands (accepts parameters)
             | POST   | Add band
-  /v1/band/:id  | GET    | Get band of :id
+  */v1/band/:id*  | GET    | Get band of :id
                 | PUT    | Edit band of :id
                 | DELETE | Delete band of :id
 
