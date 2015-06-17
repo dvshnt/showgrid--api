@@ -61,3 +61,25 @@ Basic Rest endpoints that handle GET requests for users and apps and POST, PUT a
 * Email (email)
 * Password (password)
 * Phone # (phone)??
+
+
+### API Keys ###
+##### [Eventful](http://api.eventful.com) #####
+_u_: info@showgrid.com
+_p_: sh0wgr1d
+_k_: dFbgV5SxzLT9djCL
+
+##### [Songkick](https://www.songkick.com/developer) #####
+_u_: info@showgrid.com
+_p_: sh0wgr1d
+_k_: <<< PENDING >>>
+
+##### [Jambase](http://developer.jambase.com) #####
+_u_: info@showgrid.com
+_p_: sh0wgr1d
+_k_: AADDMDRUR2AM379YVXFKGDXS
+
+##### [TicketFly](https://account.shareasale.com) #####
+_u_: showgrid
+_p_: sh0wgr1d
+_k_: <<< PENDING >>>
