@@ -1,6 +1,6 @@
 //dependecies
 var express = require('express'); //express for routing
-var debug = require('debug')('api');//debuger
+var debug = require('debug')('api');
 
 //initialize express app
 var app = express();
@@ -10,7 +10,7 @@ var app = express();
 
 
 //use database
-var db = require('./data/data');
+// var db = require('./data/data');
 
 
 
@@ -24,8 +24,6 @@ app.use(passport.session());
 //Public API Allowed access for everybody.
 var pub = require('./pub/publicRoute');
 app.use('/pub',pub);
-
-
 
 var usr = require('./usr/userRoute')(passport);
 //Private API for user optimization.
@@ -63,7 +61,7 @@ type { }
 
 // development error handler
 // will print stacktrace
-if (app.get('env') === 'development') {
+//if (app.get('env') === 'development') {
     app.use(function(err, req, res, next) {
         res.status(err.status || 500);
         res.render('error', {
@@ -71,7 +69,7 @@ if (app.get('env') === 'development') {
             error: err
         });
     });
-}
+//}
 
 // production error handler
 // no stacktraces leaked to user
@@ -92,3 +90,8 @@ app.set('port', process.env.PORT || 3000);
 var server = app.listen(app.get('port'), function() {
   debug('Express server listening on port ' + server.address().port);
 });
+
+
+
+
+require('./test');

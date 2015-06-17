@@ -61,3 +61,17 @@ Basic Rest endpoints that handle GET requests for users and apps and POST, PUT a
 * Email (email)
 * Password (password)
 * Phone # (phone)??
+
+
+
+EVENTFUL (http://api.eventful.com)
+u: info@showgrid.com
+p: sh0wgr1d
+k: dFbgV5SxzLT9djCL
+
+
+
+JAMBASE (http://developer.jambase.com)
+u: info@showgrid.com
+p: sh0wgr1d
+k: AADDMDRUR2AM379YVXFKGDXS

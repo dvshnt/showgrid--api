@@ -13,7 +13,16 @@ mongoose.connection.on('error',console.error.bind(console,'connection error'));
 });*/
 
 
+
+function postVenue(json){
+
+}
+
+
+
+
 //export our models to the controllers
 module.exports = {
 	venue : require('./models/venueModel'),
+	update: require('./update'),
 }

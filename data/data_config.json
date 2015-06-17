@@ -1,4 +1,18 @@
 {
 	"dev_db":"mongodb://localhost/test",
-	"live_db":"mongodb://localhost/live"
+	"live_db":"mongodb://localhost/live",
+	"apis" : {
+		"eventful" : {
+			
+			"keys" : [
+				"dFbgV5SxzLT9djCL"
+			]
+		},
+		"jambase" : {
+			"api" : "http://api.jambase.com",
+			"keys" : [
+				"AADDMDRUR2AM379YVXFKGDXS"
+			]
+		}
+	}
 }

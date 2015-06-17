@@ -4,7 +4,7 @@ var venueSchema = new db.Schema({
 })
 
 venueSchema.methods.test = function(){
-	console.log('test')
+	
 }
 
 

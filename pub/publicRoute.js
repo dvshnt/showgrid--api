@@ -8,9 +8,8 @@ function getVenues(req,res,next){
 }
 
 function getShows(req,res,next){
-
+	
 }
-
 
 function getUsers(req,res,next){
 
