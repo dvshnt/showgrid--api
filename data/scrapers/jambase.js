@@ -19,13 +19,16 @@ var key = cfg.keys[0];
 var Promise = require('promise');
 
 
-//GET VENUES BY ZIP
+//GET VENUES
 
-var getVenuesByZip = function(zip){
-	console.log('getVenuesByZip')
+module.exports.getVenues = function(opt){
+
 	var url = cfg.api+'/venues';
-	var q = qs.stringify({zipCode: zip,api_key:key,page:0});
-	
+
+
+	if(opt.zip != null){
+		var q = qs.stringify({zipCode: opt.zip,api_key:key,page:0});
+	}
 
 
 	function get(resolve,reject){
@@ -34,7 +37,7 @@ var getVenuesByZip = function(zip){
 			json: true
 		},function(err,res,data){
 			console.log('got raw data !:');
-			resolve(data);
+			resolve(data.venues);
 		});		
 	}
 
@@ -43,49 +46,71 @@ var getVenuesByZip = function(zip){
 }
 
 
+//GET ARTISTS
+module.exports.getArtists = function(opt){
 
+	function get(res,rej){
+		res(['test get artists'])	
+	}
+
+	return new Promise(get);
+}
 
 
 
 //GET SHOWS
+module.exports.getShows = function(opt){
 
-function getShows(zip){
-	function get(resolve,reject){
-		
-		resolve(['no data yet!']);
-				
+	function get(res,rej){
+		res(['test get shows'])
 	}
-	return new Promise(get);
-}
 
-
-
-//GET ARTISTS
-
-function getArtists(zip){
-	function get(resolve,reject){
-		
-		resolve(['no data yet!']);
-				
-	}
 	return new Promise(get);
 }
 
 
 
 
-module.exports = {
-	'venue' : function(opt){
-		console.log('get venue',opt)
-		if(opt.zip != null){
-			return getVenuesByZip(opt.zip)
-		}
-		else{
-			return 
-		}
-	},
-	'show': getShows,
-	'artist': getArtists
+
+//PARSE A VENUE
+module.exports.parseVenue = function(venue){
+	return new data.Venue({
+		name: venue.Name,
+		platform: {
+			tag: 'jambase',
+			id: venue.Id
+		},
+		location: {
+			address: venue.Address,
+			city: venue.City,
+			zip: venue.ZipCode,
+			statecode: venue.StateCode,
+			countrycode: venue.CountryCode,
+			gps: (function(){
+				if(this.Latitude == 0 && this.Longitude == 0) return null
+				else return {lat: this.Latitude,lon: this.Longitude}
+			})(venue)
+		},
+		url: venue.Url,
+	});	
 }
 
 
+
+
+//PARSE AN ARTIST
+module.exports.Artist = function(venue){
+	return new data.Artist({
+		
+	});	
+}
+
+
+
+
+//PARSE A SHOW
+module.exports.parseShow = function(venue){
+	return new data.Show({
+		
+	});	
+}

@@ -6,11 +6,22 @@ var _ = require('lodash');
 var scrapers = require('./scrapers');
 var Promise = require('promise');
 
-//Async data scraping
+//Async data scraping1
 
-var Validator = function(){
 
+
+
+//Validator checks parsed data
+var Validator = function(models){
+	console.log('IN VALIDATOR')
+
+	return new Promise(function(res,rej){
+		res(models);
+	})
 }
+
+
+
 
 
 
@@ -21,25 +32,23 @@ function main(opt){
 	var done = 0;
 	return new Promise(function (resolve, reject) {
 		
-
 		_.each(scrapers,function(scraper,scraper_tag){
-			
 
 			var countOptPlatforms = function(plat,plat_name){
 				
 				//match options platform with scraper tag
+				console.log(plat_name,scraper_tag)
+
 				if(plat_name.match(scraper_tag)){
 
 					//go through all requested endpoints
 					plat.endpoints.forEach(function(endpoint,i){
 						
-						if(scraper.parsers[endpoint] == null) return console.error('SCRAPER ERR: '+scraper_tag+' does not have '+endpoint);
+						if(scraper[endpoint] == null) return console.error('SCRAPER ERR: '+scraper_tag+' does not have '+endpoint);
 						total++;
 						
-						var prom = scraper.module[endpoint](plat.params)
-							.then(scraper.parsers[endpoint](data))
-							
-						if(plat.save == true){
+						var prom = scraper[endpoint](plat.params);
+						if(opt.save == true){
 							prom = prom.then(Validator);
 						}else{
 							prom = prom.then(function(){
@@ -49,17 +58,14 @@ function main(opt){
 								}
 							});
 						}
-						
 						return prom;
-						}.bind(this));
-					})
-				}else return console.error('scraper platform does not exist: ', scraper_tag);
+					}.bind(this));
+				};
 			}.bind(this);
 			
-			if(opt.platforms == null) console.error('bad param : platforms')
+			if(opt.platforms == null) console.error('bad param : platforms');
 			_.each(opt.platforms,countOptPlatforms);
 			
-
 		}.bind(this));
 	}.bind(this));
 }

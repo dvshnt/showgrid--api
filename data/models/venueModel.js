@@ -1,9 +1,6 @@
 var db = require('mongoose');
 var venueSchema = new db.Schema({
-	platform: {
-		name: String, //platform name (static)
-		id: Number //platform related ID
-	},
+	platforms: [{tag:String,id:Number}],
 	location: {
 		address: String,
 		city: String,
@@ -11,11 +8,11 @@ var venueSchema = new db.Schema({
 		statecode: String,
 		countrycode: String,
 		gps: {
-			lon: Number
+			lon: Number,
 			lat: Number
 		}
 	},
-	url: venue.Url,
+	url: String,
 	banner: {
 		sm: String,
 		md: String,
@@ -29,6 +26,7 @@ var venueSchema = new db.Schema({
 
 venueSchema.methods.scrapeBanner = function(){
 	if (this.url == null) return console.error('failed to scrape venue with no url');
+	else console.log('scraping banner for "',this.name,'"')
 }
 
 

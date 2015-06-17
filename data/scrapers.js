@@ -3,6 +3,8 @@ var _ = require('lodash');
 var scrapers;
 var data = require('./data');
 var Promise = require('promise');
+
+
 /*
 API Scrapers/Strategies
 
@@ -13,68 +15,38 @@ each strategy must have 3 parsers
 
 
 
-
-//Validates Model against database, updates if nessesary and 
-
-
-
-
-
-
-var jambaseVenue = function(data){
-	var parsed_data =  _.map(data.venues,function(venue){
-			return {
-				name: venue.Name,
-				platform: {
-					tag: 'jambase',
-					id: venue.Id
-				},
-				location: {
-					address: venue.Address,
-					city: venue.City,
-					zip: venue.ZipCode,
-					statecode: venue.StateCode,
-					countrycode: venue.CountryCode,
-					gps: (function(){
-						if(this.Latitude == 0 && this.Longitude == 0) return null
-						else return {lat: this.Latitude,lon: this.Longitude}
-					})(venue)
-				},
-				url: venue.Url,
-			}
-	});
-    
-	return new Promise(function(res,rej){
-		res(parsed_data)
-	});
-}
+var getter_count = 3;
+var parser_count = 3
 
 
 
 
 
 
-var jambaseArtist = function(data){
-	return data;
-}
 
 
 
 
 
-var jambaseShow = function(){
-	return data;
-}
 
 
+
+var jambase = require('./scrapers/jambase');
+
+
+//SCRAPER HOOKS
 scrapers = {
 	'jambase' : {
-		'module': require('./scrapers/jambase'),
-		'parsers': {
-			'venue'  : jambaseVenue,
-			'artist' : jambaseArtist,
-			'show'   : jambaseShow
+		'get' : {
+			'venue' : jambase.getVenues,
+			'show' : jambase.getShows,
+			'artist' : jambase.getArtists
 		},
+		'parse': {
+			'venue' : jambase.parseVenue,
+			'show' : jambase.parseShow,
+			'artist' : jambase.parseArtist
+		}
 	}
 }
 
@@ -82,11 +54,6 @@ scrapers = {
 
 
 
-// _.each(scrapers,function(val,key){
-// 	_.each(val.parsers,function(val,key){
-// 		val.parsers = val.parsers(data).then(Validator);
-// 	});
-// });
 
 
 
@@ -103,14 +70,61 @@ scrapers = {
 
 
 
-module.exports = scrapers;
+
+
+
+
+
+
+
+/*-----------------------------------------------------*/
+//DONT TOUCH THIS:
+
+function _parse(parser){
+	return function(data){
+		console.log(data);
+		var models = _map(data,function(obj){
+			return parser(obj);
+		});
+		console.log('IN PARSER',models)
+		return new Promise(function(res,rej){
+			res(models)
+		});
+	}
+}
+
 
 
 //check if everything is OK
 (function(){
 	_.each(scrapers,function(e,tag){
-		if(_.size(e.parsers) != 3){
-			console.error('SCRAPERS INIT: ',tag,' has ', _.size(e.parsers) ,' parsers')
+		if(_.size(e.parse) != parser_count){
+			console.error('SCRAPERS INIT: ',tag,' has ', _.size(e) ,' parsers')
+		}
+		if(_.size(e.get) != getter_count){
+			console.error('SCRAPERS INIT: ',tag,' has ', _.size(e) ,' getters')
 		}
 	})
 })();
+
+
+
+//Module Factory
+_.each(scrapers,function(e,tag){
+	module.exports[tag] = {};
+	_.each(e.parse,function(parser,ptag){
+		module.exports[tag][ptag] = function(opt){
+			return e.get[ptag](opt).then(_parse(parser))
+		}
+	}.bind(this));
+}.bind(this));
+
+
+
+
+
+
+
+
+
+
