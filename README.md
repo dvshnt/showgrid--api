@@ -77,7 +77,7 @@ Basic Rest endpoints that handle GET requests for users and apps and POST, PUT a
 ##### [Jambase](http://developer.jambase.com) #####
 * _u_: info@showgrid.com
 * _p_: sh0wgr1d
-* _k_: AADDMDRUR2AM379YVXFKGDXS
+* _k_: aaddmdrur2am379yvxfkgdxs
 
 ##### [TicketFly](https://account.shareasale.com) #####
 * _u_: showgrid

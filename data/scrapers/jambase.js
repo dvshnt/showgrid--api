@@ -8,32 +8,32 @@ var request = require('request');
 
 var cities = require('cities');
 
-var querystring = require('querystring');
+var qs = require('querystring');
 
 
 
+var key = cfg.keys[0];
 
 
 
-
-
+var Promise = require('promise');
 
 
 //GET VENUES BY ZIP
 
 var getVenuesByZip = function(zip){
-
+	console.log('getVenuesByZip')
 	var url = cfg.api+'/venues';
-	var qs = {zipCode: zip,api_key:cfg.keys[0]}
+	var q = qs.stringify({zipCode: zip,api_key:key,page:0});
+	
+
 
 	function get(resolve,reject){
-		console.log('GET')
 		request.get({
-			url : url,
-			qs: qs,
+			url : url + '?' + q,
 			json: true
 		},function(err,res,data){
-			console.log('got raw data !:',data);
+			console.log('got raw data !:');
 			resolve(data);
 		});		
 	}
@@ -78,7 +78,7 @@ module.exports = {
 	'venue' : function(opt){
 		console.log('get venue',opt)
 		if(opt.zip != null){
-			return getVenuesByZip(opt.zip);
+			return getVenuesByZip(opt.zip)
 		}
 		else{
 			return 
@@ -87,8 +87,5 @@ module.exports = {
 	'show': getShows,
 	'artist': getArtists
 }
-
-
-
 
 

@@ -1,5 +1,5 @@
 
-
+var debug = require('debug')('api');
 var api_cfg = require('./data/data_config').apis;
 var data = require('./data/data.js');
 
@@ -27,5 +27,5 @@ data.update({
 	},
 
 }).then(function(data){
-	console.log(data);
+	console.log('done with update');
 });
