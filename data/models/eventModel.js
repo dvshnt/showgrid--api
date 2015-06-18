@@ -1,17 +1,26 @@
 var db = require('mongoose');
 var eventSchema = new db.Schema({
+
+	platforms: [{tag:String,id:String}], //Id's for different platforms.
+
+	date: Date,
+	ticket: {[type:db.Schema.Types.ObjectId,ref:'Ticket']},
+	private: Boolean,
+	featured: Boolean,
+	age: {type: Number,max: 100},
 	name: String,
+	venue: {type:db.Schema.Types.ObjectId,ref:'Venue'},
 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}],  //users going
-	artists: [{type:db.Schema.Types.ObjectId, ref: 'Artist'}] //artists performing
+	artists: {
+		headers:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}],
+		openers:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}]
+	}
 }); 
 
-venueSchema.methods.scrapeBanner = function(){
-	if (this.url == null) return console.error('failed to scrape venue with no url');
-	else console.log('scraping banner for "',this.name,'"')
-}
 
 
-var venue = db.model('Venue',venueSchema);
+
+var event = db.model('Event',eventSchema);
 
 
-module.exports = venue;
+module.exports = event;

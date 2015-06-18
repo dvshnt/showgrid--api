@@ -1,14 +1,14 @@
 var db = require('mongoose');
 var userSchema = new db.Schema({
-	
-})
+	email: String,
+	password: String, //hash.
+	auth: {
+		twitter: {
 
-userSchema.methods.test = function(){
- console.log('test')
-}
+		}
+	}
+});
 
 
-var user = db.model('User',userSchema);
 
-
-module.exports = user;
+module.exports = db.model('User',userSchema);

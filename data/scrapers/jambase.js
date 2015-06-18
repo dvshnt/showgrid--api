@@ -142,44 +142,9 @@ module.exports.parseArtist = function(venue){
 
 //PARSE A SHOW
 module.exports.parseEvent = function(event){
-	// return new data.Show({
-{
-        "Id": 2535797,
-        "Date": "2015-06-17T20:00:00",
-        "Venue": {
-            "Id": 73331,
-            "Name": "LP Field",
-            "Address": "One Titans Way",
-            "City": "Nashville",
-            "State": "Tennessee",
-            "StateCode": "TN",
-            "Country": "US",
-            "CountryCode": "US",
-            "ZipCode": "37219",
-            "Url": "",
-            "Latitude": 0.0,
-            "Longitude": 0.0
-        },
-        "Artists": [{
-            "Id": 42,
-            "Name": "The Rolling Stones"
-        }, {
-            "Id": 42525,
-            "Name": "Brad Paisley"
-        }],
-        "TicketUrl": "http://www.awin1.com/awclick.php?awinmid=4103&awinaffid=139685&platform=tm&p=http%3a%2f%2fwww.ticketmaster.com%2fevent%2f1B004E83F5FA5D04"
-    }"Longitude": 0.0
-        },
-	// });
-
 	return{
-		name: (function(){
-			var n = ''
-			_.each(event.Artists,function(artist){
-				n+= artist.Name+' |'
-			})
-		})(),
-		platform: {
+		name: null
+		
 			tag: 'jambase',
 			id: venue.Id
 		},
