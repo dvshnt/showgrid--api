@@ -33,6 +33,8 @@ var parser_count = 3
 
 var jambase = require('./scrapers/jambase');
 
+var eventful = require('./scrapers/eventful');
+
 
 //SCRAPER HOOKS
 scrapers = {
@@ -40,7 +42,7 @@ scrapers = {
 		'get' : {
 			'venue' : jambase.getVenues,
 			'event' : jambase.getEvents,
-			'artist' : jambase.getArtists
+			//'artist' : jambase.getArtists
 		},
 		'parse': {
 			'venue' : jambase.parseVenue,

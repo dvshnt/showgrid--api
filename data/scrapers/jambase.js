@@ -29,79 +29,63 @@ Promise.longStackTraces();
 
 
 
+var get = function(type,opts,cb){
+	var url = cfg.api+'/'+type;
+	var q = {api_key:key,page:0}
 
+	if(opt.zip != null) q.zipCode = opt.zip;
+	if(opt.radius != null) q.radius = opt.radius;
+
+
+	function get(resolve,reject){
+		request.get({
+			url : url + '?' + qs.stringify(q),
+			json: true
+		},cb.bind(this));
+	}
+	return new Promise(get);
+}
 
 
 
 module.exports.getVenues = function(opt){
 
-	var url = cfg.api+'/venues';
-
-
-	if(opt.zip != null){
-		var q = qs.stringify({zipCode: opt.zip,api_key:key,page:0});
-	}
-
-
-	function get(resolve,reject){
-		request.get({
-			url : url + '?' + q,
-			json: true
-		},function(err,res,data){
-			console.log('got raw data !');
-			resolve(data.Venues);
-		});
-	}
-	return new Promise(get);
+	return get('venues',opt,function(err,res,data){
+		console.log('got raw venues data !',resolve);
+		resolve(data.Venues);
+	});
 }
-
-
-//GET ARTISTS
-module.exports.getArtists = function(opt){
-	// var url = cfg.api+'/shows';
-
-	// if(opt.zip != null){
-	// 	var q = qs.stringify({zipCode: opt.zip,api_key:key,page:0});
-	// }
-
-	// function get(res,rej){
-	// 	res(['test get artists']);	
-	// }
-
-	// return new Promise(get);
-}
-
 
 
 //GET SHOWS
 module.exports.getEvents = function(opt){
-
-
-
 	var url = cfg.api+'/events';
+	var q = {api_key:key,page:0};
 
-
-	if(opt.zip != null){
-		var q = qs.stringify({
-			zipCode: opt.zip,
-			api_key:key,page:0
-		});
-	}
+	if(opt.zip != null) q.zipCode = opt.zip;
+	if(opt.radius != null) q.radius = opt.radius;
 
 
 	function get(resolve,reject){
 		request.get({
-			url : url + '?' + q,
+			url : url + '?' + qs.stringify(q),
 			json: true
 		},function(err,res,data){
 			console.log('got raw data !');
-			resolve(data.Venues);
+			resolve(data.Events);
 		});
 	}
 	return new Promise(get);
-
-
 }
+
+
+
+
+
+
+
+
+
 
 
 
@@ -111,10 +95,10 @@ module.exports.getEvents = function(opt){
 module.exports.parseVenue = function(venue){
 	return{
 		name: venue.Name,
-		platform: {
+		platforms: [{
 			tag: 'jambase',
 			id: venue.Id
-		},
+		}],
 		location: {
 			address: venue.Address,
 			city: venue.City,
@@ -131,10 +115,14 @@ module.exports.parseVenue = function(venue){
 
 
 //PARSE AN ARTIST
-module.exports.parseArtist = function(venue){
-	// return new data.Artist({
-		
-	// });	
+module.exports.parseArtist = function(artist){
+	return{
+		platforms: [{
+			type: 'jambase',
+			id: artist.Id,
+		}],
+		name: artist.Name,
+	};		
 }
 
 
@@ -143,19 +131,24 @@ module.exports.parseArtist = function(venue){
 //PARSE A SHOW
 module.exports.parseEvent = function(event){
 	return{
-		name: null
-		
-			tag: 'jambase',
-			id: venue.Id
+		platforms: [{
+			type: 'jambase',
+			id: event.Id,
+		}],
+		date: dateParser('jambase',event.Date),
+		name: event.Name,
+		age: null,
+		venue: module.exports.parseVenue(event.Venue),
+		ticket: {
+			url: event.ticketUrl
 		},
-		location: {
-			address: venue.Address,
-			city: venue.City,
-			zip: venue.ZipCode,
-			statecode: venue.StateCode,
-			countrycode: venue.CountryCode,
-			gps: {lat: venue.Latitude,lon: venue.Longitude}
-		},
-		url: venue.Url,
+		artists: {
+			//everything defaults to headliners for jambase
+			headliners: (function(){
+				_.each(event.Artists,function(artist){
+					return module.exports.parseArtist(artist);
+				});				
+			})()
+		}
 	};
 }

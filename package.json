@@ -11,7 +11,7 @@
     "debug": "^1.0.4",
     "express": "^4.8.8",
     "lodash": "^3.9.3",
-    "mongoose": "^4.0.5",
+    "mongoose": "*",
     "passport": "^0.2.2",
     "promise": "^7.0.3",
     "querystring": "^0.2.0",

@@ -8,7 +8,7 @@ var userSchema = new db.Schema({
 		ignored: [{type:db.Schema.Types.ObjectId, ref: 'Event'}],
  	},
 	auth: {
-
+		
 		//phone number
 		local: {
 			hash: String, 
@@ -16,6 +16,8 @@ var userSchema = new db.Schema({
 			token: String,
 			decayAt: {type: Date, default: Date.now()+config.noconfirmdecay},
 		},
+
+		//twitter
 		twitter: {
 
 		}
