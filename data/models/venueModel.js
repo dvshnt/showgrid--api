@@ -1,5 +1,6 @@
 var db = require('mongoose');
 var venueSchema = new db.Schema({
+	name: String,
 	platforms: [{tag:String,id:Number}],
 	location: {
 		address: String,
@@ -19,7 +20,7 @@ var venueSchema = new db.Schema({
 		lg: String,
 	},
 	age: Number,
-	shows: [{type:db.Schema.Types.ObjectId, ref: 'Show'}],
+	events: [{type:db.Schema.Types.ObjectId, ref: 'Event'}],
 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}],
 	artists: [{type:db.Schema.Types.ObjectId, ref: 'Artist'}]
 });

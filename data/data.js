@@ -23,6 +23,9 @@ function postVenue(json){
 
 //export our models to the controllers
 module.exports = {
-	Venue : require('./models/venueModel'),
-	update: require('./update'),
+	venue: require('./models/venueModel'),
+//	user: require('./models/userModel'),
+//	show: require('./models/showModel'),
+//	artist: require('./models/artistModel'),
+//	update: require('./update'),
 }

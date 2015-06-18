@@ -1,13 +1,12 @@
 
 var debug = require('debug')('api');
 var api_cfg = require('./data/data_config').apis;
-var data = require('./data/data.js');
+//var data = require('./data/data.js');
+
+var update = require('./data/update.js');
 
 
-
-
-
-data.update({
+update({
 	platforms: {
 		'eventful': {
 			endpoints : ['venue','show','artist'],

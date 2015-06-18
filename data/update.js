@@ -1,23 +1,34 @@
 
 var _ = require('lodash');
 
-
+var db = require('./data.js');
 //scraper endpoints
 var scrapers = require('./scrapers');
-var Promise = require('promise');
+var Promise = require('bluebird');
 
-//Async data scraping1
+//Async data scraping
 
-
+console.log(db);
 
 
 //Validator checks parsed data
-var Validator = function(models){
-	console.log('IN VALIDATOR')
+var Validator = function(endpoint,dataset){
+	if(db[endpoint] == null){
+		console.log(db);
+		return console.error(endpoint, ' VALIDATOR/SAVE ERROR: no endpoint found');
+	}
+//	console.log('IN VALIDATOR',endpoint,model);
+
+
+	var models = _.each(dataset,function(obj){
+		return new db[endpoint](obj);
+	});
+
+//	console.log(models);
 
 	return new Promise(function(res,rej){
 		res(models);
-	})
+	});
 }
 
 
@@ -48,16 +59,17 @@ function main(opt){
 						total++;
 						
 						var prom = scraper[endpoint](plat.params);
-						if(opt.save == true){
-							prom = prom.then(Validator);
-						}else{
-							prom = prom.then(function(){
-								done++;
-								if(done >= total){
-									resolve();
-								}
-							});
-						}
+						if(opt.save == false){
+						}else prom = prom.then(function(data){
+							return Validator(endpoint,data)
+						});
+						
+						prom = prom.then(function(){
+							done++;
+							if(done >= total){
+								resolve();
+							}
+						});
 						return prom;
 					}.bind(this));
 				};
@@ -72,3 +84,7 @@ function main(opt){
 
 
 module.exports = main;
+
+
+
+

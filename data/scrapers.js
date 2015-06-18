@@ -2,7 +2,7 @@
 var _ = require('lodash');
 var scrapers;
 var data = require('./data');
-var Promise = require('promise');
+var Promise = require('bluebird');
 
 
 /*
@@ -39,12 +39,12 @@ scrapers = {
 	'jambase' : {
 		'get' : {
 			'venue' : jambase.getVenues,
-			'show' : jambase.getShows,
+			'event' : jambase.getEvents,
 			'artist' : jambase.getArtists
 		},
 		'parse': {
 			'venue' : jambase.parseVenue,
-			'show' : jambase.parseShow,
+			'event' : jambase.parseEvent,
 			'artist' : jambase.parseArtist
 		}
 	}
@@ -76,17 +76,16 @@ scrapers = {
 
 
 
-
-/*-----------------------------------------------------*/
 //DONT TOUCH THIS:
+/*-----------------------------------------------------*/
+
 
 function _parse(parser){
 	return function(data){
-		console.log(data);
-		var models = _map(data,function(obj){
+		var models = _.map(data,function(obj){
 			return parser(obj);
 		});
-		console.log('IN PARSER',models)
+		
 		return new Promise(function(res,rej){
 			res(models)
 		});

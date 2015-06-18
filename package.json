@@ -6,6 +6,7 @@
     "start": "node ./api"
   },
   "dependencies": {
+    "bluebird": "^2.9.30",
     "cities": "^1.1.0",
     "debug": "^1.0.4",
     "express": "^4.8.8",
