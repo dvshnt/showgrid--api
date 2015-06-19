@@ -12,6 +12,8 @@ var Promise = require('bluebird');
 var qs = require('querystring');
 var moment = require('moment');
 
+
+var Venue = require('../models/venueModel');
 //Promise.longStackTraces();
 
 
@@ -50,7 +52,7 @@ module.exports.getVenues = function(opt){
 	var q = {
 		app_key:key,
 		page_number:0,
-		page_size:1000,
+		page_size:1,
 		units: 'miles'
 	};
 
@@ -72,7 +74,30 @@ module.exports.getVenues = function(opt){
 }
 
 module.exports.getArtists = function(opt){
+	var url = cfg.api+'/performers/search';
+	
+	var q = {
+		app_key:key,
+		page_number:0,
+		page_size:1,
+		units: 'miles'
+	};
 
+
+	if(opt.zip != null) q.location = opt.zip;
+	if(opt.radius != null) q.within = opt.radius;
+
+
+	function get(resolve,reject){
+		request.get({
+			url : url + '?' + qs.stringify(q),
+			json: true
+		},function(err,res,data){
+			
+			resolve(data.venues);
+		});
+	}
+	return new Promise(get);
 }
 
 module.exports.parseArtist = function(artist){
@@ -80,6 +105,7 @@ module.exports.parseArtist = function(artist){
 }
 
 module.exports.parseEvent = function(event){
+	//console.log(event);
 // { watching_count: null,
 //   olson_path: 'America/Chicago',
 //   calendar_count: null,
@@ -138,22 +164,44 @@ module.exports.parseEvent = function(event){
 // 		openers:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}]
 // 	}
 
+	if(event.performers == null) return null;
 
-	return: {
+
+
+	return {
+		name: event.title,
 		platforms: [{
 			tag: 'eventful',
 			id: event.id
 		}],
+		description: event.description,
 		date: moment(event.start_time,moment.ISO_8601).utc().format(),
-		ticket: {
+		performers: {
 
-		}
+		},
+		venue: {
+			location: {
+				name: event.venue_name,
+				address: event.venue_address,
+				city: event.city_name,
+				zip: event.postal_code,
+				statecode: event.region_abbr,
+				countrycode: event.countryabbr,
+				gps: {
+					lat: event.latitude,
+					lon: event.longitude
+				}				
+			},
+			platforms: [{
+				tag: 'eventful',
+				id: event.venue_id
+			}],
+			
+		},
+		banners: [event.image.medium.url]
 	}
-
-
-
 }
 
 module.exports.parseVenue = function(venue){
-
+	console.log(venue)
 }

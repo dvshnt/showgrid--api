@@ -58,7 +58,7 @@ function main(opt){
 			//go through all requested endpoints
 			plat.endpoints.forEach(function(endpoint,i){
 				
-				if(scraper[endpoint] == null) return console.error('SCRAPER ERR: '+scraper_tag+' does not have '+endpoint);
+				if(scraper[endpoint] == null) return console.error('SCRAPER ERR: '+plat_name+' does not have '+endpoint);
 				total++;
 				
 				var prom = scraper[endpoint](plat.params);

@@ -24,9 +24,9 @@ var venueSchema = new db.Schema({
 		secondary: String,
 	},
 	age: Number,
-	events: [{type:db.Schema.Types.ObjectId, ref: 'Event'}],
-	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}],
-	artists: [{type:db.Schema.Types.ObjectId, ref: 'Artist'}]
+	events: [{type:db.Schema.Types.ObjectId, ref: 'Event'}], //events at this venue (past and present)
+	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}], //users that are going to this venue
+	artists: [{type:db.Schema.Types.ObjectId, ref: 'Artist'}] //artists that are performing at this venue
 });
 
 venueSchema.methods.scrapeBanner = function(){

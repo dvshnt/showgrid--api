@@ -8,7 +8,7 @@ var update = require('./data/update.js');
 update({
 	platforms: {
 		'eventful': {
-			endpoints : ['event'],
+			endpoints : ['venue'],
 			params: {
 				key: api_cfg.eventful.keys[0],
 				zip: '37064'

@@ -52,9 +52,13 @@ scrapers = {
 	'eventful' : {
 		'get' : {
 			'event' : eventful.getEvents,
+			'venue' : eventful.getVenues,
+			'artist' : eventful.getArtists
 		},
 		'parse' : {
-			'event' : eventful.parseEvent
+			'event' : eventful.parseEvent,
+			'venue' : eventful.getVenue,
+			'artist' : eventful.getArtist 
 		}
 	}
 }

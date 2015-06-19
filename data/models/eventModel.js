@@ -7,12 +7,14 @@ var eventSchema = new db.Schema({
 	featured: {type:Boolean, default: false},
 	age: {type: Number,max: 21, default: 21},
 	name: String,
+	description: String,
 	venue: {type:db.Schema.Types.ObjectId,ref:'Venue'},
 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}],  //users going
 	artists: {
 		headers:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}],
 		openers:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}]
-	}
+	},
+	banners: [{type:String}]
 }); 
 
 
