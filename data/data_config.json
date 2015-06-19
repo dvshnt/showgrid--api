@@ -3,7 +3,7 @@
 	"live_db":"mongodb://localhost/live",
 	"apis" : {
 		"eventful" : {
-			
+			"api": "http://api.eventful.com/json",
 			"keys" : [
 				"dFbgV5SxzLT9djCL"
 			]

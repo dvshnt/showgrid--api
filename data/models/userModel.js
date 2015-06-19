@@ -14,7 +14,7 @@ var userSchema = new db.Schema({
 			hash: String, 
 			confirmed: {type: Boolean, default: false},
 			token: String,
-			decayAt: {type: Date, default: Date.now()+config.noconfirmdecay},
+			decayAt: {type: Date, default: Date.now()},
 		},
 
 		//twitter

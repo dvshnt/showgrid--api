@@ -32,7 +32,6 @@ var parser_count = 3
 
 
 var jambase = require('./scrapers/jambase');
-
 var eventful = require('./scrapers/eventful');
 
 
@@ -48,6 +47,14 @@ scrapers = {
 			'venue' : jambase.parseVenue,
 			'event' : jambase.parseEvent,
 			'artist' : jambase.parseArtist
+		}
+	},
+	'eventful' : {
+		'get' : {
+			'event' : eventful.getEvents,
+		},
+		'parse' : {
+			'event' : eventful.parseEvent
 		}
 	}
 }
@@ -111,11 +118,18 @@ function _parse(parser){
 
 
 //Module Factory
+
+
 _.each(scrapers,function(e,tag){
 	module.exports[tag] = {};
-	_.each(e.parse,function(parser,ptag){
-		module.exports[tag][ptag] = function(opt){
-			return e.get[ptag](opt).then(_parse(parser))
+	_.each(e.get,function(getter,gtag){
+		module.exports[tag][gtag] = function(opt){
+			//console.log(e.get[ptag])
+			if(e.parse[gtag] == null) return console.error('invalid parser / getter pair, check your scraper hooks!')
+			if(getter == null) return console.error('invalid getter', gtag);
+			if(e.parse[gtag] == null) return console.error('invalid parser',gtag);
+
+			return getter(opt).then(_parse(e.parse[gtag]))
 		}
 	}.bind(this));
 }.bind(this));

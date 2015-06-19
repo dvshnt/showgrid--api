@@ -1,4 +1,4 @@
-
+var db = require('mongoose');
 
 var ticketSchema = new db.Schema({
     event: {type:db.Schema.Types.ObjectId, ref: 'Event'},
@@ -13,4 +13,6 @@ var ticketSchema = new db.Schema({
     },
 }); 
 
-module.exports = db.model('Ticket',ticketSchema);
+var ticket = db.model('Ticket',ticketSchema);
+
+module.exports = ticket;

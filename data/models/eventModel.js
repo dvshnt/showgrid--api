@@ -18,6 +18,8 @@ var eventSchema = new db.Schema({
 
 
 
+
+
 var event = db.model('Event',eventSchema);
 
 

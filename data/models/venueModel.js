@@ -22,7 +22,7 @@ var venueSchema = new db.Schema({
 	colors: {
 		primary: String,
 		secondary: String,
-	}
+	},
 	age: Number,
 	events: [{type:db.Schema.Types.ObjectId, ref: 'Event'}],
 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}],

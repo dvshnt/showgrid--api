@@ -1,28 +1,24 @@
+/*
+
+JAMBASE API 
+
+*/
+
 
 var cfg = require('../data_config.json').apis.jambase;
-
 var request = require('request');
-//var bodyParser = require('body-parser');
-
-//var Promise = require('promise');
-
-var cities = require('cities');
-
-var qs = require('querystring');
-
-
-process.on('uncaughtException', function (error) {
-   console.dir(error);
-});
-
-
-var key = cfg.keys[1];
-
-var db = require('../data.js');
-
-
+//var cities = require('cities');
 var Promise = require('bluebird');
-Promise.longStackTraces();
+var qs = require('querystring');
+var moment = require('moment');
+
+
+
+
+
+
+
+//Promise.longStackTraces();
 
 //GET VENUES
 
@@ -30,37 +26,14 @@ Promise.longStackTraces();
 
 
 var get = function(type,opts,cb){
-	var url = cfg.api+'/'+type;
-	var q = {api_key:key,page:0}
 
-	if(opt.zip != null) q.zipCode = opt.zip;
-	if(opt.radius != null) q.radius = opt.radius;
-
-
-	function get(resolve,reject){
-		request.get({
-			url : url + '?' + qs.stringify(q),
-			json: true
-		},cb.bind(this));
-	}
-	return new Promise(get);
 }
 
 
 
 module.exports.getVenues = function(opt){
-
-	return get('venues',opt,function(err,res,data){
-		console.log('got raw venues data !',resolve);
-		resolve(data.Venues);
-	});
-}
-
-
-//GET SHOWS
-module.exports.getEvents = function(opt){
-	var url = cfg.api+'/events';
-	var q = {api_key:key,page:0};
+	var url = cfg.api+'/venues';
+	var q = {api_key:opt.key,page:0}
 
 	if(opt.zip != null) q.zipCode = opt.zip;
 	if(opt.radius != null) q.radius = opt.radius;
@@ -71,7 +44,29 @@ module.exports.getEvents = function(opt){
 			url : url + '?' + qs.stringify(q),
 			json: true
 		},function(err,res,data){
-			console.log('got raw data !');
+			console.log('got raw venue data !');
+			resolve(data.Venues);
+		});
+	}
+	return new Promise(get);
+}
+
+
+//GET SHOWS
+module.exports.getEvents = function(opt){
+	var url = cfg.api+'/events';
+	var q = {api_key:opt.key,page:0};
+
+	if(opt.zip != null) q.zipCode = opt.zip;
+	if(opt.radius != null) q.radius = opt.radius;
+
+
+	function get(resolve,reject){
+		request.get({
+			url : url + '?' + qs.stringify(q),
+			json: true
+		},function(err,res,data){
+			console.log('got raw events data !');
 			resolve(data.Events);
 		});
 	}
@@ -135,7 +130,7 @@ module.exports.parseEvent = function(event){
 			type: 'jambase',
 			id: event.Id,
 		}],
-		date: dateParser('jambase',event.Date),
+		date: moment(event.Date,moment.ISO_8601).utc().format(), //ISO 8601 +0.00 UTC DATE FORMAT ONLY!
 		name: event.Name,
 		age: null,
 		venue: module.exports.parseVenue(event.Venue),
