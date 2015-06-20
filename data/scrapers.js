@@ -35,13 +35,20 @@ var jambase = require('./scrapers/jambase');
 var eventful = require('./scrapers/eventful');
 
 
+
+
+
 //SCRAPER HOOKS
 scrapers = {
 	'jambase' : {
+		'find': {
+			'venue' : jambase.findVenues,
+			'event' : jambase.findEvents,
+		},
 		'get' : {
-			'venue' : jambase.getVenues,
-			'event' : jambase.getEvents,
-			//'artist' : jambase.getArtists
+			'venue' : jambase.getVenue,
+			'event' : jambase.getEvent,
+			'artist' : jambase.getArtist
 		},
 		'parse': {
 			'venue' : jambase.parseVenue,
@@ -50,16 +57,36 @@ scrapers = {
 		}
 	},
 	'eventful' : {
+		'find': {
+			'venue' : eventful.findVenues,
+			'event' : eventful.findEvents,
+		},
 		'get' : {
-			'event' : eventful.getEvents,
-			'venue' : eventful.getVenues,
-			'artist' : eventful.getArtists
+			'event' : eventful.getEvent,
+			'venue' : eventful.getVenue,
+			'artist' : eventful.getArtist
 		},
 		'parse' : {
 			'event' : eventful.parseEvent,
-			'venue' : eventful.getVenue,
-			'artist' : eventful.getArtist 
+			'venue' : eventful.parseVenue,
+			'artist' : eventful.parseArtist 
 		}
+	},
+	'reverbnation' : {
+		'find': {
+			'venue' : reverbnation.findVenues,
+			'event' : reverbnation.findEvents,
+		},
+		'get' : {
+			'event' : reverbnation.getEvent,
+			'venue' : reverbnation.getVenue,
+			'artist' : reverbnation.getArtist
+		},
+		'parse' : {
+			'event' : reverbnation.parseEvent,
+			'venue' : reverbnation.parseVenue,
+			'artist' : reverbnation.parseArtist 
+		}		
 	}
 }
 
@@ -129,7 +156,7 @@ _.each(scrapers,function(e,tag){
 	_.each(e.get,function(getter,gtag){
 		module.exports[tag][gtag] = function(opt){
 			//console.log(e.get[ptag])
-			if(e.parse[gtag] == null) return console.error('invalid parser / getter pair, check your scraper hooks!')
+			if(e.parse[gtag] == null) return console.error('invalid parser / getter pair, check your scraper hooks! :',tag,gtag)
 			if(getter == null) return console.error('invalid getter', gtag);
 			if(e.parse[gtag] == null) return console.error('invalid parser',gtag);
 

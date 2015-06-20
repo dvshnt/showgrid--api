@@ -18,42 +18,56 @@ var Venue = require('../models/venueModel');
 
 
 
-module.exports.getEvents = function(opt){
+
+
+module.exports.findEvents = function(opt){
 
 	var url = cfg.api+'/events/search';
 	
 	var q = {
 		app_key:opt.key,
 		page_number:0,
-		page_size:1,
-		units: 'miles'
+		page_size:100,
+		units: 'miles',
+		category: 'music'
 	};
 
 
 	if(opt.zip != null) q.location = opt.zip;
 	if(opt.radius != null) q.within = opt.radius;
-	console.log(url)
 
 	function get(resolve,reject){
 		request.get({
 			url : url + '?' + qs.stringify(q),
 			json: true
 		},function(err,res,data){
-			console.log('got raw eventuful events data !');
-			resolve(data.events);
+			console.log('got raw eventful events data !');
+			console.log(data.events.event.length)
+			if(data.events.event != null && data.events.event.length > 0){
+				resolve(data.events.event);
+			}else if(data.events.event != null){
+				resolve([data.events.event]);
+			}else{
+				resolve([]);
+			}
 		});
 	}
 	return new Promise(get);
 }
 
-module.exports.getVenues = function(opt){
+
+
+
+
+module.exports.findVenues = function(opt){
 	var url = cfg.api+'/venues/search';
 	
 	var q = {
-		app_key:key,
+		app_key:opt.key,
 		page_number:0,
 		page_size:1,
-		units: 'miles'
+		units: 'miles',
+		category: 'music'
 	};
 
 
@@ -73,101 +87,103 @@ module.exports.getVenues = function(opt){
 	return new Promise(get);
 }
 
-module.exports.getArtists = function(opt){
-	var url = cfg.api+'/performers/search';
-	
+
+
+
+
+module.exports.getArtist = function(id){
+
+	var url = cfg.api+'/performers/get';
+
 	var q = {
-		app_key:key,
-		page_number:0,
-		page_size:1,
-		units: 'miles'
+		id: id,
+		show_events: true,
+		image_sizes: 'large'
 	};
-
-
-	if(opt.zip != null) q.location = opt.zip;
-	if(opt.radius != null) q.within = opt.radius;
-
 
 	function get(resolve,reject){
 		request.get({
 			url : url + '?' + qs.stringify(q),
 			json: true
 		},function(err,res,data){
-			
-			resolve(data.venues);
+			resolve(data);
 		});
-	}
+	};
+
 	return new Promise(get);
 }
+
+module.exports.getArtist = function(id){
+
+	var url = cfg.api+'/performers/get';
+
+	var q = {
+		id: id,
+		show_events: true,
+		image_sizes: 'large'
+	};
+
+	function get(resolve,reject){
+		request.get({
+			url : url + '?' + qs.stringify(q),
+			json: true
+		},function(err,res,data){
+			resolve(data);
+		});
+	};
+
+	return new Promise(get);
+}
+
+
+//ONLY FIND ARTISTS FROM AN AREA...
+
+// module.exports.getArtists = function(opt){
+// 	var url = cfg.api+'/performers/search';
+	
+// 	var q = {
+// 		app_key:key,
+// 		page_number:0,
+// 		page_size:1,
+// 		units: 'miles',
+// 		category: 'music'
+// 	};
+
+
+// 	if(opt.zip != null) q.location = opt.zip;
+// 	if(opt.radius != null) q.within = opt.radius;
+
+
+// 	function get(resolve,reject){
+// 		request.get({
+// 			url : url + '?' + qs.stringify(q),
+// 			json: true
+// 		},function(err,res,data){
+			
+// 			resolve(data.venues);
+// 		});
+// 	}
+// 	return new Promise(get);
+// }
+
+
+
+
 
 module.exports.parseArtist = function(artist){
 
 }
 
+
+
+
+
 module.exports.parseEvent = function(event){
-	//console.log(event);
-// { watching_count: null,
-//   olson_path: 'America/Chicago',
-//   calendar_count: null,
-//   comment_count: null,
-//   region_abbr: 'TN',
-//   postal_code: '37064',
-//   going_count: null,
-//   all_day: '0',
-//   latitude: '35.9225493',
-//   groups: null,
-//   url: 'http://eventful.com/franklin/events/agabus-dirty-proper-/E0-001-084863127-8?utm_source=apis&utm_medium=apim&utm_campaign=apic',
-//   id: 'E0-001-084863127-8',
-//   privacy: '1',
-//   city_name: 'Franklin',
-//   link_count: null,
-//   longitude: '-86.8659018',
-//   country_name: 'United States',
-//   country_abbr: 'USA',
-//   region_name: 'Tennessee',
-//   start_time: '2015-08-29 21:00:00',
-//   tz_id: null,
-//   description: null,
-//   modified: '2015-06-12 03:56:01',
-//   venue_display: '1',
-//   tz_country: null,
-//   performers: null,
-//   title: 'Agabus- Dirty Proper',
-//   venue_address: '214 Margin St.',
-//   geocode_type: 'EVDB Geocoder',
-//   tz_olson_path: null,
-//   recur_string: null,
-//   calendars: null,
-//   owner: 'evdb',
-//   going: null,
-//   country_abbr2: 'US',
-//   image: null,
-//   created: '2015-06-12 03:56:01',
-//   venue_id: 'V0-001-000212894-7',
-//   tz_city: null,
-//   stop_time: null,
-//   venue_name: 'Kimbro\'s Cafe',
-//   venue_url: 'http://eventful.com/franklin/venues/kimbros-cafe-/V0-001-000212894-7?utm_source=apis&utm_medium=apim&utm_campaign=apic' }
-// 	return event;
-
-// 	platforms: [{tag:String,id:String}], //Id's for different platforms.
-// 	date: Date,
-// 	ticket: {type:db.Schema.Types.ObjectId,ref:'Ticket'},
-// 	private: {type: Boolean, default: false},
-// 	featured: {type:Boolean, default: false},
-// 	age: {type: Number,max: 21, default: 21},
-// 	name: String,
-// 	venue: {type:db.Schema.Types.ObjectId,ref:'Venue'},
-// 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}],  //users going
-// 	artists: {
-// 		headers:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}],
-// 		openers:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}]
-// 	}
-
-	if(event.performers == null) return null;
-
-
-
+	// if(event.performers == null){
+	// 	console.log('no performers?!');
+	// 	return null;
+	// } 
+	// else console.log((event.performers)) ;
 	return {
 		name: event.title,
 		platforms: [{
@@ -180,28 +196,62 @@ module.exports.parseEvent = function(event){
 
 		},
 		venue: {
-			location: {
-				name: event.venue_name,
-				address: event.venue_address,
-				city: event.city_name,
-				zip: event.postal_code,
-				statecode: event.region_abbr,
-				countrycode: event.countryabbr,
-				gps: {
-					lat: event.latitude,
-					lon: event.longitude
-				}				
-			},
 			platforms: [{
 				tag: 'eventful',
 				id: event.venue_id
 			}],
-			
 		},
-		banners: [event.image.medium.url]
+		performers: (function(){
+			if(event.performer == null) return
+
+			if(event.performer.length != null){
+				var performers = _.each(event.performer,function(artist){
+					return {
+						platforms: [{
+							tag: 'eventful',
+							id: artist.id,
+						}],
+					}
+				});
+				return performers;
+			}else if(event.performer != null){
+				return [{
+					platforms: [{
+						tag: 'eventful',
+						id: event.performer.id,
+					}],
+				}]
+			}
+		})(),
+		banners: (function(){
+			if(event.image != null ){
+				if(event.image.medium != null){
+					return event.image.medium.url
+				}else if(event.image.small != null){
+					return event.image.small.url
+				}
+			}
+		})()
 	}
 }
 
 module.exports.parseVenue = function(venue){
-	console.log(venue)
+	return {
+		platforms: [{
+			tag: 'eventful',
+			id: venue.id
+		}],	
+		name: venue.name,	
+		location: {
+			address:venue.venue_address,
+			city: venue.city_name,
+			zip: venue.postal_code,
+			statecode: venue.region_abbr,
+			countrycode: venue.countryabbr,
+			gps: {
+				lat: venue.latitude,
+				lon: venue.longitude
+			}				
+		}	
+	}
 }
