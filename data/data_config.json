@@ -14,6 +14,9 @@
 				"aaddmdrur2am379yvxfkgdxs",
 				"qrq3a7xhf9wx8vh72bd45eud"
 			]
+		},
+		"reverbnation" : {
+			"api" : "http://reverbnation.com"
 		}
 	}
 }

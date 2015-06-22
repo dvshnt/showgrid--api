@@ -122,9 +122,14 @@ scrapers = {
 
 function _parse(parser){
 	return function(data){
-		var models = _.map(data,function(obj){
-			return parser(obj);
-		});
+		if(data.length != null){
+			var models = _.map(data,function(obj){
+				return parser(obj);
+			});			
+		}else{
+			var models = [parser(data)];
+		}
+
 		
 		return new Promise(function(res,rej){
 			res(models)
@@ -152,17 +157,33 @@ function _parse(parser){
 
 
 _.each(scrapers,function(e,tag){
-	module.exports[tag] = {};
+	module.exports[tag] = {get:{},find:{}};
+
+
 	_.each(e.get,function(getter,gtag){
-		module.exports[tag][gtag] = function(opt){
+		module.exports[tag].[gtag] = function(opt){
 			//console.log(e.get[ptag])
-			if(e.parse[gtag] == null) return console.error('invalid parser / getter pair, check your scraper hooks! :',tag,gtag)
+			if(e.parse[gtag] == null) return console.error('invalid parser / finder pair, check your scraper hooks! :',tag,gtag)
 			if(getter == null) return console.error('invalid getter', gtag);
 			if(e.parse[gtag] == null) return console.error('invalid parser',gtag);
 
 			return getter(opt).then(_parse(e.parse[gtag]))
 		}
 	}.bind(this));
+
+	_.each(e.find,function(finder,ftag){
+		module.exports[tag].find[ftag] = function(opt){
+			//console.log(e.get[ptag])
+			if(e.parse[gtag] == null) return console.error('invalid parser / getter pair, check your scraper hooks! :',tag,gtag)
+			if(finder == null) return console.error('invalid getter', gtag);
+			if(e.parse[gtag] == null) return console.error('invalid parser',gtag);
+
+			return finder(opt).then(_parse(e.parse[ftag]))
+		}
+	}.bind(this));
+
+
+
 }.bind(this));
 
 

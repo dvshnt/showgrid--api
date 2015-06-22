@@ -1,4 +1,6 @@
 var db = require('mongoose');
+var _ = require('lodash');
+
 var eventSchema = new db.Schema({
 	platforms: [{tag:String,id:String}], //Id's for different platforms.
 	date: Date,
@@ -18,7 +20,20 @@ var eventSchema = new db.Schema({
 }); 
 
 
+var scrapers = require('../scrapers.js');
 
+
+//FILL IN LINKS SECONDARY UPDATE.
+eventSchema.pre('save',function(next){
+ 	//get artists.
+
+ 	//find if artists already exist in database, if not scrape them.
+
+
+	_.each(this.artists.headers,function(artist){
+		scrapers.get()
+	})
+})
 
 
 

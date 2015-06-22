@@ -18,8 +18,8 @@ var Validator = function(endpoint,dataset){
 		return console.error('VALIDATOR/SAVE ERROR: no data endpoint found for ',event);
 	}
 //	console.log('IN VALIDATOR',endpoint,model);
-
-
+	
+	
 	var models = _.each(dataset,function(obj){
 		return new db[endpoint](obj);
 	});

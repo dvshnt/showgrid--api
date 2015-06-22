@@ -201,7 +201,9 @@ module.exports.parseEvent = function(event){
 				id: event.venue_id
 			}],
 		},
-		performers: (function(){
+		artists: {
+			headers: (function(){
+			
 			if(event.performer == null) return
 
 			if(event.performer.length != null){
