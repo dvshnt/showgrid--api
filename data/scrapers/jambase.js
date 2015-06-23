@@ -90,19 +90,16 @@ module.exports.getEvents = function(opt){
 module.exports.parseVenue = function(venue){
 	return{
 		name: venue.Name,
-		platforms: [{
-			tag: 'jambase',
-			id: venue.Id
-		}],
+		platforms: {'jambase': venue.Id},
 		location: {
 			address: venue.Address,
 			city: venue.City,
 			zip: venue.ZipCode,
 			statecode: venue.StateCode,
 			countrycode: venue.CountryCode,
-			gps: {lat: venue.Latitude,lon: venue.Longitude}
+			gps: {lat: venue.Latitude,lon: venue.Longitude},
 		},
-		url: venue.Url,
+		links: venue.Url,
 	};	
 }
 
@@ -112,10 +109,7 @@ module.exports.parseVenue = function(venue){
 //PARSE AN ARTIST
 module.exports.parseArtist = function(artist){
 	return{
-		platforms: [{
-			type: 'jambase',
-			id: artist.Id,
-		}],
+		platforms: {'jambase': artist.Id},
 		name: artist.Name,
 	};		
 }
@@ -126,10 +120,7 @@ module.exports.parseArtist = function(artist){
 //PARSE A SHOW
 module.exports.parseEvent = function(event){
 	return{
-		platforms: [{
-			type: 'jambase',
-			id: event.Id,
-		}],
+		platforms: {'jambase': event.Id},
 		date: moment(event.Date,moment.ISO_8601).utc().format(), //ISO 8601 +0.00 UTC DATE FORMAT ONLY!
 		name: event.Name,
 		age: null,

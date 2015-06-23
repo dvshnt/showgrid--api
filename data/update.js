@@ -29,10 +29,10 @@ var Validator = function(endpoint,dataset,save){
 
 		var model = new db[endpoint](obj);
 
-		if (save != true) return model;
-		model.save(function(err){
-			if(err) return console.error('ERROR SAVING IN VALIDATOR',endpoint, err);
-		})
+		// if (save != true) return model;
+		// model.save(function(err){
+		// 	if(err) return console.error('ERROR SAVING IN VALIDATOR',endpoint, err);
+		// })
 		return model;
 	});
 
@@ -199,7 +199,7 @@ function main(opt){
 				
 				return prom;
 			}.bind(this));
-		}else console.log('no scraper platform found: ',scraper_tag);;
+		}else console.log('no scraper platform found: ',plat_name);
 	}.bind(this)
 
 

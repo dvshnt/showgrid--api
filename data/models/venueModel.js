@@ -17,6 +17,7 @@ var venueSchema = new db.Schema({
 	url: String,
 	tags: [{type: String}],
 	links: [{type:String}], //link to venue site.
+	phone: String,
 	banners: [{
 		height: Number,
 		width: Number,

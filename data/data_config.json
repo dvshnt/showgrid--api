@@ -16,7 +16,7 @@
 			]
 		},
 		"reverbnation" : {
-			"api" : "http://reverbnation.com"
+			"api" : "https://www.reverbnation.com"
 		}
 	}
 }

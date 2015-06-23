@@ -33,7 +33,7 @@ var parser_count = 3
 
 var jambase = require('./scrapers/jambase');
 var eventful = require('./scrapers/eventful');
-
+var reverbnation = require('./scrapers/reverbnation');
 
 
 
@@ -69,7 +69,7 @@ module.exports =  {
 	'eventful' : {
 		'find': {
 			'venue' : eventful.findVenues,
-			'event' : eventful.findEvents,
+			//'event' : eventful.findEvents,
 		},
 		'get' : {
 			'event' : eventful.getEvent,
@@ -82,20 +82,20 @@ module.exports =  {
 			'artist' : [eventful.parseArtist] 
 		}
 	},
-	// 'reverbnation' : {
-	// 	// 'find': {
-	// 	// 	'venue' : reverbnation.findVenues,
-	// 	// 	'event' : reverbnation.findEvents,
-	// 	// },
-	// 	// 'get' : {
-	// 	// 	'event' : reverbnation.getEvent,
-	// 	// 	'venue' : reverbnation.getVenue,
-	// 	// 	'artist' : reverbnation.getArtist
-	// 	// },
-	// 	// 'parse' : {
-	// 	// 	'event' : reverbnation.parseEvent,
-	// 	// 	'venue' : reverbnation.parseVenue,
-	// 	// 	'artist' : reverbnation.parseArtist 
-	// 	// }		
-	// }
+	'reverbnation' : {
+		'find': {
+			'venue' : reverbnation.findVenues,
+			//'event' : reverbnation.findEvents,
+		},
+		'get' : {
+			//'event' : reverbnation.getEvent,
+			//'venue' : reverbnation.getVenue,
+			//'artist' : reverbnation.getArtist
+		},
+		'filters' : {
+			//'event' : reverbnation.parseEvent,
+			'venue' : [reverbnation.parseVenueFindItem],
+			//'artist' : reverbnation.parseArtist 
+		}		
+	}
 }
