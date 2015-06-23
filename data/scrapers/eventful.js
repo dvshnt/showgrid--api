@@ -11,19 +11,74 @@ var request = require('request');
 var Promise = require('bluebird');
 var qs = require('querystring');
 var moment = require('moment');
+var _ = require('lodash');
 
 
 var Venue = require('../models/venueModel');
 //Promise.longStackTraces();
 
 
-
+var current_key = null;
 
 
 module.exports.findEvents = function(opt){
 
 	var url = cfg.api+'/events/search';
 	
+	var q = {
+		app_key:opt.key || current_key,
+		page_number:0,
+		page_size: opt.query_size || 4,
+		units: 'miles',
+		category: 'music'
+	};
+
+
+	if(opt.zip != null) q.location = opt.zip;
+	if(opt.radius != null) q.within = opt.radius;
+
+
+	var page_count = 0;
+	var events = [];
+
+	if(opt.query_size < 100){
+		q.page_size = opt.query_size;
+	}
+
+	return new Promise(function(response){
+		var got_pages = 0;
+		var total_pages = 0;
+		for(;page_count<opt.query_size;page_count+=100,q.page_number++){
+			total_pages += 1;
+			request.get({
+				url : url + '?' + qs.stringify(q),
+				json: true
+			},function(err,res,data){
+				//console.log(data,"============================")
+				if(data.events.event != null && data.events.event.length > 0){
+					events = events.concat(data.events.event)
+				}else if(data.events.event != null){
+					events = events.concat([data.events.event])
+				}
+				got_pages++;
+				if(got_pages >= total_pages){
+					console.log("END FIND...QUERY SIZE REACHED.",got_pages,total_pages)
+					response(events)
+				}
+			});
+		}
+	});
+}
+
+
+
+
+
+module.exports.findVenues = function(opt){
+	current_key = opt.key;
+	var url = cfg.api+'/venues/search';
+	opt.query_size = opt.query_size || 4;
+
 	var q = {
 		app_key:opt.key,
 		page_number:0,
@@ -36,91 +91,51 @@ module.exports.findEvents = function(opt){
 	if(opt.zip != null) q.location = opt.zip;
 	if(opt.radius != null) q.within = opt.radius;
 
-	function get(resolve,reject){
-		request.get({
-			url : url + '?' + qs.stringify(q),
-			json: true
-		},function(err,res,data){
-			console.log('got raw eventful events data !');
-			console.log(data.events.event.length)
-			if(data.events.event != null && data.events.event.length > 0){
-				resolve(data.events.event);
-			}else if(data.events.event != null){
-				resolve([data.events.event]);
-			}else{
-				resolve([]);
-			}
-		});
+
+	var page_count = 0;
+	var venues = [];
+
+	if(opt.query_size < 100){
+		q.page_size = opt.query_size;
 	}
-	return new Promise(get);
+
+	return new Promise(function(response){
+		var got_pages = 0;
+		var total_pages = 0;
+		for(;page_count<opt.query_size;page_count+=100,q.page_number++){
+			total_pages += 1;
+			request.get({
+				url : url + '?' + qs.stringify(q),
+				json: true
+			},function(err,res,data){
+				//console.log(data,"============================")
+				if(data.venues.venue != null && data.venues.venue.length > 0){
+					venues = venues.concat(data.venues.venue)
+				}else if(data.venues.venue != null){
+					venues = venues.concat([data.venues.venue])
+				}
+				got_pages++;
+				if(got_pages >= total_pages){
+					console.log("END FIND...QUERY SIZE REACHED.",got_pages,total_pages)
+					response(venues)
+				}
+			});
+		}
+	});
 }
 
 
 
+//GET ARTIST
 
-
-module.exports.findVenues = function(opt){
-	var url = cfg.api+'/venues/search';
-	
-	var q = {
-		app_key:opt.key,
-		page_number:0,
-		page_size:1,
-		units: 'miles',
-		category: 'music'
-	};
-
-
-	if(opt.zip != null) q.location = opt.zip;
-	if(opt.radius != null) q.within = opt.radius;
-
-
-	function get(resolve,reject){
-		request.get({
-			url : url + '?' + qs.stringify(q),
-			json: true
-		},function(err,res,data){
-			
-			resolve(data.venues);
-		});
-	}
-	return new Promise(get);
-}
-
-
-
-
-
-module.exports.getArtist = function(id){
+module.exports.getArtist = function(opt){
 
 	var url = cfg.api+'/performers/get';
 
 	var q = {
-		id: id,
-		show_events: true,
-		image_sizes: 'large'
-	};
-
-	function get(resolve,reject){
-		request.get({
-			url : url + '?' + qs.stringify(q),
-			json: true
-		},function(err,res,data){
-			resolve(data);
-		});
-	};
-
-	return new Promise(get);
-}
-
-module.exports.getArtist = function(id){
-
-	var url = cfg.api+'/performers/get';
-
-	var q = {
-		id: id,
-		show_events: true,
-		image_sizes: 'large'
+		app_key: opt.key || current_key,
+		id: opt.id,
+		image_sizes: 'large',
 	};
 
 	function get(resolve,reject){
@@ -136,6 +151,54 @@ module.exports.getArtist = function(id){
 }
 
 
+
+//GET EVENT
+
+module.exports.getEvent = function(opt){
+
+	var url = cfg.api+'/events/get';
+
+	var q = {
+		app_key: opt.key || current_key,
+		id: opt.id,
+		image_sizes: 'large',
+	};
+
+	function get(resolve,reject){
+		request.get({
+			url : url + '?' + qs.stringify(q),
+			json: true
+		},function(err,res,data){
+			resolve(data);
+		});
+	};
+
+	return new Promise(get);
+}
+
+//GET VENUE
+
+module.exports.getVenue = function(opt){
+
+	var url = cfg.api+'/venues/get';
+
+	var q = {
+		app_key: opt.key || current_key,
+		id: opt.id,
+		image_sizes: 'large',
+	};
+
+	function get(resolve,reject){
+		request.get({
+			url : url + '?' + qs.stringify(q),
+			json: true
+		},function(err,res,data){
+			resolve(data);
+		});
+	};
+
+	return new Promise(get);
+}
 //ONLY FIND ARTISTS FROM AN AREA...
 
 // module.exports.getArtists = function(opt){
@@ -168,7 +231,7 @@ module.exports.getArtist = function(id){
 
 
 
-
+//PARSE ARTIST
 
 module.exports.parseArtist = function(artist){
 
@@ -176,7 +239,7 @@ module.exports.parseArtist = function(artist){
 
 
 
-
+//FILTER EVENT
 
 module.exports.parseEvent = function(event){
 	// if(event.performers == null){
@@ -184,61 +247,103 @@ module.exports.parseEvent = function(event){
 	// 	return null;
 	// } 
 	// else console.log((event.performers)) ;
-	return {
+	console.log(event)
+	var event =  {
 		name: event.title,
+
 		platforms: [{
 			tag: 'eventful',
 			id: event.id
 		}],
+
 		description: event.description,
+
 		date: moment(event.start_time,moment.ISO_8601).utc().format(),
+
 		performers: {
 
 		},
+
 		venue: {
 			platforms: [{
 				tag: 'eventful',
 				id: event.venue_id
 			}],
 		},
+
 		artists: {
 			headers: (function(){
 			
-			if(event.performer == null) return
+				if(event.performer == null) return;
 
-			if(event.performer.length != null){
-				var performers = _.each(event.performer,function(artist){
-					return {
+				if(event.performer.length != null){
+					var performers = _.each(event.performer,function(artist){
+						return {
+							platforms: [{
+								tag: 'eventful',
+								id: artist.id,
+							}],
+						}
+					});
+					return performers;
+				}else if(event.performer != null){
+					return [{
 						platforms: [{
 							tag: 'eventful',
-							id: artist.id,
+							id: event.performer.id,
 						}],
-					}
-				});
-				return performers;
-			}else if(event.performer != null){
-				return [{
-					platforms: [{
-						tag: 'eventful',
-						id: event.performer.id,
-					}],
-				}]
-			}
-		})(),
+					}]
+				}
+			})(),
+		},
 		banners: (function(){
 			if(event.image != null ){
 				if(event.image.medium != null){
-					return event.image.medium.url
+					return event.image.medium.url;
 				}else if(event.image.small != null){
-					return event.image.small.url
+					return event.image.small.url;
 				}
 			}
 		})()
 	}
+
+	// return new Promise(function(res,rej){
+	// 	module.exports.getEvent({id:event.platforms[0].id}).then(function(raw_venue){
+	// 		if(raw_venue == null) return res(venue);
+
+	// 		var getlink = function(){
+	// 			if(raw_venue.links != null && raw_venue.links.link.length != null){
+	// 				venue.links = _.map(raw_venue.links.link,function(link){
+	// 					return link.url;
+	// 				});				
+	// 			}else if(raw_venue.links != null && raw_venue.links.link.url != null){
+	// 				venue.links = [raw_venue.links.link.url];
+	// 			} 
+	// 		}
+
+	// 		var getbanner = function(){
+	// 			venue.banners = raw_venue.images.image;
+	// 		}
+
+	// 		venue.address = raw_venue.address;
+	// 		venue.banners = raw_venue.images != null ? raw_venue.images.image : [];
+	// 		venue.tags = raw_venue.tags != null ? raw_venue.tags.tag : [];
+
+	// 		res(venue);
+	// 	});
+	// });	
 }
 
+
+
+
+
+
+
+//FILTER VENUE DATA
 module.exports.parseVenue = function(venue){
-	return {
+	//console.log('PARSE')
+	var venue = {
 		platforms: [{
 			tag: 'eventful',
 			id: venue.id
@@ -249,11 +354,39 @@ module.exports.parseVenue = function(venue){
 			city: venue.city_name,
 			zip: venue.postal_code,
 			statecode: venue.region_abbr,
-			countrycode: venue.countryabbr,
+			countrycode: venue.country_abbr,
 			gps: {
 				lat: venue.latitude,
 				lon: venue.longitude
 			}				
-		}	
+		}
 	}
+
+
+	//get link
+	return new Promise(function(res,rej){
+		module.exports.getVenue({id:venue.platforms[0].id}).then(function(raw_venue){
+			if(raw_venue == null) return res(venue);
+
+			var getlink = function(){
+				if(raw_venue.links != null && raw_venue.links.link.length != null){
+					venue.links = _.map(raw_venue.links.link,function(link){
+						return link.url;
+					});				
+				}else if(raw_venue.links != null && raw_venue.links.link.url != null){
+					venue.links = [raw_venue.links.link.url];
+				} 
+			}
+
+			var getbanner = function(){
+				venue.banners = raw_venue.images.image;
+			}
+
+			venue.address = raw_venue.address;
+			venue.banners = raw_venue.images != null ? raw_venue.images.image : [];
+			venue.tags = raw_venue.tags != null ? raw_venue.tags.tag : [];
+
+			res(venue);
+		});
+	})
 }

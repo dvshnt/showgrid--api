@@ -11,7 +11,9 @@ update({
 			endpoints : ['event'],
 			params: {
 				key: api_cfg.eventful.keys[0],
-				zip: '37064'
+				zip: '37064',
+				radius: 50,
+				query_size: 2,
 			},
 		},
 		// 'jambase' : {

@@ -1,7 +1,8 @@
 var db = require('mongoose');
+var _ = require('lodash');
 var venueSchema = new db.Schema({
 	name: String,
-	platforms: [{tag:String,id:Number}],
+	platforms: [{tag:String,id:String}],
 	location: {
 		address: String,
 		city: String,
@@ -14,11 +15,13 @@ var venueSchema = new db.Schema({
 		}
 	},
 	url: String,
-	banner: {
-		sm: String,
-		md: String,
-		lg: String,
-	},
+	tags: [{type: String}],
+	links: [{type:String}], //link to venue site.
+	banners: [{
+		height: Number,
+		width: Number,
+		url: String
+	}],
 	colors: {
 		primary: String,
 		secondary: String,
@@ -33,6 +36,15 @@ venueSchema.methods.scrapeBanner = function(){
 	if (this.url == null) return console.error('failed to scrape venue with no url');
 	else console.log('scraping banner for "',this.name,'"')
 }
+
+
+venueSchema.methods.fillLinks = function(){
+	_.find(this,function(obj){
+		return obj.platforms != null
+	});
+}
+
+
 
 
 var venue = db.model('Venue',venueSchema);
