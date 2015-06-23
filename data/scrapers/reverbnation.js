@@ -82,27 +82,90 @@ module.exports.findVenues = function(opt){
 	return search('venue',opt);
 }
 
+module.exports.findShows = function(opt){
+	return search('show',opt);
+}
 
 
-module.exports.getVenueBody = function(id){
+
+
+
+
+//go straight to page 10 and it will hack out all the events. (apparently)
+module.exports.getVenueEvents = function(venueid){
 	function get(resolve,reject){
 		request.get({
-			url : cfg.api+'/venue/'+id,
+			url : cfg.api+'/venue/load_schedule/'+venueid+'?page=10',
 		},function(err,res,body){
-			resolve(body);
+			var $ = cheerio.load(body);
+			var events = [];
+			_.each($('.show_nugget'),function(nugget){
+				events.push(module.exports.parseEvent($.html(nugget)));
+			});
+			resolve(events);
 		});
 	};
 	return new Promise(get);
+};
+
+
+
+module.exports.getArtist = function(artistid){
+	function get(resolve,reject){
+		request.get({
+			url : cfg.api+'/venue/load_schedule/'+venueid+'?page=10',
+		},function(err,res,body){
+			var $ = cheerio.load(body);
+			var events = [];
+			_.each($('.show_nugget'),function(nugget){
+				events.push(module.exports.parseEvent($.html(nugget)));
+			});
+			resolve(events);
+		});
+	};
+	return new Promise(get);
+};
+
+
+
+
+
+//parse through a group of show entries.
+module.exports.parseEvent = function(nugget){
+	var $ = cheerio.load(nugget);
+
+	var event = {
+		platform: {'reverbnation': $($('.shows_buttons_container > a')[0]).attr('href').match(/\d+/)},
+		date: moment(new Date($('.shows_date_').text())).utc().format(),
+		artists : {headliners:[]},
+		ticket : {
+			links: [$($('.shows_buttons_container > a')[2]).attr('href')]
+		}
+	};
+
+
+
+
+
+	_.each($('.shows_bands_container_ > li'),function(el){
+		module.exports.getArtist($(el).find('.show_artist a').attr('href')).then(function(artist){
+			
+		})
+		event.artists.headlines.push();
+	});
+
+	return new Promise(function(res,rej){
+
+	})
 }
 
 
-module.exports.parseEventBody = function(nugget){
-	
-}
 
 
 
 
+
+//Parse Venue List Item
 module.exports.parseVenueFindItem = function(venue){
 
 
@@ -118,6 +181,7 @@ module.exports.parseVenueFindItem = function(venue){
 		events: [],
 		links: [],
 	}
+	console.log(parsed.platforms)
 	//console.log($('.js-results-div > .alert-box > h5,h3,h4,h2,h1').html());
 
 	return new Promise(function(resolve,reject){
@@ -141,6 +205,10 @@ module.exports.parseVenueFindItem = function(venue){
 			//contact info..
 			parsed.phone = $($('.profile_section_container_contents > p')[1]).text().split('.').join('-').match(/[^\s]+/)[0];
 
+			//age info..
+			var age_match = $($('.profile_section_container_contents > .two_column > span')[1]).text().match(/\d+/);
+			if(age_match != null) parsed.age = age_match[0];
+	
 
 			//links info... (social media linkes like twitter and facebook)
 			var addr = $('.profile_section_container_contents > p > span');
@@ -194,24 +262,12 @@ module.exports.parseVenueFindItem = function(venue){
 			});
 
 
-			//event info
-			_.each($('#shows_container > li'),function(nugget){
-				
-				module.exports.parseEventBody(nugget).then(function(events){
-					parsed.events = parsed.events.concat(events);
-					
-					console.log(parsed);
-
-				}.bind(this));
-
-			}.bind(this));
-
-
-
-				
-				
-			//console.log(parsed);
-			resolve(parsed);
+			//fill in venue events!
+			module.exports.getVenueEvents(parsed.platform['reverbnation']).then(function(data){
+				parsed.events = data;
+				resolve(parsed);
+			});
+			
 		});
 	});
 }
