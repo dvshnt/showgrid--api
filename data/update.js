@@ -12,6 +12,30 @@ var Promise = require('bluebird');
 //console.log(db);
 
 
+
+/*
+
+Model validator for events/venues/artists finds a similar model and if one is found that has a definite match, (like for example same name)
+then the preexisting model is updated and saved.
+
+If no matches are found the function saves the model.
+
+Returns a promise that resolves when the data is saved or updated into the database.
+
+*/
+
+var validateSaveModel = function(model){
+	console.log(model.name);
+
+
+	return new Promise(function(resolve){
+		resolve()
+	});
+}
+
+
+
+
 //Validator checks parsed data
 var Validator = function(endpoint,dataset,save){
 
@@ -24,21 +48,22 @@ var Validator = function(endpoint,dataset,save){
 	}
 	//console.log('IN VALIDATOR',endpoint,dataset);
 	
-	
+	var response,total = dataset.length,count=0;
+
 	var models = _.map(dataset,function(obj){
-
 		var model = new db[endpoint](obj);
-
-		// if (save != true) return model;
-		// model.save(function(err){
-		// 	if(err) return console.error('ERROR SAVING IN VALIDATOR',endpoint, err);
-		// })
+		validateSaveModel(model).then(function(){
+			count++;
+			if(count >= total){
+				response(models);
+			}
+		});
 		return model;
 	});
 
 
 	return new Promise(function(res,rej){
-		res(models);
+		response = res;
 	});
 }
 
@@ -82,13 +107,20 @@ function main(opt){
 	var new_data = []; //list of new data models added to the database gets promised back when all endpoints of each platform are updated and saved.
 	var updated_data = [];
 
-
+	
 	var stepcheck = function(){
 		done++;
+		
 		if(done >= total){
 			response({new_data:new_data,updated_data:updated_data});
 		}
 	}
+
+	var start_time = new Date().getTime();
+	// setInterval(function(){
+
+	// 	console.log('getting...',Math.floor(((start_time - new Date().getTime())/1000)) );
+	// }, 1100)
 
 
 	//core update function.
@@ -158,6 +190,8 @@ function main(opt){
 							obj_pipe = obj_pipe.then(function(parsed_obj){
 								data[i] = parsed_obj;
 								//console.log('DONE PARSE');
+								//console.log(parsed_obj);
+								//console.log(data_count);
 								data_count ++;
 								if(data_count >= data_total){
 									exit_pipe(data); 

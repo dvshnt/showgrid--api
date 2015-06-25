@@ -21,7 +21,7 @@ function search(type,opt){
 
 	var results = [];
 	var url = cfg.api+'/main/search';
-	opt.query_size = 2;
+	opt.query_size = opt.query_size || 50;
 	var q = {
 		country: opt.country_code || 'US',
 		filter_type: type,
@@ -37,43 +37,57 @@ function search(type,opt){
 	};
 
 	var total = 0;
-	function get(resolve,reject){
 
+
+	var response;
+
+
+	function get(res,rej){
+		//console.log('GET..',q.page,sent_requests_aprrox);
+		
 		request.get({
 			url : url + '?' + qs.stringify(q),
 		},function(err,res,body){
-			q.page++;
+			sent_requests++;
 			var $ = cheerio.load(body);
 			var nodes = $('.content-container > .js-results-div > ul > li');
 			total = $('.content-container > .js-results-div > .alert-box > h5').html().match(/^\d{0,4}/) || total;
 			if(total != null) total = parseInt(total[0]);
 			
-		
 			_.each(nodes,function(node){
 				if(results.length >= opt.query_size) return null;
 				return results.push($.html(node));
 			});
 
-
-			
 			if(opt.query_size > total){
 				opt.query_size = total;
 			}
 
-			console.log(results.length,opt.query_size)
 			if(results.length >= (opt.query_size || total)){
-				return resolve(results);
-			}else{
-				get(resolve,reject);
+				return response(results);
+			}else if(sent_requests >= sent_requests_aprrox){
+				get(res,rej);
 			}
-
-
-
-			
 		});
+		q.page++;
 	};
 
-	return new Promise(get);
+
+	var sent_requests_aprrox = Math.round(opt.query_size/pagination_count);
+	var sent_requests = 0;
+
+
+	//async
+	for(var i = 0;i<sent_requests_aprrox;i++){
+		get();
+	}
+
+
+
+
+	return new Promise(function(res){
+		response = res;
+	});
 }
 
 
@@ -109,6 +123,11 @@ function getVenueEvents(venueid){
 
 			var $ = cheerio.load(body);
 			var nuggets = $('.show_nugget');
+
+
+			if(nuggets.length == 0) return resolve({});
+
+
 			var loaded_count = 0; 
 			var loaded_total = nuggets.length;
 			_.each(nuggets,function(nugget){
@@ -123,8 +142,7 @@ function getVenueEvents(venueid){
 							resolve(events);
 						}else{
 							//if no same events are found that means we can push that data and try and get more.
-							//console.log('no same events found that means there are more')
-							//console.log('push an event to the venue events');
+
 							events.push(data);
 							//get more..
 							get();
@@ -149,9 +167,11 @@ function getVenueEvents(venueid){
 //parse through a group of show entries.
 module.exports.parseEvent = function(nugget){
 	var $ = cheerio.load(nugget);
-	//console.log('PARSE ENVENT',$('.shows_date_').text());
+
+
+	var event_id = $($('.shows_buttons_container > a')[0]).attr('href');
 	var event = {
-		platform: {'reverbnation': $($('.shows_buttons_container > a')[0]).attr('href').match(/\d+/)},
+		platform: {'reverbnation': event_id != null ? event_id.match(/\d+/)[0] : null},
 		date: moment(new Date($('.shows_date_').text()+' '+new Date().getFullYear())).utc().format(),
 		artists : {headliners:[]},
 		ticket : {
@@ -173,8 +193,7 @@ module.exports.parseEvent = function(nugget){
 	return new Promise(function(res,rej){
 		_.each(event_performers,function(el){
 			var artist_link = $(el).find('.shows_bands_row_band_');
-			//console.log('TRYING TO FIND ARTIST LINK FROM EVENT...');
-			//console.log();
+
 
 			event.artists.headliners.push({
 				platforms:{'reverbnation':artist_link.attr('href')},
@@ -189,7 +208,7 @@ module.exports.parseEvent = function(nugget){
 	
 }
 module.exports.getArtistBody = function(artisthref){
-	console.log('GET ARTIST',artisthref);
+	//console.log('GET ARTIST',artisthref);
 	function get(resolve,reject){
 		request.get({
 			url : cfg.api+artisthref,
@@ -203,8 +222,7 @@ module.exports.getArtistBody = function(artisthref){
 
 function parseArtist(body){
 
-	//console.log('PARSE ARIST BODY...')
-	//console.log(body)
+
 
 	return new Promise(function(res,rej){
 		res({})
@@ -226,7 +244,31 @@ module.exports.getVenue = function(id){
 }
 
 
+function parseVenuePhotos(body){
+	if(body == null) return {};
+	var $ = cheerio.load(body);
+	var banners  = $('.photo_browser img');
+	return _.map(banners,function(el){
+		return {
+			height: 0,
+			width: 0,
+			url: $(el).attr('lazy_load')
+		}
 
+	});
+}
+
+function getVenueBanners(photoid,object){
+	function get(resolve,reject){
+		request.get({
+			url : cfg.api+'/venue/view_photo_popup/photo_'+photoid
+		},function(err,res,body){
+			object.banners = parseVenuePhotos(body);
+			resolve();
+		});
+	};
+	return new Promise(get)
+}
 
 
 var util = require('util');
@@ -247,8 +289,7 @@ module.exports.parseVenueFindItem = function(venue){
 		events: [],
 		links: [],
 	}
-	console.log(parsed.platforms)
-	//console.log($('.js-results-div > .alert-box > h5,h3,h4,h2,h1').html());
+
 
 	return new Promise(function(resolve,reject){
 		module.exports.getVenue(parsed.platforms['reverbnation']).then(function(body){
@@ -269,12 +310,20 @@ module.exports.parseVenueFindItem = function(venue){
 
 
 			//contact info..
-			parsed.phone = $($('.profile_section_container_contents > p')[1]).text().split('.').join('-').match(/[^\s]+/)[0];
+			if($($('.profile_section_container_contents > p')[1]).text() != null){
+				var p_with_space = $($('.profile_section_container_contents > p')[1]).text().split('.').join('-');
+				if(p_with_space.match(/[^\s]+/) != null){
+					parsed.phone = p_with_space.match(/[^\s]+/)[0];
+				}else{
+					parsed.phone = p_with_space;
+				}
+			}
+			
 
 			//age info..
 			var age_match = $($('.profile_section_container_contents > .two_column > span')[1]).text().match(/\d+/);
 			if(age_match != null) parsed.age = age_match[0];
-	
+			
 
 			//links info... (social media linkes like twitter and facebook)
 			var addr = $('.profile_section_container_contents > p > span');
@@ -327,19 +376,27 @@ module.exports.parseVenueFindItem = function(venue){
 				}
 			});
 
+			var photos_linkid = $($('.profile_photos a')[0]).attr('onclick').match(/(?!photo_)\d+/);
 
-			//fill in venue events!
-			getVenueEvents(parsed.platforms['reverbnation']).then(function(data){
+			if(photos_linkid != null){
+				var promise = getVenueBanners(photos_linkid,parsed).then(getVenueEvents(parsed.platforms['reverbnation']));
+			}else{
+				var promise = getVenueEvents(parsed.platforms['reverbnation']);
+			}
+			
+			
+
+			//fill in venue banners and events!
+			promise.then(function(data){
 				parsed.events = data;
-
+				
 				//link events with venue
 				_.each(parsed.events,function(event){
 					event.venue = {
 						platforms: {'reverbnation':parsed.platforms['reverbnation']}
 					}
 				});
-				//console.log(util.inspect(parsed, {showHidden: false, depth: null}));
-				console.log(parsed)
+				console.log('got..',parsed.banners);
 				resolve(parsed);
 			});
 		});
