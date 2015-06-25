@@ -2,7 +2,7 @@ var db = require('mongoose');
 var _ = require('lodash');
 var venueSchema = new db.Schema({
 	name: String,
-	platforms: [{tag:String,id:String}],
+	platforms: Array,
 	location: {
 		address: String,
 		city: String,
@@ -18,11 +18,7 @@ var venueSchema = new db.Schema({
 	tags: [{type: String}],
 	links: [{type:String}], //link to venue site.
 	phone: String,
-	banners: [{
-		height: Number,
-		width: Number,
-		url: String
-	}],
+	banners: Array,
 	colors: {
 		primary: String,
 		secondary: String,

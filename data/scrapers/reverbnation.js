@@ -48,6 +48,7 @@ function search(type,opt){
 		request.get({
 			url : url + '?' + qs.stringify(q),
 		},function(err,res,body){
+
 			sent_requests++;
 			var $ = cheerio.load(body);
 			var nodes = $('.content-container > .js-results-div > ul > li');
@@ -73,7 +74,7 @@ function search(type,opt){
 	};
 
 
-	var sent_requests_aprrox = Math.round(opt.query_size/pagination_count);
+	var sent_requests_aprrox = Math.floor(opt.query_size/pagination_count+1);
 	var sent_requests = 0;
 
 
@@ -171,6 +172,7 @@ module.exports.parseEvent = function(nugget){
 
 	var event_id = $($('.shows_buttons_container > a')[0]).attr('href');
 	var event = {
+		is: 'event',
 		platform: {'reverbnation': event_id != null ? event_id.match(/\d+/)[0] : null},
 		date: moment(new Date($('.shows_date_').text()+' '+new Date().getFullYear())).utc().format(),
 		artists : {headliners:[]},
@@ -283,6 +285,7 @@ module.exports.parseVenueFindItem = function(venue){
 
 	var cit = $('.ml1 > p > span').text().split(',');
 	var parsed = {
+		is: 'venue',
 		platforms:{'reverbnation' : $('li').data('search-id')},
 		name: $('.ml1 > h4.mb1').text(),
 		banners: [$('img').attr('src')],
@@ -393,18 +396,14 @@ module.exports.parseVenueFindItem = function(venue){
 				//link events with venue
 				_.each(parsed.events,function(event){
 					event.venue = {
+						is: 'venue',
 						platforms: {'reverbnation':parsed.platforms['reverbnation']}
 					}
 				});
-				console.log('got..',parsed.banners);
+				//console.log('got..',parsed.banners);
 				resolve(parsed);
 			});
 		});
 	});
 }
 
-
-
-module.exports.findEvents = function(){
-	
-}

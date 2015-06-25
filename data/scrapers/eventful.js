@@ -185,6 +185,7 @@ module.exports.parseEvent = function(event){
 	// } 
 	// else console.log((event.performers)) ;
 	var event =  {
+		is: 'event',
 		name: event.title,
 		platforms: {
 			'eventful' : event.id
@@ -251,6 +252,7 @@ module.exports.parseEvent = function(event){
 module.exports.parseVenue = function(venue){
 	//console.log('PARSE')
 	var venue = {
+		is: 'venue',
 		platforms: {'eventful': venue.id},	
 		name: venue.name,	
 		location: {

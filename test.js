@@ -14,7 +14,7 @@ update({
 				zip: '37064',
 				country: 'US',
 				radius: 50,
-				query_size: 100,
+				query_size: 2,
 			},
 		},
 		// 'jambase' : {

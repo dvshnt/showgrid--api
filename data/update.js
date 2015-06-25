@@ -24,8 +24,33 @@ Returns a promise that resolves when the data is saved or updated into the datab
 
 */
 
-var validateSaveModel = function(model){
-	console.log(model.name);
+
+
+var findSimilar = function(obj){
+
+}
+
+
+//var tag_names = ['venues','events','users','artists','tickets','ticket'];
+var validateSaveModel = function(raw_obj){
+
+
+	if(raw_obj.platforms == null || raw_obj.is == null) return console.error('VALIDATE SAVE ERROR: data object has no platforms and/or is property, therefore it is not a schema!');
+	
+
+
+	_.each(raw_obj,function(child,key){
+
+		//first, lets find any nested schemas..and recursively call them
+		if(_.isArray(child)){
+			_.each(child,function(obj){
+				if(obj.platforms != null) obj = validateSaveModel(obj)
+			});
+		}else if(_.isObject(child)){
+			if(child.platforms != null)	obj = validateSaveModel(obj)
+		}
+	});
+
 
 
 	return new Promise(function(resolve){
@@ -37,7 +62,7 @@ var validateSaveModel = function(model){
 
 
 //Validator checks parsed data
-var Validator = function(endpoint,dataset,save){
+var Validator = function(dataset,save){
 
 	//console.log(dataset)
 
@@ -49,10 +74,10 @@ var Validator = function(endpoint,dataset,save){
 	//console.log('IN VALIDATOR',endpoint,dataset);
 	
 	var response,total = dataset.length,count=0;
-
-	var models = _.map(dataset,function(obj){
-		var model = new db[endpoint](obj);
-		validateSaveModel(model).then(function(){
+	var models = [];
+	_.each(dataset,function(obj){
+		validateSaveModel(obj).then(function(model){
+			models.push(model);
 			count++;
 			if(count >= total){
 				response(models);
@@ -189,7 +214,7 @@ function main(opt){
 							//when object has gone through all filters, replace with origional object.
 							obj_pipe = obj_pipe.then(function(parsed_obj){
 								data[i] = parsed_obj;
-								//console.log('DONE PARSE');
+								console.log('DONE PARSE');
 								//console.log(parsed_obj);
 								//console.log(data_count);
 								data_count ++;
@@ -215,7 +240,7 @@ function main(opt){
 				//run the pipe through the validator (checks if data exists in)
 				prom = prom.then(function(data){
 					//console.log('in vali',data);
-					return Validator(endpoint,data,opt.save)
+					return Validator(data,opt.save)
 				}.bind(this));
 
 
