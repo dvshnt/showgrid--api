@@ -56,9 +56,10 @@ module.exports =  {
 			'event' : jambase.findEvents,
 		},
 		'get' : {
-			'venue' : jambase.getVenue,
-			'event' : jambase.getEvent,
-			'artist' : jambase.getArtist
+			/*
+				getting specific venues and artists is useless here because entire event objects are contained within the find requests.
+				to update data from jambase just query the find scrapers with zipcode or city again and it will update the venues and events accordingly.
+			*/
 		},
 		'filters': {
 			'venue' : [jambase.parseVenue],
@@ -66,10 +67,17 @@ module.exports =  {
 			'artist' : [jambase.parseArtist]
 		}
 	},
+
+
+	/*
+		40-50% of all data from eventful seems to be scraped from reverbnation because the event/venues link back to reverb
+		with the sponsor message "find out more at reverbnation!"
+		
+	*/
 	'eventful' : {
 		'find': {
 			'venue' : eventful.findVenues,
-			//'event' : eventful.findEvents,
+			'event' : eventful.findEvents,
 		},
 		'get' : {
 			'event' : eventful.getEvent,
@@ -82,20 +90,35 @@ module.exports =  {
 			'artist' : [eventful.parseArtist] 
 		}
 	},
+
+	/*
+	all events/shows in reverbnation are linked directly with the venues, there is not search functionality for events. 
+		
+	to update data from reverbnation just send the search query for the venues and it auto update all the events!
+
+	*/
 	'reverbnation' : {
 		'find': {
 			'venue' : reverbnation.findVenues,
-			//'event' : reverbnation.findEvents,
 		},
 		'get' : {
-			//'event' : reverbnation.getEvent,
-			//'venue' : reverbnation.getVenue,
-			//'artist' : reverbnation.getArtist
+			'venue' : reverbnation.getVenue,
 		},
 		'filters' : {
-			//'event' : reverbnation.parseEvent,
 			'venue' : [reverbnation.parseVenueFindItem],
-			//'artist' : reverbnation.parseArtist 
 		}		
+	},
+
+
+	//TODO...
+	/*
+		facebook contains 99% of all shows artists and venues, validating data with facebook is guaranteed a complete and total scrape of 
+		all social media present venues shows and artists.
+
+		in fact, from my research I could even argue that reverbnation actually pulls some of its venue data from facebook itself since some of the
+		venue data such as events are labled with fb_
+	*/
+	'facebook' : {
+
 	}
 }

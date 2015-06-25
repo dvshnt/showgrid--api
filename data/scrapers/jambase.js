@@ -30,8 +30,8 @@ var get = function(type,opts,cb){
 }
 
 
-
-module.exports.getVenues = function(opt){
+//FIND VENUES
+module.exports.findVenues = function(opt){
 	var url = cfg.api+'/venues';
 	var q = {api_key:opt.key,page:0}
 
@@ -52,8 +52,8 @@ module.exports.getVenues = function(opt){
 }
 
 
-//GET SHOWS
-module.exports.getEvents = function(opt){
+//FIND SHOWS
+module.exports.findEvents = function(opt){
 	var url = cfg.api+'/events';
 	var q = {api_key:opt.key,page:0};
 

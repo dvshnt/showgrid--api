@@ -91,41 +91,57 @@ module.exports.findShows = function(opt){
 
 
 
-//go straight to page 10 and it will hack out all the events. (apparently)
-module.exports.getVenueEvents = function(venueid){
-	function get(resolve,reject){
+//go through all pages and get all the events from the venue
+function getVenueEvents(venueid){
+
+	var page = 0;
+	var current = 1;
+	var events = [];
+	var resolve;
+
+	function get(){
+		//console.log('get',cfg.api+'/venue/load_schedule/'+venueid+'?page='+current);
 		request.get({
-			url : cfg.api+'/venue/load_schedule/'+venueid+'?page=10',
+			url : cfg.api+'/venue/load_schedule/'+venueid+'?page='+current,
 		},function(err,res,body){
+			current++;
+
+
 			var $ = cheerio.load(body);
-			var events = [];
-			_.each($('.show_nugget'),function(nugget){
-				events.push(module.exports.parseEvent($.html(nugget)));
+			var nuggets = $('.show_nugget');
+			var loaded_count = 0; 
+			var loaded_total = nuggets.length;
+			_.each(nuggets,function(nugget){
+				module.exports.parseEvent($.html(nugget)).then(function(data){
+					loaded_count++;
+					
+					if(loaded_count >= loaded_total){
+						if(_.find(events,{
+							date: data.date
+						}) != null){
+							//console.log('all events found.. resolve venue events.')
+							resolve(events);
+						}else{
+							//if no same events are found that means we can push that data and try and get more.
+							//console.log('no same events found that means there are more')
+							//console.log('push an event to the venue events');
+							events.push(data);
+							//get more..
+							get();
+						}
+					}else{
+						events.push(data);
+					}
+				});
 			});
-			resolve(events);
+
 		});
 	};
-	return new Promise(get);
+	return new Promise(function(res){
+		resolve = res;
+		get();
+	});
 };
-
-
-
-module.exports.getArtist = function(artistid){
-	function get(resolve,reject){
-		request.get({
-			url : cfg.api+'/venue/load_schedule/'+venueid+'?page=10',
-		},function(err,res,body){
-			var $ = cheerio.load(body);
-			var events = [];
-			_.each($('.show_nugget'),function(nugget){
-				events.push(module.exports.parseEvent($.html(nugget)));
-			});
-			resolve(events);
-		});
-	};
-	return new Promise(get);
-};
-
 
 
 
@@ -133,10 +149,10 @@ module.exports.getArtist = function(artistid){
 //parse through a group of show entries.
 module.exports.parseEvent = function(nugget){
 	var $ = cheerio.load(nugget);
-
+	//console.log('PARSE ENVENT',$('.shows_date_').text());
 	var event = {
 		platform: {'reverbnation': $($('.shows_buttons_container > a')[0]).attr('href').match(/\d+/)},
-		date: moment(new Date($('.shows_date_').text())).utc().format(),
+		date: moment(new Date($('.shows_date_').text()+' '+new Date().getFullYear())).utc().format(),
 		artists : {headliners:[]},
 		ticket : {
 			links: [$($('.shows_buttons_container > a')[2]).attr('href')]
@@ -145,25 +161,75 @@ module.exports.parseEvent = function(nugget){
 
 
 
+	var event_performers = $('.shows_bands_container_ > li');
 
 
-	_.each($('.shows_bands_container_ > li'),function(el){
-		module.exports.getArtist($(el).find('.show_artist a').attr('href')).then(function(artist){
-			
-		})
-		event.artists.headlines.push();
-	});
+	var total = event_performers.length;
+	
+	var count = 0;
+
+
 
 	return new Promise(function(res,rej){
+		_.each(event_performers,function(el){
+			var artist_link = $(el).find('.shows_bands_row_band_');
+			//console.log('TRYING TO FIND ARTIST LINK FROM EVENT...');
+			//console.log();
 
-	})
+			event.artists.headliners.push({
+				platforms:{'reverbnation':artist_link.attr('href')},
+				name: $(el).find('.fb_artist_name').text(),
+			});
+
+		});
+		//console.log(event);
+		res(event);
+	});
+	
+	
+}
+module.exports.getArtistBody = function(artisthref){
+	console.log('GET ARTIST',artisthref);
+	function get(resolve,reject){
+		request.get({
+			url : cfg.api+artisthref,
+		},function(err,res,body){
+			resolve(body);
+		});
+	};
+	return new Promise(get);
+};
+
+
+function parseArtist(body){
+
+	//console.log('PARSE ARIST BODY...')
+	//console.log(body)
+
+	return new Promise(function(res,rej){
+		res({})
+	});
+}
+
+
+
+
+module.exports.getVenue = function(id){
+	function get(resolve,reject){
+		request.get({
+			url : cfg.api+'/venue/'+id,
+		},function(err,res,body){
+			resolve(body);
+		});
+	};
+	return new Promise(get);	
 }
 
 
 
 
 
-
+var util = require('util');
 
 //Parse Venue List Item
 module.exports.parseVenueFindItem = function(venue){
@@ -185,7 +251,7 @@ module.exports.parseVenueFindItem = function(venue){
 	//console.log($('.js-results-div > .alert-box > h5,h3,h4,h2,h1').html());
 
 	return new Promise(function(resolve,reject){
-		module.exports.getVenueBody(parsed.platforms['reverbnation']).then(function(body){
+		module.exports.getVenue(parsed.platforms['reverbnation']).then(function(body){
 			var $ = cheerio.load(body);
 			
 
@@ -240,7 +306,7 @@ module.exports.parseVenueFindItem = function(venue){
 				var real_link = null;
 				var fuzz = null
 				_.each(group,function(link,i){
-	
+
 					if(real_link == null && link.match(/pages\/page/) != null){
 						
 						real_link = link;
@@ -263,11 +329,19 @@ module.exports.parseVenueFindItem = function(venue){
 
 
 			//fill in venue events!
-			module.exports.getVenueEvents(parsed.platform['reverbnation']).then(function(data){
+			getVenueEvents(parsed.platforms['reverbnation']).then(function(data){
 				parsed.events = data;
+
+				//link events with venue
+				_.each(parsed.events,function(event){
+					event.venue = {
+						platforms: {'reverbnation':parsed.platforms['reverbnation']}
+					}
+				});
+				//console.log(util.inspect(parsed, {showHidden: false, depth: null}));
+				console.log(parsed)
 				resolve(parsed);
 			});
-			
 		});
 	});
 }
