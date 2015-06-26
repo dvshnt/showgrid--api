@@ -49,25 +49,25 @@ function search(type,opt){
 			url : url + '?' + qs.stringify(q),
 		},function(err,res,body){
 
-			sent_requests++;
-			var $ = cheerio.load(body);
-			var nodes = $('.content-container > .js-results-div > ul > li');
-			total = $('.content-container > .js-results-div > .alert-box > h5').html().match(/^\d{0,4}/) || total;
-			if(total != null) total = parseInt(total[0]);
+			sent_requests++
+			var $ = cheerio.load(body)
+			var nodes = $('.content-container > .js-results-div > ul > li')
+			total = $('.content-container > .js-results-div > .alert-box > h5').html().match(/^\d{0,4}/) || total
+			if(total != null) total = parseInt(total[0])
 			
 			_.each(nodes,function(node){
 				if(results.length >= opt.query_size) return null;
-				return results.push($.html(node));
+				return results.push($.html(node))
 			});
 
 			if(opt.query_size > total){
-				opt.query_size = total;
+				opt.query_size = total
 			}
 
 			if(results.length >= (opt.query_size || total)){
 				return response(results);
 			}else if(sent_requests >= sent_requests_aprrox){
-				get(res,rej);
+				get(res,rej)
 			}
 		});
 		q.page++;

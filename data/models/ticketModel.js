@@ -6,7 +6,7 @@ var ticketSchema = new db.Schema({
     soldout: Boolean,
     total: Number,
     available: Number,
-    url: String, //link to sell ticket
+    urls: [{type: String}], //link to sell ticket
     sale: {
         start: Date,
         end: Date,

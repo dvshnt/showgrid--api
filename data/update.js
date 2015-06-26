@@ -11,10 +11,13 @@ var Promise = require('bluebird');
 
 //console.log(db);
 
+var fuzzy = require('fuzzyset.js'); //fuzzy matching for finding models that are similar.
+
+var p = require('./pFactory.js'); //promise factory shortucts.
+
 
 
 /*
-
 Model validator for events/venues/artists finds a similar model and if one is found that has a definite match, (like for example same name)
 then the preexisting model is updated and saved.
 
@@ -25,78 +28,253 @@ Returns a promise that resolves when the data is saved or updated into the datab
 */
 
 
+//very heavy similarity query, cheat and async whenever possible.
+var findbySmilarity = p.sync(function(obj){
+	
+	/*
+		pipe logic:
+		
 
-var findSimilar = function(obj){
+		PIPE 1:
+		find by name word:
+			1 match:
+				check similarity
+					< 90%
+						brute force fuzzy name search
+					> 90%
+						DONE
+			n match:
+				check similarity for each:
+					< 90% and best match:
+						brute force fuzzy name search
+					> 90% and best match:
+						DONE			
+			0 match:
+				brute force fuzzy name search
 
-}
+
+		PIPE 2:
+		brute fuzzy name search 90% threshhold:
+			> 90%
+				1 match:
+					check similarity
+						> 90%
+							
+						< 90%				
+			< 90%
+				check similarity
+					> 90%
+						
+					< 90%
+		
+		
+
+		PIPE 3: (final) schema data_string brute force fuzzy search
 
 
-//var tag_names = ['venues','events','users','artists','tickets','ticket'];
-var validateSaveModel = function(raw_obj){
+
+	*/	
+	
+	//var pipe = p.pipe();
+	//id object has a name search a regex match for the longest word in the name.
+
+	var findByNameWord = p.sync(function(){
+
+		if(obj.name == null) this.resolve(null)
+
+		var search_name = obj.name.split(' ')
+		var longest_word = search_name[0];
+		console.log('seach name',obj.name)
+		_.each(search,function(word){
+			if(word.length > longest_word.length){
+				longest_word = word
+			}
+		});
+		console.log(longest_word)
+		db[obj.is].find({
+			name: new RegExp(longest_word,'i'),
+		},function(err,model){
+			if(err){
+				console.error('database findbySimilarity error',err)
+				this.reject(err)
+			}else{
+				this.resolve(model)
+			}
+		}.bind(this));
+		
+		return this.promise;
+	});
 
 
-	if(raw_obj.platforms == null || raw_obj.is == null) return console.error('VALIDATE SAVE ERROR: data object has no platforms and/or is property, therefore it is not a schema!');
+	function compareModels(model){
+		pipe = pipe.then(function({
+
+		}))
+	}
+
+
+
+	
+	var pipe = findByNameWord.then(function(models){
+		
+		//hmm... no findByNameWord matches, maybe try and find a match by location and date?
+		if(model == null){
+			pipe = pipe.then()
+		}
+
+		if(_.isArray(models)){
+
+		}
+
+	});
 	
 
+	db[obj.type].findOne({
 
+	})
+});
+
+var findbyPlatformId =  p.sync(function(type,pid){
+
+	db[type].findOne({
+		platforms: pid
+	},function(err,model){
+		if(err){
+			console.error('database findPlatformId error',err);
+			this.reject(err); 
+		}else this.resolve(model);
+	}.bind(this));
+
+	return this.promise;
+});
+
+
+//find similar objects in the database.
+var findSimilar = p.sync(function(obj){
+	var fuzz = fuzzy();
+
+	//first try and find models that have the same platform id.
+	var pipe = p.pipe().then(findbyPlatformId(obj.is,_.values(obj.platforms)[0])).then(function(model){
+		if(model != null) return this.resolve(model);
+		
+		//if not, find platforms that have a 99% data match...
+		else pipe = pipe.then(findbySmilarity(obj));
+	}.bind(this));
+
+
+	return this.promise;
+});
+
+
+var createSchema = p.sync(function(raw_obj){
+
+	var type = raw_obj.is;
+	raw_obj.is = null;
+	model = new db[raw_obj.is](raw_obj);	 
+	this.resolve(model);
+
+	return this.promise;
+});
+
+
+var mergeSchema = p.sync(function(model,raw_obj){
+
+});
+
+
+var validateSaveModel = p.sync(function(raw_obj){
+	
+
+	if(raw_obj.platforms == null || _.size(raw_obj.platforms) > 1 || raw_obj.is == null || db[raw_obj.is] == null) return console.error('VALIDATE SAVE ERROR: data object has no platforms and/or is property, therefore it is not a schema!');
+	
+
+	//find nested schemas and recursively call them first.
 	_.each(raw_obj,function(child,key){
-
-		//first, lets find any nested schemas..and recursively call them
+		//recursively call them
 		if(_.isArray(child)){
-			_.each(child,function(obj){
-				if(obj.platforms != null) obj = validateSaveModel(obj)
+			_.each(child,function(obj,i){
+				if(obj.platforms != null) child[i] = validateSaveModel(obj)
 			});
 		}else if(_.isObject(child)){
-			if(child.platforms != null)	obj = validateSaveModel(obj)
+			if(child.platforms != null)	raw_obj[key] = validateSaveModel(obj)
 		}
 	});
 
 
 
-	return new Promise(function(resolve){
-		resolve()
-	});
-}
+	//find similar objects.
+	var pipe = findSimilar(raw_obj).then(function(model){
+		if(model == null) return(createSchema(raw_obj));
+		else return(mergeSchema(model,raw_obj))
+	}).then();
+
+
+
+	return this.promise;
+})
 
 
 
 
 //Validator checks parsed data
-var Validator = function(dataset,save){
-
-	//console.log(dataset)
+var Validator = p.async(function(dataset,save){
 
 
-	if(db[endpoint] == null){
-		//console.log(db);
-		return console.error('VALIDATOR/SAVE ERROR: no data endpoint found for ',event);
-	}
 	//console.log('IN VALIDATOR',endpoint,dataset);
-	
-	var response,total = dataset.length,count=0;
+	var total = dataset.length,count=0;
 	var models = [];
 	_.each(dataset,function(obj){
 		validateSaveModel(obj).then(function(model){
 			models.push(model);
-			count++;
-			if(count >= total){
-				response(models);
-			}
-		});
-		return model;
-	});
+			if(this.checkAsync()) this.resolve(models);
+		}.bind(this));
+	}.bind(this));
+
+	return this.promise;
+});
 
 
-	return new Promise(function(res,rej){
-		response = res;
-	});
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 /*
 
-this is what linkFiller is used when artist/show ID's are linked to a fetched object, we have to try find those objects in OUR database and link them as well.
+linkFiller is used when artist/show ID's are linked to a fetched object, we have to try find those objects in OUR database and link them as well.
 
 
 it gets called after all the scraper filters have been called back.
@@ -113,6 +291,32 @@ var linkFiller = function(model_list,log){
 	});
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -237,7 +441,7 @@ function main(opt){
 				});
 
 
-				//run the pipe through the validator (checks if data exists in)
+				//run the pipe through the validator (checks if data exists in database)
 				prom = prom.then(function(data){
 					//console.log('in vali',data);
 					return Validator(data,opt.save)
