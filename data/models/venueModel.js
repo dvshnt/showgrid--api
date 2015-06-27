@@ -2,23 +2,19 @@ var db = require('mongoose');
 var _ = require('lodash');
 var scrapers = require('scrapers');
 var venueSchema = new db.Schema({
-	name: String,
+	name: {type:String, required: true, index: 'text'},
 	platforms: scrapers.platformIds,
 	location: {
 		address: String,
 		city: String,
-		zip: Number,
-		statecode: String,
-		countrycode: String,
-		gps: {
-			lon: Number,
-			lat: Number
-		}
+		zip: {type: Number,required: true},
+		statecode: {type: String,required: true},
+		countrycode: {type: String,required: true},
+		gps: [{type:Number, required: true, index: '2dsphere'}]
 	},
-	url: String,
+	links: [{type:String, required: true}]
 	tags: [{type: String}],
-	links: [{type:String}], //link to venue site.
-	phone: String,
+	phone: {type: String, index: 'text'},
 	banners: Array,
 	colors: {
 		primary: String,
@@ -28,7 +24,7 @@ var venueSchema = new db.Schema({
 	events: [{type:db.Schema.Types.ObjectId, ref: 'Event'}], //events at this venue (past and present)
 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}], //users that are going to this venue
 	//artists: [{type:db.Schema.Types.ObjectId, ref: 'Artist'}] //artists that are performing at this venue
-});
+},{autoIndex: false});
 
 venueSchema.methods.scrapeBanner = function(){
 	if (this.url == null) return console.error('failed to scrape venue with no url');

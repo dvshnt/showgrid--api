@@ -98,9 +98,9 @@ module.exports.parseVenue = function(venue){
 			zip: venue.ZipCode,
 			statecode: venue.StateCode,
 			countrycode: venue.CountryCode,
-			gps: {lat: venue.Latitude,lon: venue.Longitude},
+			gps: [venue.Latitude,venue.Longitude],
 		},
-		links: venue.Url,
+		links: _.isArray(venu.Url) ? venue.Url : [venue.Url],
 	};	
 }
 

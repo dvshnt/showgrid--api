@@ -256,10 +256,7 @@ module.exports.parseVenue = function(venue){
 			zip: venue.postal_code,
 			statecode: venue.region_abbr,
 			countrycode: venue.country_abbr,
-			gps: {
-				lat: venue.latitude,
-				lon: venue.longitude
-			}				
+			gps: [venue.latitude,venue.longitude]		
 		}
 	}
 

@@ -1,10 +1,10 @@
 var db = require('mongoose');
 var _ = require('lodash');
-var scrapers = require('scrapers');
+
 var eventSchema = new db.Schema({
-	name: String,
+	name: {type:String, index: 'text', required: true},
 	platforms: scrapers.platformIds, //Id's for different platforms.
-	date: Date,
+	date: {type: Date, index: 'text', required: true},
 	tickets: [{
 		price: Number,
 		soldout: Boolean,
@@ -18,7 +18,7 @@ var eventSchema = new db.Schema({
 	featured: {type:Boolean, default: false},
 	age: {type: Number,max: 21, default: 18},
 	description: String,
-	venue: {type:db.Schema.Types.ObjectId,ref:'Venue'},
+	venue: {type:db.Schema.Types.ObjectId,ref:'Venue', required: true},
 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}],  //users going
 	artists: {
 		headliners:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}],
@@ -29,27 +29,12 @@ var eventSchema = new db.Schema({
 		width: Number,
 		url: String
 	}],
-}); 
-
-
-var scrapers = require('../scrapers.js');
-
-
-//FILL IN LINKS SECONDARY UPDATE.
-eventSchema.pre('save',function(next){
- 	//get artists.
-
- 	//find if artists already exist in database, if not scrape them.
-
-
-	_.each(this.artists.headers,function(artist){
-		scrapers.get()
-	})
-})
+},{autoIndex: false}); 
 
 
 
 var event = db.model('Event',eventSchema);
 
+event.create
 
 module.exports = event;
