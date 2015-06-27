@@ -28,53 +28,157 @@ Returns a promise that resolves when the data is saved or updated into the datab
 */
 
 
-//very heavy similarity query, cheat and async whenever possible.
-var findbySmilarity = p.sync(function(obj){
-	
-	/*
-		pipe logic:
-		
+/*
 
-		PIPE 1:
-		find by name word:
-			1 match:
-				check similarity
-					< 90%
-						brute force fuzzy name search
+Very Heavy Similarity Query
+
+*/
+var findbySmilarity = p.sync(function(obj){
+
+
+var fuzzy_A = 90;
+var fuzzy_B = 80;
+var fuzzy_C = 70;
+
+
+/*
+	pipe logic:
+		
+	1.
+	find by platform id:
+		1 match:
+			DONE:
+		0 match:
+			find by name word
+
+
+
+	find by name word:
+		n match:
+			compare data strings
+				< 80% and best match
+					brute force fuzzy name search
+				> 80% and best match
+					DONE
+		0 match:
+			brute fuzzy name search
+
+
+	brute fuzzy name search:
+
+		> 90%
+			n match:
+				compare data strings
 					> 90%
 						DONE
+		< 90% && > 70%
 			n match:
-				check similarity for each:
-					< 90% and best match:
-						brute force fuzzy name search
-					> 90% and best match:
-						DONE			
-			0 match:
-				brute force fuzzy name search
-
-
-		PIPE 2:
-		brute fuzzy name search 90% threshhold:
-			> 90%
-				1 match:
-					check similarity
-						> 90%
-							
-						< 90%				
-			< 90%
-				check similarity
-					> 90%
-						
-					< 90%
-		
-		
-
-		PIPE 3: (final) schema data_string brute force fuzzy search
-
-
-
-	*/	
+				compare data strings
+					> 90% and best match
+						DONE
+					< 90% and best match
+						NEW
+		<70%
+			NEW
 	
+
+	compare data strings:
+		PIPE 3: (NEVER FUZZY SEARCH DATA STRINGS ON ENTIRE COLLECTIONS, ITS A PERFORMANCE RISK)
+		construct data string for each object and its database similar entry and fuzzy search.
+			(date) + (name) + (events) + (artists[.name]) + (venue.data_string);
+*/
+
+
+	//create data string based on data thats available in both objects
+	var comparedData = {
+		'event' : {
+			'venue' : {'name':true},
+			'date' : true,
+			'name' : true,		
+		},
+		'venue' : {
+			'name' : true,
+			'location' : {
+				'city': true,
+				'zip': true,
+				'gps': {
+					'lon': true,
+					'lat': true,
+				}
+			}
+		},
+		'artist' : {
+			'name' : true
+		}
+	};
+
+	_.each(comparedData,function(val,key){
+		if(db[key]==null)return console.error('ERROR, ALLOWED DATA MUST BE IN DATABASE')
+	})
+
+	var createDataStrings = p.sync(function(raw_obj,model){
+		
+		var obj_data = '';
+		var mod_data = '';
+
+		var type = raw_obj.is;
+		var resolve = this.resolve;
+		function addToString(obj,model,a_branch){
+			_.each(obj,function(val,key){
+
+				if(val == null || model[key] == null) return;
+
+
+				var allow = a_branch[key] || comparedData[type][key];
+
+				if(allow == null) return
+				else if(_.isObj(allow) && _.isObj(val) && _.isObj(model[key])){
+					addToString(val,model[key],allow); // fuck yea.... recursion >.>
+					return;
+				}
+
+				if(model[key] != null){
+					obj_data += val;
+					mod_data += model[key];
+				}
+			});
+		}
+
+	
+
+		var populate_model = q.sync(function(){
+			if(type == 'event'){
+				model.lean().populate({path:'venue',select: 'name'}).exec(function(err,obj){
+					if(err) return this.reject(console.log('populate model error: ',err));
+					this.resolve(obj);
+				}.bind(this));
+			}else{
+				this.resolve(model);
+			}
+		});
+
+
+		populate_model.then(function(model){
+			addToString(raw_obj,model);
+			
+			console.log('obj data:',obj_data);
+			console.log('mod_data:',mod_data);
+			
+			this.resolve({obj_data: obj_data,mod_data: mod_data});
+		}.bind(this));
+
+		
+		return this.promise;
+	});
+
+
+
+	
+	
+
+
+
+
 	//var pipe = p.pipe();
 	//id object has a name search a regex match for the longest word in the name.
 
@@ -82,9 +186,9 @@ var findbySmilarity = p.sync(function(obj){
 
 		if(obj.name == null) this.resolve(null)
 
-		var search_name = obj.name.split(' ')
+		var search_name = obj.name.split(/\W+/);
 		var longest_word = search_name[0];
-		console.log('seach name',obj.name)
+		console.log('seach name',search_name,obj.name)
 		_.each(search,function(word){
 			if(word.length > longest_word.length){
 				longest_word = word
@@ -107,9 +211,9 @@ var findbySmilarity = p.sync(function(obj){
 
 
 	function compareModels(model){
-		pipe = pipe.then(function({
+		pipe = pipe.then(function(){
 
-		}))
+		})
 	}
 
 
@@ -182,6 +286,20 @@ var mergeSchema = p.sync(function(model,raw_obj){
 });
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 var validateSaveModel = p.sync(function(raw_obj){
 	
 
@@ -212,6 +330,26 @@ var validateSaveModel = p.sync(function(raw_obj){
 
 	return this.promise;
 })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -291,11 +429,6 @@ var linkFiller = function(model_list,log){
 	});
 
 }
-
-
-
-
-
 
 
 

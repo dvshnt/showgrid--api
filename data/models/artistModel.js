@@ -1,11 +1,12 @@
 var db = require('mongoose');
 
 
-
+var scrapers = require('scrapers');
 
 var artistSchema = new db.Schema({
+
 	isGroup: {type: Boolean,default: false}, //artist Schema can be a band/group and an artist at the same time.
-	platforms: [{tag:String,id:String}], //Id's for different platforms. (needed for updating)
+	platforms: scrapers.platformIds, //Id's for different platforms. (needed for updating)
 	name: String,
 	demand: Number, //how much demand for this artist?
 	created: Date,

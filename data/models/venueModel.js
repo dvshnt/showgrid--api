@@ -1,8 +1,9 @@
 var db = require('mongoose');
 var _ = require('lodash');
+var scrapers = require('scrapers');
 var venueSchema = new db.Schema({
 	name: String,
-	platforms: Array,
+	platforms: scrapers.platformIds,
 	location: {
 		address: String,
 		city: String,

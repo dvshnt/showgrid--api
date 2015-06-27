@@ -179,11 +179,6 @@ module.exports.parseArtist = function(artist){
 
 //FILTER EVENT
 module.exports.parseEvent = function(event){
-	// if(event.performers == null){
-	// 	console.log('no performers?!');
-	// 	return null;
-	// } 
-	// else console.log((event.performers)) ;
 	var event =  {
 		is: 'event',
 		name: event.title,

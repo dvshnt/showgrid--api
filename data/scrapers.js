@@ -36,7 +36,7 @@ var eventful = require('./scrapers/eventful');
 var reverbnation = require('./scrapers/reverbnation');
 
 
-
+module.exports.platformIds =  {'facebook':String,'reverbnation':String,'jambase':String,'eventful':String};
 
 //SCRAPER HOOKS
 

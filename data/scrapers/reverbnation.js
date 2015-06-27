@@ -176,9 +176,9 @@ module.exports.parseEvent = function(nugget){
 		platform: {'reverbnation': event_id != null ? event_id.match(/\d+/)[0] : null},
 		date: moment(new Date($('.shows_date_').text()+' '+new Date().getFullYear())).utc().format(),
 		artists : {headliners:[]},
-		ticket : {
-			links: [$($('.shows_buttons_container > a')[2]).attr('href')]
-		}
+		tickets : [{
+			url: $($('.shows_buttons_container > a')[2]).attr('href')
+		}]
 	};
 
 
@@ -395,10 +395,7 @@ module.exports.parseVenueFindItem = function(venue){
 				
 				//link events with venue
 				_.each(parsed.events,function(event){
-					event.venue = {
-						is: 'venue',
-						platforms: {'reverbnation':parsed.platforms['reverbnation']}
-					}
+					event.venue = _.clone(parsed);
 				});
 				//console.log('got..',parsed.banners);
 				resolve(parsed);

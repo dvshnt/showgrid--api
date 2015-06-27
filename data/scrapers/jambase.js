@@ -128,9 +128,9 @@ module.exports.parseEvent = function(event){
 		name: event.Name,
 		age: null,
 		venue: module.exports.parseVenue(event.Venue),
-		ticket: {
+		tickets: [{
 			url: event.ticketUrl
-		},
+		}],
 		artists: {
 			//everything defaults to headliners for jambase
 			headliners: (function(){

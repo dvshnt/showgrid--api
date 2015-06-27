@@ -1,14 +1,22 @@
 var db = require('mongoose');
 var _ = require('lodash');
-
+var scrapers = require('scrapers');
 var eventSchema = new db.Schema({
-	platforms: [{tag:String,id:String}], //Id's for different platforms.
+	name: String,
+	platforms: scrapers.platformIds, //Id's for different platforms.
 	date: Date,
-	ticket: {type:db.Schema.Types.ObjectId,ref:'Ticket'},
+	tickets: [{
+		price: Number,
+		soldout: Boolean,
+		url: String, 
+		sale: {
+			start: Date,
+			end: Date,
+		},
+	}],
 	private: {type: Boolean, default: false},
 	featured: {type:Boolean, default: false},
-	age: {type: Number,max: 21, default: 21},
-	name: String,
+	age: {type: Number,max: 21, default: 18},
 	description: String,
 	venue: {type:db.Schema.Types.ObjectId,ref:'Venue'},
 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}],  //users going

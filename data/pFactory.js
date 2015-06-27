@@ -7,7 +7,8 @@ variables are binded to the callback function so if you have nested callbacks, m
 
 */
 
-
+var Promise = require('bluebird');
+var _ = require('lodash');
 
 /*
 
