@@ -40,7 +40,7 @@ function search(type,opt){
 
 
 	var response;
-
+	var reject;
 
 	function get(res,rej){
 		//console.log('GET..',q.page,sent_requests_aprrox);
@@ -48,7 +48,10 @@ function search(type,opt){
 		request.get({
 			url : url + '?' + qs.stringify(q),
 		},function(err,res,body){
-
+			if(err){
+				console.log(url + '?' + qs.stringify(q));
+				return rej(err);
+			} 
 			sent_requests++
 			var $ = cheerio.load(body)
 			var nodes = $('.content-container > .js-results-div > ul > li')
@@ -69,7 +72,7 @@ function search(type,opt){
 			}else if(sent_requests >= sent_requests_aprrox){
 				get(res,rej)
 			}
-		});
+		}.bind(this));
 		q.page++;
 	};
 
@@ -80,14 +83,15 @@ function search(type,opt){
 
 	//async
 	for(var i = 0;i<sent_requests_aprrox;i++){
-		get();
+		get(response,reject);
 	}
 
 
 
 
-	return new Promise(function(res){
+	return new Promise(function(res,rej){
 		response = res;
+		reject = rej;
 	});
 }
 
@@ -113,12 +117,16 @@ function getVenueEvents(venueid){
 	var current = 1;
 	var events = [];
 	var resolve;
+	var reject;
 
 	function get(){
 		//console.log('get',cfg.api+'/venue/load_schedule/'+venueid+'?page='+current);
 		request.get({
 			url : cfg.api+'/venue/load_schedule/'+venueid+'?page='+current,
 		},function(err,res,body){
+			if(err) return reject(err);
+			
+
 			current++;
 
 
@@ -156,8 +164,9 @@ function getVenueEvents(venueid){
 
 		});
 	};
-	return new Promise(function(res){
+	return new Promise(function(res,rej){
 		resolve = res;
+		reject = rej;
 		get();
 	});
 };
@@ -215,6 +224,8 @@ module.exports.getArtistBody = function(artisthref){
 		request.get({
 			url : cfg.api+artisthref,
 		},function(err,res,body){
+			console.log(cfg.api+artisthref);
+			if(err) return reject(err);
 			resolve(body);
 		});
 	};
@@ -239,6 +250,10 @@ module.exports.getVenue = function(id){
 		request.get({
 			url : cfg.api+'/venue/'+id,
 		},function(err,res,body){
+			if(err){
+				console.log(cfg.api+'/venue/'+id);
+				return reject(err);
+			} 
 			resolve(body);
 		});
 	};
@@ -265,6 +280,7 @@ function getVenueBanners(photoid,object){
 		request.get({
 			url : cfg.api+'/venue/view_photo_popup/photo_'+photoid
 		},function(err,res,body){
+			if(err) return reject(err);
 			object.banners = parseVenuePhotos(body);
 			resolve();
 		});
@@ -296,6 +312,8 @@ module.exports.parseVenueFindItem = function(venue){
 
 	return new Promise(function(resolve,reject){
 		module.exports.getVenue(parsed.platforms['reverbnation']).then(function(body){
+
+	
 			var $ = cheerio.load(body);
 			
 

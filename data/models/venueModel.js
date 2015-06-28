@@ -1,6 +1,8 @@
 var db = require('mongoose');
 var _ = require('lodash');
-var scrapers = require('scrapers');
+var scrapers = require('../scrapers.js')
+
+
 var venueSchema = new db.Schema({
 	name: {type:String, required: true, index: 'text'},
 	platforms: scrapers.platformIds,
@@ -12,7 +14,7 @@ var venueSchema = new db.Schema({
 		countrycode: {type: String,required: true},
 		gps: [{type:Number, required: true, index: '2dsphere'}]
 	},
-	links: [{type:String, required: true}]
+	links: [{type:String, required: true}],
 	tags: [{type: String}],
 	phone: {type: String, index: 'text'},
 	banners: Array,
@@ -31,12 +33,6 @@ venueSchema.methods.scrapeBanner = function(){
 	else console.log('scraping banner for "',this.name,'"')
 }
 
-
-venueSchema.methods.fillLinks = function(){
-	_.find(this,function(obj){
-		return obj.platforms != null
-	});
-}
 
 
 

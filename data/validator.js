@@ -36,29 +36,23 @@ Very Heavy Similarity Query
 
 
 //create similarity text search indicies
-_.each(db,function(collection,key){
-	collection.createIndex(comparedData[key],comparedData[key+'_weight']);
-});
-
-var findbySmilarity = p.sync(function(obj){
 
 
-var fuzzy_A = 90;
-var fuzzy_B = 80;
-var fuzzy_C = 70;
+//var findbySmilarity = p.sync(function(obj){
 
 
 
-var populate_model = q.sync(function(){
-	if(type == 'event'){
-		model.lean().populate({path:'venue',select: 'name'}).exec(function(err,obj){
-			if(err) return this.reject(console.log('populate model error: ',err));
-			this.resolve(obj);
-		}.bind(this));
-	}else{
-		this.resolve(model);
-	}
-});
+
+// var populate_model = q.sync(function(){
+// 	if(type == 'event'){
+// 		model.lean().populate({path:'venue',select: 'name'}).exec(function(err,obj){
+// 			if(err) return this.reject(console.log('populate model error: ',err));
+// 			this.resolve(obj);
+// 		}.bind(this));
+// 	}else{
+// 		this.resolve(model);
+// 	}
+// });
 
 
 
@@ -111,21 +105,6 @@ var populate_model = q.sync(function(){
 		construct data string for each object and its database similar entry and fuzzy search.
 			(date) + (name) + (events) + (artists[.name]) + (venue.data_string);
 */
-	function fuzzyNameSearch = p.sync(function(){
-		var type = obj.is;
-
-		if(obj.name == null) this.resolve(null);
-		
-
-		db[type].find({
-			$text : {
-				$search : obj.name
-			}
-		}).exec(function(allcollections){
-
-		})
-	});
-
 
 
 
@@ -139,135 +118,127 @@ var populate_model = q.sync(function(){
 	//create data string based on data thats available in both objects
 	
 
-	_.each(comparedData,function(val,key){
-		if(db[key]==null)return console.error('ERROR, ALLOWED DATA MUST BE IN DATABASE')
-	});
 
 
-
-
-	populate_model().then(function(model){
-		addToString(raw_obj,model);
+// 	populate_model().then(function(model){
+// 		addToString(raw_obj,model);
 		
-		console.log('obj data:',obj_data);
-		console.log('mod_data:',mod_data);
+// 		console.log('obj data:',obj_data);
+// 		console.log('mod_data:',mod_data);
 		
-		this.resolve({obj_data: obj_data,mod_data: mod_data});
-	}.bind(this));
+// 		this.resolve({obj_data: obj_data,mod_data: mod_data});
+// 	}.bind(this));
 	
 	
 
 
 
 
-	//var pipe = p.pipe();
-	//id object has a name search a regex match for the longest word in the name.
+// 	//var pipe = p.pipe();
+// 	//id object has a name search a regex match for the longest word in the name.
 
-	var findByNameWord = p.sync(function(){
+// 	var findByNameWord = p.sync(function(){
 
-		if(obj.name == null) this.resolve(null)
+// 		if(obj.name == null) this.resolve(null)
 
-		var search_name = obj.name.split(/\W+/);
-		var longest_word = search_name[0];
-		console.log('seach name',search_name,obj.name)
-		_.each(search,function(word){
-			if(word.length > longest_word.length){
-				longest_word = word
-			}
-		});
-		console.log(longest_word)
-		db[obj.is].find({
-			name: new RegExp(longest_word,'i'),
-		},function(err,model){
-			if(err){
-				console.error('database findbySimilarity error',err)
-				this.reject(err)
-			}else{
-				this.resolve(model)
-			}
-		}.bind(this));
+// 		var search_name = obj.name.split(/\W+/);
+// 		var longest_word = search_name[0];
+// 		console.log('seach name',search_name,obj.name)
+// 		_.each(search,function(word){
+// 			if(word.length > longest_word.length){
+// 				longest_word = word
+// 			}
+// 		});
+// 		console.log(longest_word)
+// 		db[obj.is].find({
+// 			name: new RegExp(longest_word,'i'),
+// 		},function(err,model){
+// 			if(err){
+// 				console.error('database findbySimilarity error',err)
+// 				this.reject(err)
+// 			}else{
+// 				this.resolve(model)
+// 			}
+// 		}.bind(this));
 		
-		return this.promise;
-	});
+// 		return this.promise;
+// 	});
 
 
-	function compareModels(model){
-		pipe = pipe.then(function(){
+// 	function compareModels(model){
+// 		pipe = pipe.then(function(){
 
-		})
-	}
+// 		})
+// 	}
 
 
 
 	
-	var pipe = findByNameWord.then(function(models){
+// 	var pipe = findByNameWord.then(function(models){
 		
-		//hmm... no findByNameWord matches, maybe try and find a match by location and date?
-		if(model == null){
-			pipe = pipe.then()
-		}
+// 		//hmm... no findByNameWord matches, maybe try and find a match by location and date?
+// 		if(model == null){
+// 			pipe = pipe.then()
+// 		}
 
-		if(_.isArray(models)){
+// 		if(_.isArray(models)){
 
-		}
+// 		}
 
-	});
+// 	});
 	
 
-	db[obj.type].findOne({
+// 	db[obj.type].findOne({
 
-	})
-});
+// 	})
+// });
 
-var findbyPlatformId =  p.sync(function(type,pid){
+// var findbyPlatformId =  p.sync(function(type,pid){
 
-	db[type].findOne({
-		platforms: pid
-	},function(err,model){
-		if(err){
-			console.error('database findPlatformId error',err);
-			this.reject(err); 
-		}else this.resolve(model);
-	}.bind(this));
+// 	db[type].findOne({
+// 		platforms: pid
+// 	},function(err,model){
+// 		if(err){
+// 			console.error('database findPlatformId error',err);
+// 			this.reject(err); 
+// 		}else this.resolve(model);
+// 	}.bind(this));
 
-	return this.promise;
-});
+// 	return this.promise;
+// });
 
 
-//find similar objects in the database.
-var findSimilar = p.sync(function(obj){
-	var fuzz = fuzzy();
+// //find similar objects in the database.
+// var findSimilar = p.sync(function(obj){
+// 	var fuzz = fuzzy();
 
-	//first try and find models that have the same platform id.
-	var pipe = p.pipe().then(findbyPlatformId(obj.is,_.values(obj.platforms)[0])).then(function(model){
-		if(model != null) return this.resolve(model);
+// 	//first try and find models that have the same platform id.
+// 	var pipe = p.pipe().then(findbyPlatformId(obj.is,_.values(obj.platforms)[0])).then(function(model){
+// 		if(model != null) return this.resolve(model);
 		
-		//if not, find platforms that have a 99% data match...
-		else pipe = pipe.then(findbySmilarity(obj));
-	}.bind(this));
+// 		//if not, find platforms that have a 99% data match...
+// 		else pipe = pipe.then(findbySmilarity(obj));
+// 	}.bind(this));
 
 
-	return this.promise;
-});
+// 	return this.promise;
+// });
 
 
-var createSchema = p.sync(function(raw_obj){
+// var createSchema = p.sync(function(raw_obj){
 
-	var type = raw_obj.is;
-	raw_obj.is = null;
-	model = new db[raw_obj.is](raw_obj);	 
-	this.resolve(model);
+// 	var type = raw_obj.is;
+// 	raw_obj.is = null;
+// 	model = new db[raw_obj.is](raw_obj);	 
+// 	this.resolve(model);
 
-	return this.promise;
-});
-
-
-var mergeSchema = p.sync(function(model,raw_obj){
-
-});
+// 	return this.promise;
+// });
 
 
+// var mergeSchema = p.sync(function(model,raw_obj){
 
+// });
 
 
 
@@ -281,36 +252,39 @@ var mergeSchema = p.sync(function(model,raw_obj){
 
 
 
-var validateSaveModel = p.sync(function(raw_obj){
+
+
+
+// var validateSaveModel = p.sync(function(raw_obj){
 	
 
-	if(raw_obj.platforms == null || _.size(raw_obj.platforms) > 1 || raw_obj.is == null || db[raw_obj.is] == null) return console.error('VALIDATE SAVE ERROR: data object has no platforms and/or is property, therefore it is not a schema!');
+// 	if(raw_obj.platforms == null || _.size(raw_obj.platforms) > 1 || raw_obj.is == null || db[raw_obj.is] == null) return console.error('VALIDATE SAVE ERROR: data object has no platforms and/or is property, therefore it is not a schema!');
 	
 
-	//find nested schemas and recursively call them first.
-	_.each(raw_obj,function(child,key){
-		//recursively call them
-		if(_.isArray(child)){
-			_.each(child,function(obj,i){
-				if(obj.platforms != null) child[i] = validateSaveModel(obj)
-			});
-		}else if(_.isObject(child)){
-			if(child.platforms != null)	raw_obj[key] = validateSaveModel(obj)
-		}
-	});
+// 	//find nested schemas and recursively call them first.
+// 	_.each(raw_obj,function(child,key){
+// 		//recursively call them
+// 		if(_.isArray(child)){
+// 			_.each(child,function(obj,i){
+// 				if(obj.platforms != null) child[i] = validateSaveModel(obj)
+// 			});
+// 		}else if(_.isObject(child)){
+// 			if(child.platforms != null)	raw_obj[key] = validateSaveModel(obj)
+// 		}
+// 	});
 
 
 
-	//find similar objects.
-	var pipe = findSimilar(raw_obj).then(function(model){
-		if(model == null) return(createSchema(raw_obj));
-		else return(mergeSchema(model,raw_obj))
-	}).then();
+// 	//find similar objects.
+// 	var pipe = findSimilar(raw_obj).then(function(model){
+// 		if(model == null) return(createSchema(raw_obj));
+// 		else return(mergeSchema(model,raw_obj))
+// 	}).then();
 
 
 
-	return this.promise;
-})
+// 	return this.promise;
+// })
 
 
 
@@ -321,6 +295,8 @@ var compareData = {
 	'venue' : ['name','location.gps','phone'],
 	'artist' : ['name']
 };
+
+
 
 
 
@@ -407,7 +383,7 @@ function compareRaw(dataset){
 
 
 //Validator checks parsed data
-module.exports.Validator = p.async(function(dataset,save){
+module.exports = p.async(function(dataset,save){
 
 	dataset = compareRaw(dataset);
 
@@ -432,11 +408,6 @@ module.exports.Validator = p.async(function(dataset,save){
 
 
 
-
-
-
-
-
-
-
-
+_.each(compareData,function(val,key){
+	if(db[key]==null)return console.error('ERROR, ALLOWED DATA MUST BE IN DATABASE')
+});

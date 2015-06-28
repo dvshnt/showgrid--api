@@ -36,7 +36,6 @@ var eventful = require('./scrapers/eventful');
 var reverbnation = require('./scrapers/reverbnation');
 
 
-module.exports.platformIds =  {'facebook':String,'reverbnation':String,'jambase':String,'eventful':String};
 
 //SCRAPER HOOKS
 
@@ -50,6 +49,8 @@ Calling scrapers from this raw module can lead to unexpected results, make sure 
 */
 
 module.exports =  {
+	'platformIds':  {'facebook':String,'reverbnation':String,'jambase':String,'eventful':String},
+
 	'jambase' : {
 		'find': {
 			'venue' : jambase.findVenues,

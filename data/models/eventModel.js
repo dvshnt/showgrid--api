@@ -1,6 +1,6 @@
 var db = require('mongoose');
 var _ = require('lodash');
-
+var scrapers = require('../scrapers.js')
 var eventSchema = new db.Schema({
 	name: {type:String, index: 'text', required: true},
 	platforms: scrapers.platformIds, //Id's for different platforms.

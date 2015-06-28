@@ -117,17 +117,23 @@ function main(opt){
 					return new Promise(function(exit_pipe,reject2){
 						var data_total = data.length;
 						var data_count = 0;
+						var data_error = 0;
+						var pipes = [];
 						_.each(data,function(raw_obj,i){
 
 							//create a transform pipe for each object in the data array
 							var obj_pipe = new Promise(function(res,rej){
 								res(raw_obj);
-							});
+							}).cancellable();
+
+							obj_pipe = obj_pipe.delay(i*5);
 
 
 							//cycle through all the filters.
 							_.each(scraper.filters[endpoint],function(filter){
-								if(filter.then != null) obj_pipe = obj_pipe.then(filter);
+								if(filter.then != null) obj_pipe = obj_pipe.then(filter.error(function(err,res){
+									console.log("ERROR WTF")
+								}));
 								else obj_pipe = obj_pipe.then(function(dat){
 									return new Promise(function(res,rej){
 										data[i] = dat;
@@ -138,26 +144,32 @@ function main(opt){
 
 							//when object has gone through all filters, replace with origional object.
 							obj_pipe = obj_pipe.then(function(parsed_obj){
-								data[i] = parsed_obj;
-								console.log('DONE PARSE');
-								//console.log(parsed_obj);
-								//console.log(data_count);
-								data_count ++;
-								if(data_count >= data_total){
-									exit_pipe(data); 
+								if(parsed_obj == null){
+									data.splice(i,1);
+									console.log('FAILED PARSE',data_count);
+									return;
 								}
+								data[i] = parsed_obj;
+								data_count ++;
 							}.bind(this));
+
+							// obj_pipe = obj_pipe.done(function(resolve,reject){
+							// 	console.log(resolve,reject)
+							// });
+
+
+							pipes.push(obj_pipe);
 
 							//TIMEOUT (if filters did not respond within 10 seconds) EXIT ANYWAY....
 
 						}.bind(this));
-						setTimeout(function() {
-							console.log('CHECK TIMEOUT',data_count,data_total);
-							if(data_count < data_total){
-								console.error('TIMEOUT IN FILTER PIPE',endpoint,plat_name,'\n','done',data_count,'\\',data_total);
-								exit_pipe(data);
-							} 
-						}, filter_timeout);
+						
+						Promise.settle(pipes).then(function(results){
+							console.log(results.length)
+							console.log('done scraping ',plat_name,'/',endpoint);
+							console.log('resolved',results.length,'/',data_total);
+							exit_pipe(data);
+						});
 					});
 				});
 

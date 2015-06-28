@@ -27,5 +27,4 @@ module.exports = {
 	event: require('./models/eventModel'),
 	user: require('./models/userModel'),
 	artist: require('./models/artistModel'),
-	ticket: require('./models/ticketModel'),
 }
