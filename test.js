@@ -14,7 +14,7 @@ update({
 				zip: '37064',
 				country: 'US',
 				radius: 50,
-				query_size:150,
+				query_size:400,
 			},
 		},
 		// 'eventful': {

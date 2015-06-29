@@ -110,7 +110,7 @@ function main(opt){
 					if(data.length == null) return console.error('UPDATE ERR:',plat_name,endpoint,'data must be an ARRAY!');
 					//console.log('piping data through filters',data);
 
-
+					console.log('got data!',data.length)
 				
 
 	
@@ -120,13 +120,13 @@ function main(opt){
 						var data_error = 0;
 						var pipes = [];
 						_.each(data,function(raw_obj,i){
-
+							var retries = 0;
 							//create a transform pipe for each object in the data array
 							var obj_pipe = new Promise(function(res,rej){
 								res(raw_obj);
 							}).cancellable();
 
-							obj_pipe = obj_pipe.delay(i*5);
+							obj_pipe = obj_pipe.delay(i*50);
 
 
 							//cycle through all the filters.
@@ -151,12 +151,11 @@ function main(opt){
 								}
 								data[i] = parsed_obj;
 								data_count ++;
-							}.bind(this));
-
-							// obj_pipe = obj_pipe.done(function(resolve,reject){
-							// 	console.log(resolve,reject)
-							// });
-
+								console.log(data_count);
+							}).timeout(60000).catch(Promise.TimeoutError, function(e) {
+								throw new Error("couldn't fetch content after 60 seconds, timeout");
+					        })
+							
 
 							pipes.push(obj_pipe);
 

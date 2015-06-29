@@ -4,10 +4,16 @@ https://www.reverbnation.com/main/search?city=&country=US&filter_type=venue&geo=
 */
 
 var cfg = require('../data_config.json').apis.reverbnation;
-var request = require('request');
+
 //var cities = require('cities');
 var cheerio = require('cheerio');
 var Promise = require('bluebird');
+
+var del = 50;
+
+var request = Promise.promisify(require('request').get);
+
+
 var qs = require('querystring');
 var moment = require('moment');
 var _ = require('lodash');
@@ -38,20 +44,28 @@ function search(type,opt){
 
 	var total = 0;
 
-
+	var tries = {};
 	var response;
 	var reject;
 
-	function get(res,rej){
-		//console.log('GET..',q.page,sent_requests_aprrox);
-		
-		request.get({
+	function get(page){
+		tries[page] = tries[page] || 0;
+		q.page = page;
+		request({
 			url : url + '?' + qs.stringify(q),
-		},function(err,res,body){
-			if(err){
-				console.log(url + '?' + qs.stringify(q));
-				return rej(err);
-			} 
+		})
+		.delay(del)
+		.catch(function(e){
+			console.log('error getting venue list. tries: ',tries[page],'page: ',page);
+			if(tries[page] < 10){
+				tries[page]++;
+				get(page);
+			};
+			return [null,null];
+		})
+		.spread(function(res,body){
+			if(body == null) return;
+			q.page++;
 			sent_requests++
 			var $ = cheerio.load(body)
 			var nodes = $('.content-container > .js-results-div > ul > li')
@@ -70,10 +84,9 @@ function search(type,opt){
 			if(results.length >= (opt.query_size || total)){
 				return response(results);
 			}else if(sent_requests >= sent_requests_aprrox){
-				get(res,rej)
+				get()
 			}
-		}.bind(this));
-		q.page++;
+		}.bind(this))
 	};
 
 
@@ -83,7 +96,7 @@ function search(type,opt){
 
 	//async
 	for(var i = 0;i<sent_requests_aprrox;i++){
-		get(response,reject);
+		get(i);
 	}
 
 
@@ -118,24 +131,33 @@ function getVenueEvents(venueid){
 	var events = [];
 	var resolve;
 	var reject;
+	var tries = 0;
 
 	function get(){
 		//console.log('get',cfg.api+'/venue/load_schedule/'+venueid+'?page='+current);
-		request.get({
-			url : cfg.api+'/venue/load_schedule/'+venueid+'?page='+current,
-		},function(err,res,body){
-			if(err) return reject(err);
-			
 
+		
+
+		var promise = request({url : cfg.api+'/venue/load_schedule/'+venueid+'?page='+current})
+		.catch(function(e){
+			//console.log('get venue events error ',venueid,tries);
+			if(tries < 10){
+				tries++;
+				get();
+			};
+			return [null,null];
+			//console.log('try again:',venueid,tries)
+		}.bind(this))
+		.delay(del)
+		.spread(function(res,body){
+			if(body == null) return;
+			if(tries > 0) console.log('GOT VENUE EVENTS ON TRY #',venueid,tries);
 			current++;
-
 
 			var $ = cheerio.load(body);
 			var nuggets = $('.show_nugget');
 
-
 			if(nuggets.length == 0) return resolve({});
-
 
 			var loaded_count = 0; 
 			var loaded_total = nuggets.length;
@@ -161,9 +183,9 @@ function getVenueEvents(venueid){
 					}
 				});
 			});
-
-		});
+		}.bind(this));
 	};
+
 	return new Promise(function(res,rej){
 		resolve = res;
 		reject = rej;
@@ -218,48 +240,110 @@ module.exports.parseEvent = function(nugget){
 	
 	
 }
-module.exports.getArtistBody = function(artisthref){
-	//console.log('GET ARTIST',artisthref);
-	function get(resolve,reject){
-		request.get({
-			url : cfg.api+artisthref,
-		},function(err,res,body){
-			console.log(cfg.api+artisthref);
-			if(err) return reject(err);
-			resolve(body);
-		});
-	};
-	return new Promise(get);
+// module.exports.getArtistBody = function(artisthref){
+// 	//console.log('GET ARTIST',artisthref);
+// 	function get(resolve,reject){
+// 		request({
+// 			url : cfg.api+artisthref,
+// 		},function(err,res,body){
+// 			console.log(cfg.api+artisthref);
+// 			if(err) return reject(new Promise.CancellationError());
+// 			resolve(body);
+// 		});
+// 	};
+// 	return new Promise(get).cancellable();
+// };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+var p = require('../pFactory.js');
+
+module.exports.getVenue = function(id){
+
+	var response;
+	var reject;
+	var tries = 0;
+	function get(){
+		
+		request({url : cfg.api+'/venue/'+id})
+			.catch(function(error){
+				console.log('failed to fetch venue page, try#',tries)
+				if(tries < 10){
+					tries++;
+					get();
+				}
+				return [null,null];
+			}.bind(this))
+			.spread(function(res,body){
+				if(body == null) return;
+				return response(body);
+			}.bind(this))
+	}
+
+	return new Promise(function(res,rej){
+		response = res;
+		reject = rej;
+		get();
+	})
+}
+
+function getVenueBanners(photoid,object){
+	var tries = 0;
+	var response;
+	var reject;
+	function get(){
+		request({url : cfg.api+'/venue/view_photo_popup/photo_'+photoid})
+		.delay(del)
+		.catch(function(error){
+			console.log('failed to fetch banenrs, try#',tries)
+			if(tries < 10){
+				tries++;
+				get();
+			}else response();
+			
+			return [null,null];
+		}.bind(this))
+		.spread(function(res,body){
+			if(body == null) return;
+			object.banners = parseVenuePhotos(body);
+			response();
+		}.bind(this))
+	}
+
+	new Promise(function(res,rej){
+		response = res;
+		reject = rej;
+		get();
+	});
 };
 
 
-function parseArtist(body){
-
-
-
-	return new Promise(function(res,rej){
-		res({})
-	});
-}
 
 
 
 
-module.exports.getVenue = function(id){
-	function get(resolve,reject){
-		request.get({
-			url : cfg.api+'/venue/'+id,
-		},function(err,res,body){
-			if(err){
-				console.log(cfg.api+'/venue/'+id);
-				return reject(err);
-			} 
-			resolve(body);
-		});
-	};
-	return new Promise(get);	
-}
 
+
+
+
+
+
+
+
+
+
+var util = require('util');
 
 function parseVenuePhotos(body){
 	if(body == null) return {};
@@ -271,29 +355,12 @@ function parseVenuePhotos(body){
 			width: 0,
 			url: $(el).attr('lazy_load')
 		}
-
 	});
 }
 
-function getVenueBanners(photoid,object){
-	function get(resolve,reject){
-		request.get({
-			url : cfg.api+'/venue/view_photo_popup/photo_'+photoid
-		},function(err,res,body){
-			if(err) return reject(err);
-			object.banners = parseVenuePhotos(body);
-			resolve();
-		});
-	};
-	return new Promise(get)
-}
-
-
-var util = require('util');
-
 //Parse Venue List Item
 module.exports.parseVenueFindItem = function(venue){
-
+	
 
 	var $ = cheerio.load(venue);
 
@@ -312,7 +379,7 @@ module.exports.parseVenueFindItem = function(venue){
 
 	return new Promise(function(resolve,reject){
 		module.exports.getVenue(parsed.platforms['reverbnation']).then(function(body){
-
+			if(body == null) return;
 	
 			var $ = cheerio.load(body);
 			
@@ -393,14 +460,23 @@ module.exports.parseVenueFindItem = function(venue){
 					parsed.links.push(real_link)
 				}else{
 					var matches = fuzz.get(parsed.name);
-					parsed.links.push(matches[0][1]);
+					if(matches == null){
+						parsed.links = parsed.links.concat(fuzz.values());
+						//console.log(parsed.name,);
+					}else{
+						parsed.links.push(matches[0][1]);
+					}
 				}
-			});
+			});	
 
-			var photos_linkid = $($('.profile_photos a')[0]).attr('onclick').match(/(?!photo_)\d+/);
-
+			//console.log(parsed)
+			var photos_link = $($('.profile_photos a')[0]).attr('onclick');
+			if(photos_link != null){
+				var photos_linkid = photos_link.match(/(?!photo_)\d+/);
+			}
 			if(photos_linkid != null){
-				var promise = getVenueBanners(photos_linkid,parsed).then(getVenueEvents(parsed.platforms['reverbnation']));
+				var promise = getVenueEvents(parsed.platforms['reverbnation'])
+					.then(getVenueBanners(photos_linkid,parsed));
 			}else{
 				var promise = getVenueEvents(parsed.platforms['reverbnation']);
 			}
@@ -410,6 +486,7 @@ module.exports.parseVenueFindItem = function(venue){
 			//fill in venue banners and events!
 			promise.then(function(data){
 				parsed.events = data;
+				//console.log(parsed.banners.length);
 				
 				//link events with venue
 				_.each(parsed.events,function(event){
@@ -421,4 +498,3 @@ module.exports.parseVenueFindItem = function(venue){
 		});
 	});
 }
-
