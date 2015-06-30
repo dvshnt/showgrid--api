@@ -49,160 +49,134 @@ function main(opt){
 	var filter_timeout = (opt.timeout || 20)*1000;
 	var total = 0;
 	var done = 0;
-
+	opt.params = opt.params || {};
 	var response;
 	var reject;
 
-
+	
 	var new_data = []; //list of new data models added to the database gets promised back when all endpoints of each platform are updated and saved.
 	var updated_data = [];
 
 	
 	var stepcheck = function(){
 		done++;
-		
 		if(done >= total){
 			response({new_data:new_data,updated_data:updated_data});
 		}
 	}
 
 	var start_time = new Date().getTime();
-	// setInterval(function(){
-
-	// 	console.log('getting...',Math.floor(((start_time - new Date().getTime())/1000)) );
-	// }, 1100)
 
 
 	//core update function.
 	var update = function(plat,plat_name){
-
-		//match options platform with scraper tag
-		//console.log(scrapers)
-
-
-		//check if we gethered all the data before we promise it back...
-
-
-
-		if(scrapers[plat_name] != null){
-			var scraper = scrapers[plat_name];
-			found = true;
+		//console.log(plat,plat_name);
+		//check if platform exists.
+		if(scrapers[plat_name] == null){
+			console.log('no scraper platform found: ',plat_name);
+			return
+		}
 
 
-			var opt_endpoints = plat.endpoints;
-
-			//go through all requested endpoints
-			opt_endpoints.forEach(function(endpoint,i){
-				
-
-				//catch any scraper config errors.
-				if(scraper.find == null) return console.error('SCRAPER ERR: '+plat_name+' does not have the method group "find" ');
-				if(scraper.find[endpoint] == null) return console.error('SCRAPER ERR: '+plat_name+' does not have '+endpoint);
+		//if a platform doesnt have any passed params, we create a new empty settings object.
+		plat.params = plat.params || {};
 
 
-				//get the endpoint promise.
-				var prom = scraper.find[endpoint](plat.params);
-				total++;
+		//return an array of all the platform pipes.
+		var scraper = scrapers[plat_name];
+		var opt_endpoints = plat.endpoints;
+		return opt_endpoints.map(function(endpoint,i){
+			
+
+			//catch any scraper config errors.
+			if(scraper.find == null) return console.error('SCRAPER ERR: '+plat_name+' does not have the method group "find" ');
+			if(scraper.find[endpoint] == null) return console.error('SCRAPER ERR: '+plat_name+' does not have '+endpoint);
 
 
-				//pipe data through the filters.
-				prom = prom.then(function(data){
-					if(data.length == null) return console.error('UPDATE ERR:',plat_name,endpoint,'data must be an ARRAY!');
-					//console.log('piping data through filters',data);
+			//get the endpoint promise.
+			//console.log(plat.params);
 
-					console.log('got data!',data.length)
-				
+			//ENDPOINT PROMISE
+			var prom = scraper.find[endpoint](_.merge(plat.params,opt.params))
+			.then(function(data){
+				if(data.length == null) return console.error('UPDATE ERR:',plat_name,endpoint,'data must be an ARRAY!');
 
-	
-					return new Promise(function(exit_pipe,reject2){
-						var data_total = data.length;
-						var data_count = 0;
-						var data_error = 0;
-						var pipes = [];
-						_.each(data,function(raw_obj,i){
-							var retries = 0;
-							//create a transform pipe for each object in the data array
-							var obj_pipe = new Promise(function(res,rej){
-								res(raw_obj);
-							}).cancellable();
+				console.log('got',plat_name,'data!', data.length)
+			
+				return new Promise(function(exit_pipe,reject2){
+					var data_total = data.length;
+					var data_count = 0;
+					var data_error = 0;
+					var pipes = [];
+					_.each(data,function(raw_obj,i){
+						var retries = 0;
+						//create a transform pipe for each object in the data array
+						var obj_pipe = new Promise(function(res,rej){
+							res(raw_obj);
+						}).cancellable();
 
-							obj_pipe = obj_pipe.delay(i*50);
+						obj_pipe = obj_pipe.delay(i*50);
 
 
-							//cycle through all the filters.
-							_.each(scraper.filters[endpoint],function(filter){
-								if(filter.then != null) obj_pipe = obj_pipe.then(filter.error(function(err,res){
-									console.log("ERROR WTF")
-								}));
-								else obj_pipe = obj_pipe.then(function(dat){
-									return new Promise(function(res,rej){
-										data[i] = dat;
-										res(filter(dat));
-									});
+						//cycle through all the filters.
+						_.each(scraper.filters[endpoint],function(filter){
+							if(filter.then != null) obj_pipe = obj_pipe.then(filter.error(function(err,res){
+								console.log("ERROR WTF")
+							}));
+							else obj_pipe = obj_pipe.then(function(dat){
+								return new Promise(function(res,rej){
+									data[i] = dat;
+									res(filter(dat));
 								});
-							}.bind(this));
-
-							//when object has gone through all filters, replace with origional object.
-							obj_pipe = obj_pipe.then(function(parsed_obj){
-								if(parsed_obj == null){
-									data.splice(i,1);
-									console.log('FAILED PARSE',data_count);
-									return;
-								}
-								data[i] = parsed_obj;
-								data_count ++;
-								console.log(data_count);
-							}).timeout(60000).catch(Promise.TimeoutError, function(e) {
-								throw new Error("couldn't fetch content after 60 seconds, timeout");
-					        })
-							
-
-							pipes.push(obj_pipe);
-
-							//TIMEOUT (if filters did not respond within 10 seconds) EXIT ANYWAY....
-
+							});
 						}.bind(this));
+
+						//when object has gone through all filters, replace with origional object.
+						obj_pipe = obj_pipe.then(function(parsed_obj){
+							if(parsed_obj == null){
+								data.splice(i,1);
+								console.log('FAILED PARSE',data_count);
+								return;
+							}
+							data[i] = parsed_obj;
+							data_count ++;
+							console.log(plat_name,endpoint,data_count);
+						}).timeout(60000).catch(Promise.TimeoutError, function(e) {
+							throw new Error("couldn't fetch content after 60 seconds, timeout");
+				        })
 						
-						Promise.settle(pipes).then(function(results){
-							console.log(results.length)
-							console.log('done scraping ',plat_name,'/',endpoint);
-							console.log('resolved',results.length,'/',data_total);
-							exit_pipe(data);
-						});
+
+						pipes.push(obj_pipe);
+					
+						//TIMEOUT (if filters did not respond within 10 seconds) EXIT ANYWAY....
+
+					}.bind(this));
+
+					Promise.settle(pipes).then(function(results){
+						console.log('done scraping ',plat_name,'/',endpoint,'total:',results.length);
+						exit_pipe(data);
 					});
 				});
-
-
-				//run the pipe through the validator (checks if data exists in database)
-				prom = prom.then(function(data){
-					return Validator(data,opt.save)
-				}.bind(this));
-
-
-				//run the pipe through the linkFiller (finds linked models and associates it with the parent model)
-				if(opt.link == false){}
-				else prom = prom.then(function(data){
-					return linkFiller(data,opt.linklog);
-				}.bind(this));
-
-
-				//step check...when EVERY platform endpoint update returns a promise, we return with the updated data.
-				prom = prom.then(function(data){
-
-				})
-				
-				return prom;
-			}.bind(this));
-		}else console.log('no scraper platform found: ',plat_name);
+			})
+						
+			return prom;
+		}.bind(this));
 	}.bind(this)
 
 
 	//return update promise
-	return new Promise(function(res,rej){
-		response = res;
-		reject = rej;
+	return new Promise(function(resolve,reject){
 
-		_.each(opt.platforms,update);
+
+		//all platform enpoint pipes
+		var all_pipes = _.flatten(_.map(opt.platforms,update));
+		
+		Promise.settle(all_pipes).then(function(results){
+			return _.flatten(_.map(results,function(r){if(r.isFulfilled()) return r.value()}))
+		}).then(Validator).then(function(data){
+			resolve(data);
+		});
+
 	}.bind(this))
 }
 

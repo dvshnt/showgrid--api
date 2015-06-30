@@ -292,7 +292,7 @@ Very Heavy Similarity Query
 
 var compareData = {
 	'event' : ['venue.name','date','name'],
-	'venue' : ['name','location.gps','phone'],
+	'venue' : ['name','location.gps'],
 	'artist' : ['name']
 };
 
@@ -305,28 +305,59 @@ var compareData = {
 var fuzzy = require('fuzzyset.js');
 
 
-function set_data(n){
-	n._data = '';
+function set_data(n,n2){
+	var data = '';
+
+
 	_.each(compareData[n.is],function(field){
-		if(_.get(obj,field) == null) return;
-		if(field == 'location.gps' && n.location.gps != null){
-			n._data += Math.round(n.location.gps[0] * 100)/100+''+Math.round(n.location.gps[1] * 100)/100;
-		}else{
-			n._data += _.get(n,field)
+		if(_.get(n,field) == null || (n2 != null && _.get(n2,field) == null)) {
+			//console.error('bad object comparison data vairable',n.is,field);
+			return;
 		}
+
+		if(field == 'location.gps' && n.location.gps != null){
+			// var lat = parseInt(n.location.gps[0])
+			// var lon = parseInt(n.location.gps[1])
+
+			data += Math.round(parseInt(n.location.gps[0])*100)/100+' '+Math.round(parseInt(n.location.gps[1])*100)/100;
+			
+		}else{
+			data += String(_.get(n,field))
+		}
+		data += ' ';
 	});
+
+	//console.log(data);
+	return data;	
 }
 
-function isMatch(obj,data){
 
-	set_data(obj);
+var fuse = require('./fuse.js')
 
-	var entries = _.pluck(data,'_data');
+
+
+
+function isMatch(obj,all){
+	obj._data = set_data(obj);
+	//console.log(obj._data);
+	var entries = _.map(all,function(obj2,i){
+		if(obj2 == obj) return '-----------------'
+		return set_data(obj2,obj);
+	});
+
+
 	var fuzz = fuzzy(entries);
-	var match = fuzzy.get(obj['_data']);
+	var match = fuzz.get(obj._data);
 
-	if(match[0] > 0.9){
+	if(match == null){
+		return null;
+	}
+	//console.log(obj.name,match[0])
+	if(parseInt(match[0][0]) > 0.9){
+		console.log('match:',match[1],'||',obj._data);
 		return entries.indexOf(match[1]);
+	}else if(parseInt(match[0][0]) > 0.5){
+		console.log('semi match',match[0],obj._data);
 	}else{
 		return null;
 	}
@@ -338,64 +369,91 @@ function isMatch(obj,data){
 
 
 function compareRaw(dataset){
-
-	console.log('comparing raw data...');
-
+	//console.log(dataset);
 	var overlap_log = {};
+	
 
-	_.each(dataset,function(obj1,i){
-		var match = isMatch(obj1,dataset);
+
+
+	_.each(dataset,function(obj,i){
+
+		//console.log(obj.name)
+		var match = isMatch(obj,dataset);
 
 		if(match == null) return;
 		
-		var plat1 = obj1.platforms[0]
+		var plat1 = obj.platforms[0]
 		overlap_log[plat1] = overlap_log[plat1] || {};
-		var overlaps = overlap_log[plat1][obj2.platforms[0]];
-		if(overlaps != null) overlap_log[plat1][obj2.platforms[0]] +=1;
-		else overlap_log[plat1][obj2.platforms[0]] = 1;
+		var overlaps = overlap_log[plat1][dataset[match].platforms[0]];
+		if(overlaps != null) overlap_log[plat1][dataset[match].platforms[0]] +=1;
+		else overlap_log[plat1][dataset[match].platforms[0]] = 1;
 
-		obj1 = _.merge(obj1,dataset[match]);
+		obj = _.merge(obj,dataset[match]);
 		dataset.splice(match,1);
 	});
 
 
-	//debug:
-	console.log('scraped overlaps:');
-	_.each(overlap_log,function(val,key){
-		console.log(key+':');
-		_.each(val,function(val2,key2){
-			console.log('   '+key2+': '+val2);
-		})
-	});
+
+
+
+	//overlap log:
+	// console.log('scraped overlaps:');
+	// _.each(overlap_log,function(val,key){
+	// 	console.log(key+':');
+	// 	_.each(val,function(val2,key2){
+	// 		console.log('   '+key2+': '+val2);
+	// 	})
+	// });
 
 	return dataset;
 }
 
 
 
+var addressGPS = require('address-gps');
+
+
+fillGPS = p.sync(function(obj,delay){
+	//console.log(obj.location);
+	if(obj.is == 'venue' && obj.location != null){
+		var addr = (obj.location.address || '') + ' ' + (obj.location.city || '') + ' ' + (obj.location.statecode||'')+' '+(obj.name || '');
+		setTimeout(function() {
+			addressGPS.getGPS(addr,function(location){
+				obj.location.gps = [location.latitude,location.longitude];
+				console.log(obj.location.gps)
+				this.resolve(obj);
+			}.bind(this));
+		}.bind(this),delay)
+	}else if(obj.is == 'event'){
+		var addr = obj.venue.location.address + ' ' +  obj.venue.name;
+		setTimeout(function() {
+			addressGPS.getGPS(addr,function(location){
+				obj.gps = [location.latitude,location.longitude];
+				resolve(obj);
+			}.bind(this));
+		}.bind(this),delay)
+	}
+	return this.promise;
+});
 
 
 
 
 
 
-
-
-
-//Validator checks parsed data
+//Validator checks parsed data based on gps
 module.exports = p.async(function(dataset,save){
+	var pipe = p.pipe();
+	_.each(dataset,function(obj,i){
+		pipe = pipe.then(fillGPS(obj,120*i))
+	});
 
-	dataset = compareRaw(dataset);
-
-	//console.log('IN VALIDATOR',endpoint,dataset);
-	var total = dataset.length,count=0;
-	var models = [];
-	_.each(dataset,function(obj){
-		validateSaveModel(obj).then(function(model){
-			models.push(model);
-			if(this.checkAsync()) this.resolve(models);
-		}.bind(this));
-	}.bind(this));
+	// pipe.then(function(){
+	// 	_.each(dataset,function(obj,i){
+	// 		console.log(obj.location.gps);
+	// 	});
+	// });
+	//this.resolve(compareRaw(dataset));
 
 	return this.promise;
 });

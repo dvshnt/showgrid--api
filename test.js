@@ -7,26 +7,25 @@ var update = require('./data/update.js');
 
 
 update({
+	params: {
+		zip: '37064',
+		country: 'US',
+		radius: 50,
+		query_size:10,
+		sort: 'popularity'
+	},
 	platforms: {
-		'reverbnation': {
-			endpoints : ['venue'],
-			params: {
-				zip: '37064',
-				country: 'US',
-				radius: 50,
-				query_size:400,
-			},
-		},
 		// 'eventful': {
-		// 	endpoints : ['venue'],
 		// 	params: {
 		// 		key: api_cfg.eventful.keys[0],
-		// 		zip: '37064',
-		// 		country: 'US',
-		// 		radius: 50,
-		// 		query_size: 100,
+
 		// 	},
+		// 	endpoints : ['venue'],
 		// },
+		'reverbnation': {
+			endpoints : ['venue'],	
+		},
+	
 		// 'jambase' : {
 		// 	endpoints : ['venue','event','artist'],
 		// 	key : api_cfg.jambase.keys[0],
@@ -38,5 +37,6 @@ update({
 	save: true
 
 }).then(function(data){
+	console.log(data.length);
 	console.log('done with update');
 });

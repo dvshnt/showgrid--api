@@ -33,7 +33,7 @@ module.exports.findEvents = function(opt){
 		category: 'music'
 	};
 
-
+	if(opt.sort != null) q.sort_order = opt.sort;
 	if(opt.zip != null) q.location = opt.zip;
 	if(opt.radius != null) q.within = opt.radius;
 
@@ -62,7 +62,7 @@ module.exports.findEvents = function(opt){
 				}
 				got_pages++;
 				if(got_pages >= total_pages){
-					console.log("END FIND...QUERY SIZE REACHED.",got_pages,total_pages)
+					//console.log("END FIND...QUERY SIZE REACHED.",got_pages,total_pages)
 					response(events)
 				}
 			});
@@ -90,7 +90,7 @@ module.exports.findVenues = function(opt){
 
 	if(opt.zip != null) q.location = opt.zip;
 	if(opt.radius != null) q.within = opt.radius;
-
+	if(opt.sort != null) q.sort_order = opt.sort;
 
 	var page_count = 0;
 	var venues = [];
@@ -191,6 +191,9 @@ module.exports.parseEvent = function(event){
 			platforms: {
 				'eventful' : event.venue_id
 			},
+			location: {
+				address: event.venue_address
+			}
 		},
 		artists: {
 			headers: (function(){
@@ -231,7 +234,7 @@ module.exports.parseEvent = function(event){
 			if(raw_event.images != null) event.banners = raw_event.images.image.length != null ? raw_event.images.image : [raw_event.images.image];
 			if(raw_event.links != null) event.links = raw_event.links.link.length != null ? raw_event.links.link : [raw_event.links.link];
 
-			console.log(event);
+			//console.log(event);
 			res(event);
 		});
 	});	
