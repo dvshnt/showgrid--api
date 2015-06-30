@@ -8,10 +8,10 @@ var update = require('./data/update.js');
 
 update({
 	params: {
-		zip: '37064',
+		zip: '37264',
 		country: 'US',
 		radius: 50,
-		query_size:10,
+		query_size:50,
 		sort: 'popularity'
 	},
 	platforms: {
@@ -37,6 +37,6 @@ update({
 	save: true
 
 }).then(function(data){
-	console.log(data.length);
-	console.log('done with update');
+	//console.log(data.length);
+	//console.log('done with update');
 });

@@ -15,9 +15,9 @@ var _ = require('lodash');
 Promise pipe creator.
 
 */
-module.exports.pipe = function(){
+module.exports.pipe = function(data){
 	return new Promise(function(resolve,reject){
-		resolve();
+		resolve(data);
 	})
 }
 

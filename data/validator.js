@@ -413,26 +413,69 @@ function compareRaw(dataset){
 var addressGPS = require('address-gps');
 
 
-fillGPS = p.sync(function(obj,delay){
+var getGPS = function(obj,delay){
 	//console.log(obj.location);
 	if(obj.is == 'venue' && obj.location != null){
 		var addr = (obj.location.address || '') + ' ' + (obj.location.city || '') + ' ' + (obj.location.statecode||'')+' '+(obj.name || '');
-		setTimeout(function() {
+		var tries = 0;
+		function tryget(){
 			addressGPS.getGPS(addr,function(location){
-				obj.location.gps = [location.latitude,location.longitude];
-				console.log(obj.location.gps)
-				this.resolve(obj);
+				if(_.isString(location)){
+					console.log(location)
+					if(tries< 10){
+						tries++;
+						setTimeout(tryget.bind(this),200)
+						return;
+					}else{
+						resolve(obj);
+					}
+				}else{
+					obj.location.gps = [location.latitude,location.longitude];
+					console.log('got gps',obj.name);
+					resolve(obj);
+				}
+
+				
+				
+				
+				
 			}.bind(this));
-		}.bind(this),delay)
+		}
+		setTimeout(tryget.bind(this),delay)
 	}else if(obj.is == 'event'){
 		var addr = obj.venue.location.address + ' ' +  obj.venue.name;
-		setTimeout(function() {
-			addressGPS.getGPS(addr,function(location){
-				obj.gps = [location.latitude,location.longitude];
-				resolve(obj);
-			}.bind(this));
-		}.bind(this),delay)
+		
 	}
+
+	var resolve,reject;
+	return new Promise(function(res,rej){
+		resolve = res;
+		reject = rej;
+	});
+};
+
+
+
+var fillGPS = p.sync(function(dataset){
+	var pipes = [];
+	_.each(dataset,function(obj,i){
+		if(obj.location.gps != null) return;
+		pipes.push(getGPS(obj,150*i).then(function(){
+			console.log('done',i);
+		}));
+	});
+
+
+	var has_address = 0;
+
+	Promise.settle(pipes).then(function(results){
+		_.each(dataset,function(obj,i){
+			if(obj.location.gps != null) has_address++;
+		});
+		console.log('GPS DATA FOUND FOR : ',has_address,'/',dataset.length);
+		this.resolve();
+	}.bind(this));
+
 	return this.promise;
 });
 
@@ -440,20 +483,12 @@ fillGPS = p.sync(function(obj,delay){
 
 
 
-
 //Validator checks parsed data based on gps
 module.exports = p.async(function(dataset,save){
-	var pipe = p.pipe();
-	_.each(dataset,function(obj,i){
-		pipe = pipe.then(fillGPS(obj,120*i))
-	});
+	fillGPS(dataset).then(function(){
+		this.resolve();
+	}.bind(this));
 
-	// pipe.then(function(){
-	// 	_.each(dataset,function(obj,i){
-	// 		console.log(obj.location.gps);
-	// 	});
-	// });
-	//this.resolve(compareRaw(dataset));
 
 	return this.promise;
 });
