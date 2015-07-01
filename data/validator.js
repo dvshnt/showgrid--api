@@ -422,7 +422,7 @@ var getGPS = function(obj,delay){
 			addressGPS.getGPS(addr,function(location){
 				if(_.isString(location)){
 					console.log(location)
-					if(tries< 10){
+					if(location.match(/limit/i) != null && tries< 10){
 						tries++;
 						setTimeout(tryget.bind(this),200)
 						return;
@@ -430,6 +430,7 @@ var getGPS = function(obj,delay){
 						resolve(obj);
 					}
 				}else{
+					
 					obj.location.gps = [location.latitude,location.longitude];
 					console.log('got gps',obj.name);
 					resolve(obj);
