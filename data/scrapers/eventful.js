@@ -108,6 +108,7 @@ module.exports.findVenues = function(opt){
 				url : url + '?' + qs.stringify(q),
 				json: true
 			},function(err,res,data){
+				if(data.venues == null) response([]);
 				//console.log(data,"============================")
 				if(data.venues.venue != null && data.venues.venue.length > 0){
 					venues = venues.concat(data.venues.venue)

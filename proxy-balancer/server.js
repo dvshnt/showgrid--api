@@ -4,7 +4,7 @@ var isBalancer = process.argv[2] == '-b' ? true : (process.argv[2] == '-n' ? fal
 
 
 
-
+var port = 5050;
 
 
 
@@ -25,7 +25,9 @@ var _ = require('lodash');
 
 //a list of nodes
 var nodes = [
-	'54.201.82.182',
+	'52.25.231.142',
+	'52.27.123.147',
+	'52.27.110.43'
 ];
 
 
@@ -49,27 +51,27 @@ nodes = _.map(nodes,function(ip,i){
 	return server;
 }.bind(this));
 
+console.log(nodes);
 
 
+function newAPI(addr,server){
 
-function addAPI(addr,server){
-	_.each(nodes,function(node,i){
 
-		var node = node;
-		var interval = 1000/((limits[addr] != null ? limits[addr].second : 100) || 10);
-		var api = {};
+	var interval = 1000/((limits[addr] != null ? limits[addr].second : 100) || 10);
+	var api = {};
 
-		api.count = 0;
-		api.cooldown = 0;
-		api.steward = setInterval(function(){
-			if(this.cooldown > 0){
-				console.log('cool off -1 '+node.ip+' '+this.cooldown);
-				this.cooldown--;
-			}
-		}.bind(api),interval);
+	api.count = 0;
+	api.cooldown = 0;
+	api.steward = setInterval(function(){
+		if(this.cooldown > 0){
+			console.log('cool off -1 '+server.ip+' '+this.cooldown);
+			this.cooldown--;
+		}
+	}.bind(api),interval);
 
-		node.apis[addr] = api;
-	});
+
+	console.log('ADD API:',addr,interval);
+	return api;
 }
 
 
@@ -79,7 +81,7 @@ function balancer(api){
 
 	_.each(nodes,function(server){
 		
-		if(server[api] == null) addAPI(api,server);
+		if(server.apis[api] == null) server.apis[api] = newAPI(api,server);
 		
 		if(best == null || server.apis[api].cooldown < best.apis[api].cooldown && server.apis[api].count < best.apis[api].count){
 			best = server;
@@ -103,8 +105,8 @@ function balancer(api){
 	}
 
 	console.log('balancer chose proxy@',best.ip,'with',best.apis[api].cooldown,'cooldowns and',best.apis[api].count,' calls @ API # ',api)
-	best.apis[api].cooldown++;
-	best.apis[api].count++;
+	best.apis[api].cooldown+=1;
+	best.apis[api].count+=1;
 	return {ip:best.ip,delay:delay};
 }
 
@@ -117,29 +119,38 @@ var proxy = httpProxy.createProxyServer({});
 
 
 
-proxy.on('proxyReq', function(proxyReq, req, res, options) {
-  console.log('PROXY REQ',req.url,req.hostname);
+
+
+proxy.on('error', function (err, req, res) {
+	  res.writeHead(500, {
+	    'Content-Type': 'application/json'
+	  });
+ 	console.log('failed to fetch');
+  	res.end(JSON.stringify({status:'FAILED NODE'}));
 });
 
-
+proxy.on('proxyRes', function (proxyRes, req, res) {
+  console.log('RAW Response from the target', JSON.stringify(proxyRes.headers, true, 2));
+});
 
 var server = http.createServer(function(req, res) {
 	var url_parts = url.parse(req.url, true);
 	var query = url_parts.query;
 
 	var target = query.target;
-	delete query.target;
+	
 
 	if(isBalancer == true && nodes.length > 0){
 		var b = balancer(target)
+		console.log('get',b.ip,b.delay);
 		setTimeout(function(){
-			proxy.web(req, res, { target: 'http://'+b.ip+':5050?'});		
+			proxy.web(req, res, { target: 'http://'+b.ip+':5050?'+querystring.stringify(query),ignorePath:true});		
 		},b.delay);
 	}else{
-		req.url = '';
-		console.log('SEND TO ',target+'?'+querystring.stringify(query));
+		delete query.target;
+		//console.log('SEND TO ',target+'?'+querystring.stringify(query));
 		
-		proxy.web(req, res, { target: target+'?'+querystring.stringify(query)});
+		proxy.web(req, res, { target: target+'?'+querystring.stringify(query),ignorePath:true});
 	}
 });
 

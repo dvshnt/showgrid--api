@@ -460,8 +460,8 @@ var getGPS = function(obj,delay){
 var fillGPS = p.sync(function(dataset){
 	var pipes = [];
 	_.each(dataset,function(obj,i){
-		if(obj.location.gps != null) return;
-		pipes.push(getGPS(obj,150*i).then(function(){
+	//	if(obj.location == null || obj.location.gps != null) return;
+		pipes.push(getGPS(obj,50*i).then(function(){
 			console.log('done',i);
 		}));
 	});
