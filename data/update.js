@@ -53,11 +53,11 @@ function main(opt){
 	var response;
 	var reject;
 
-	
+
 	var new_data = []; //list of new data models added to the database gets promised back when all endpoints of each platform are updated and saved.
 	var updated_data = [];
 
-	
+
 	var stepcheck = function(){
 		done++;
 		if(done >= total){
@@ -82,7 +82,7 @@ function main(opt){
 		plat.params = plat.params || {};
 
 
-		//return an array of all the platform pipes.
+		var data = [];
 		var scraper = scrapers[plat_name];
 		var opt_endpoints = plat.endpoints;
 		return opt_endpoints.map(function(endpoint,i){
