@@ -1,14 +1,13 @@
 /*
-dead simple handmade collection of shortcuts to create async and sync Promise pipelines based on bluebird promises.
 
-use async when you want to get data from differnt sources without waiting for each source to respond...checkAsync counts the data against total data and returns when all data is promised.
-this is handy to not have to do the same thing over and over again, there is probably more alot more robust promise factories out there but idc.
-variables are binded to the callback function so if you have nested callbacks, make sure you bind(this);
+a few shortcuts to create async and sync Promise pipelines based on bluebird promises.
 
 */
 
 var Promise = require('bluebird');
 var _ = require('lodash');
+
+
 
 /*
 
@@ -16,10 +15,11 @@ Promise pipe creator.
 
 */
 module.exports.pipe = function(data){
-	return new Promise(function(resolve,reject){
-		resolve(data);
-	})
+	return Promise.resolve(data);
 }
+
+
+
 
 
 /*
@@ -54,6 +54,8 @@ module.exports.async = function(func){
 
 	return _.bind(func,ObamaDelivers);
 }
+
+
 
 
 

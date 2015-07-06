@@ -1,4 +1,5 @@
-var db = require('mongoose');
+var Promise = require('bluebird');
+var db = Promise.promisifyAll(require('mongoose'));
 var userSchema = new db.Schema({
 	name: String,
 	email: String,

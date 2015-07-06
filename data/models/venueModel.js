@@ -1,7 +1,7 @@
-var db = require('mongoose');
 var _ = require('lodash');
 var scrapers = require('../scrapers.js')
-
+var Promise = require('bluebird');
+var db = Promise.promisifyAll(require('mongoose'));
 
 var eventSchema = new db.Schema({
 	name: {type:String, index: 'text', required: true},
@@ -20,7 +20,6 @@ var eventSchema = new db.Schema({
 	featured: {type:Boolean, default: false},
 	age: {type: Number,max: 21, default: 18},
 	description: String,
-	venue: {type:db.Schema.Types.ObjectId,ref:'Venue', required: true},
 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}],  //users going
 	artists: {
 		headliners:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}],
@@ -55,7 +54,7 @@ var venueSchema = new db.Schema({
 		secondary: String,
 	},
 	age: Number,
-	events: [{type:db.Schema.Types.ObjectId, ref: 'Event'}], //events at this venue (past and present)
+	events: [eventSchema], //events at this venue (past and present)
 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}], //users that are going to this venue
 	//artists: [{type:db.Schema.Types.ObjectId, ref: 'Artist'}] //artists that are performing at this venue
 },{autoIndex: false});

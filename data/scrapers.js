@@ -49,7 +49,7 @@ Calling scrapers from this raw module can lead to unexpected results, make sure 
 */
 
 module.exports =  {
-	'platformIds':  {'facebook':String,'reverbnation':String,'jambase':String,'eventful':String},
+	'platformIds':  [{name:'facebook',id:String},{name:'reverbnation',id:String},{name:'jambase',id:String},{name:'eventful',id:String}],
 
 	'jambase' : {
 		'find': {

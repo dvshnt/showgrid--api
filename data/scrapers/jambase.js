@@ -91,7 +91,7 @@ module.exports.parseVenue = function(venue){
 	return{
 		is: 'venue',
 		name: venue.Name,
-		platforms: {'jambase': venue.Id},
+		platforms:[{name:'jambase',id:venue.Id}],
 		location: {
 			address: venue.Address,
 			city: venue.City,
@@ -111,7 +111,7 @@ module.exports.parseVenue = function(venue){
 module.exports.parseArtist = function(artist){
 	return{
 		is: 'artist',
-		platforms: {'jambase': artist.Id},
+		platforms:[{name:'jambase',id:artist.Id}],
 		name: artist.Name,
 	};		
 }
@@ -123,7 +123,7 @@ module.exports.parseArtist = function(artist){
 module.exports.parseEvent = function(event){
 	return{
 		is: 'event',
-		platforms: {'jambase': event.Id},
+		platforms:[{name:'jambase',id:event.Id}],
 		date: moment(event.Date,moment.ISO_8601).utc().format(), //ISO 8601 +0.00 UTC DATE FORMAT ONLY!
 		name: event.Name,
 		age: null,

@@ -166,7 +166,7 @@ module.exports.getVenue = function(opt){
 module.exports.parseArtist = function(artist){
 	var parsed =  {
 		name: artist.name,
-		platforms:{'eventful':artist.id},
+		platforms:[{name:'eventful',id:artist.id}],
 		demand: artist.demand_count,
 	}
 
@@ -183,15 +183,11 @@ module.exports.parseEvent = function(event){
 	var event =  {
 		is: 'event',
 		name: event.title,
-		platforms: {
-			'eventful' : event.id
-		},
+		platforms:[{name:'eventful',id:event.id}],
 		description: event.description,
 		date: moment(event.start_time,moment.ISO_8601).utc().format(),
 		venue: {
-			platforms: {
-				'eventful' : event.venue_id
-			},
+			platforms:[{name:'eventful',id:event.venue_id}],
 			location: {
 				address: event.venue_address
 			}
@@ -204,17 +200,13 @@ module.exports.parseEvent = function(event){
 				if(event.performer.length != null){
 					var performers = _.each(event.performer,function(artist){
 						return {
-							platforms: {
-								'eventful': artist.id,
-							},
+							platforms:[{name:'eventful',id:artist.id}],
 						}
 					});
 					return performers;
 				}else if(event.performer != null){
 					return [{
-						platforms: {
-							'eventful': event.performer.id,
-						},
+						platforms:[{name:'eventful',id:event.performer.id}],
 					}]
 				}
 			})(),
@@ -231,7 +223,7 @@ module.exports.parseEvent = function(event){
 	}
 
 	return new Promise(function(res,rej){
-		module.exports.getEvent({id:event.platforms.eventful.id}).then(function(raw_event){
+		module.exports.getEvent({id:event.platforms[0].id}).then(function(raw_event){
 			if(raw_event.images != null) event.banners = raw_event.images.image.length != null ? raw_event.images.image : [raw_event.images.image];
 			if(raw_event.links != null) event.links = raw_event.links.link.length != null ? raw_event.links.link : [raw_event.links.link];
 
@@ -252,7 +244,7 @@ module.exports.parseVenue = function(venue){
 	//console.log('PARSE')
 	var venue = {
 		is: 'venue',
-		platforms: {'eventful': venue.id},	
+		platforms:[{name:'eventful',id:venue.id}],
 		name: venue.name,	
 		location: {
 			address:venue.venue_address,
@@ -267,7 +259,7 @@ module.exports.parseVenue = function(venue){
 
 	//get link
 	return new Promise(function(res,rej){
-		module.exports.getVenue({id:venue.platforms.eventful.id}).then(function(raw_venue){
+		module.exports.getVenue({id:venue.platforms[0].id}).then(function(raw_venue){
 			if(raw_venue == null) return res(venue);
 
 			var getlink = function(){

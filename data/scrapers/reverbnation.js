@@ -229,7 +229,8 @@ module.exports.parseEvent = function(nugget){
 
 
 			event.artists.headliners.push({
-				platforms:{'reverbnation':artist_link.attr('href')},
+
+				platforms:[{name:'reverbnation',id:artist_link.attr('href')}],
 				name: $(el).find('.fb_artist_name').text(),
 			});
 
@@ -369,7 +370,7 @@ module.exports.parseVenueFindItem = function(venue){
 	var cit = $('.ml1 > p > span').text().split(',');
 	var parsed = {
 		is: 'venue',
-		platforms:{'reverbnation' : $('li').data('search-id')},
+		platforms:[{name:'reverbnation',id:$('li').data('search-id')}],
 		name: $('.ml1 > h4.mb1').text(),
 		banners: [$('img').attr('src')],
 		events: [],
@@ -378,7 +379,7 @@ module.exports.parseVenueFindItem = function(venue){
 
 
 	return new Promise(function(resolve,reject){
-		module.exports.getVenue(parsed.platforms['reverbnation']).then(function(body){
+		module.exports.getVenue(parsed.platforms[0]).then(function(body){
 			if(body == null) return;
 	
 			var $ = cheerio.load(body);
@@ -475,10 +476,10 @@ module.exports.parseVenueFindItem = function(venue){
 				var photos_linkid = photos_link.match(/(?!photo_)\d+/);
 			}
 			if(photos_linkid != null){
-				var promise = getVenueEvents(parsed.platforms['reverbnation'])
+				var promise = getVenueEvents(parsed.platforms[0])
 					.then(getVenueBanners(photos_linkid,parsed));
 			}else{
-				var promise = getVenueEvents(parsed.platforms['reverbnation']);
+				var promise = getVenueEvents(parsed.platforms[0]);
 			}
 			
 			

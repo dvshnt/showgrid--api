@@ -1,5 +1,5 @@
-var db = require('mongoose');
-
+var Promise = require('bluebird');
+var db = Promise.promisifyAll(require('mongoose'));
 
 var scrapers = require('../scrapers.js')
 var artistSchema = new db.Schema({
