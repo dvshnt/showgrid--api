@@ -6,10 +6,10 @@ var db = require('./data.js');
 var scrapers = require('./scrapers');
 var Promise = require('bluebird');
 
-// console.log(scrapers)
+// //console.log(scrapers)
 //Async data scraping
 
-//console.log(db);
+////console.log(db);
 
 var fuzzy = require('fuzzyset.js'); //fuzzy matching for finding models that are similar.
 
@@ -29,7 +29,7 @@ it gets called after all the scraper filters have been called back.
 */
 
 var linkFiller = function(model_list,log){
-	//console.log('IN LINK FILLER: ',model_list);
+	////console.log('IN LINK FILLER: ',model_list);
 
 	_.each(model_list)
 
@@ -70,10 +70,10 @@ function main(opt){
 
 	//core update function.
 	var update = function(plat,plat_name){
-		//console.log(plat,plat_name);
+		////console.log(plat,plat_name);
 		//check if platform exists.
 		if(scrapers[plat_name] == null){
-			console.log('no scraper platform found: ',plat_name);
+			//console.log('no scraper platform found: ',plat_name);
 			return
 		}
 
@@ -89,19 +89,19 @@ function main(opt){
 			
 
 			//catch any scraper config errors.
-			if(scraper.find == null) return console.error('SCRAPER ERR: '+plat_name+' does not have the method group "find" ');
-			if(scraper.find[endpoint] == null) return console.error('SCRAPER ERR: '+plat_name+' does not have '+endpoint);
+			if(scraper.find == null) return //console.error('SCRAPER ERR: '+plat_name+' does not have the method group "find" ');
+			if(scraper.find[endpoint] == null) return //console.error('SCRAPER ERR: '+plat_name+' does not have '+endpoint);
 
 
 			//get the endpoint promise.
-			//console.log(plat.params);
+			////console.log(plat.params);
 
 			//ENDPOINT PROMISE
 			var prom = scraper.find[endpoint](_.merge(plat.params,opt.params))
 			.then(function(data){
-				if(data.length == null) return console.error('UPDATE ERR:',plat_name,endpoint,'data must be an ARRAY!');
+				if(data.length == null) return //console.error('UPDATE ERR:',plat_name,endpoint,'data must be an ARRAY!');
 
-				console.log('got',plat_name,'data!', data.length)
+				////console.log('got',plat_name,'data!', data.length)
 			
 				return new Promise(function(exit_pipe,reject2){
 					var data_total = data.length;
@@ -121,7 +121,7 @@ function main(opt){
 						//cycle through all the filters.
 						_.each(scraper.filters[endpoint],function(filter){
 							if(filter.then != null) obj_pipe = obj_pipe.then(filter.error(function(err,res){
-								console.log("ERROR WTF")
+								//console.log("ERROR WTF")
 							}));
 							else obj_pipe = obj_pipe.then(function(dat){
 								return new Promise(function(res,rej){
@@ -135,12 +135,12 @@ function main(opt){
 						obj_pipe = obj_pipe.then(function(parsed_obj){
 							if(parsed_obj == null){
 								data.splice(i,1);
-								console.log('FAILED PARSE',data_count);
+								//console.log('FAILED PARSE',data_count);
 								return;
 							}
 							data[i] = parsed_obj;
 							data_count ++;
-							console.log(plat_name,endpoint,data_count);
+							////console.log(plat_name,endpoint,data_count);
 						}).timeout(60000).catch(Promise.TimeoutError, function(e) {
 							throw new Error("couldn't fetch content after 60 seconds, timeout");
 				        })
@@ -153,7 +153,7 @@ function main(opt){
 					}.bind(this));
 
 					Promise.settle(pipes).then(function(results){
-						console.log('done scraping ',plat_name,'/',endpoint,'total:',results.length);
+						//console.log('done scraping ',plat_name,'/',endpoint,'total:',results.length);
 						exit_pipe(data);
 					});
 				});

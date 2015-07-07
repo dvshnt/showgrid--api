@@ -1,5 +1,4 @@
 var _ = require('lodash');
-var scrapers = require('../scrapers.js')
 var Promise = require('bluebird');
 var db = Promise.promisifyAll(require('mongoose'));
 
@@ -8,7 +7,7 @@ var db = Promise.promisifyAll(require('mongoose'));
 
 
 var eventSchema = new db.Schema({
-	platforms: scrapers.platformIds,
+	platforms: [{name:String,id:String}],
 	name: {type:String, index: 'text', required: true},
 	date: {type: Date, index: 'text', required: true},
 	tickets: [{
@@ -54,7 +53,7 @@ var eventSchema = new db.Schema({
 
 var venueSchema = new db.Schema({
 	name: {type:String, required: true, index: 'text'},
-	platforms: scrapers.platformIds,
+	platforms: [{name:String,id:String}],
 	location: {
 		address: String,
 		city: String,

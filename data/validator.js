@@ -65,115 +65,12 @@ function sameGPS(coord1,coord2){
 	else return false
 }
 
-var findDupl_Venues = function(venue1,venueList){
-	if(venue1.location.gps != null && venue2.location.gps != null){
-
-	}
-}
-
-var findDupl_Artists = function(artist1,artist2){
-	fuzzyMatch(artist1,artist2);
-}
-
-var findDupl_Events = function(event1,event2){
-
-}
 
 
 
 
 
 
-
-
-
-
-
-
-
-/*
-	COMPARE ALL RAW DATA AGAINST ITSELF AND MERGE/REMOVE DUPLICATES
-*/
-
-
-
-
-
-
-
-
-
-
-
-var compareAll = p.sync(function(dataset){
-
-	//each dataset
-	_.each(dataset,function(obj){
-		
-	});
-
-	console.log('IN CMPARE ALL',dataset.length);
-
-
-	this.resolve(dataset);
-});
-
-
-
-
-
-
-
-var addressGPS = require('./gps');
-var getGPS = p.sync(function(obj,delay,type){
-	//console.log(obj.location);
-	var addr = null;
-	var tries = 0;
-
-
-	function setAddress(){
-		if(type == 'venue'){
-			addr = (obj.location.address || '') + ' ' + (obj.location.city || '') + ' ' + (obj.location.statecode||'')+' '+(obj.name || '');
-		}else if(type == 'event'){
-			addr = obj.venue.location.address + ' ' +  obj.venue.name;
-		}
-	}
-
-	function setLocation(lat,lon){
-		if(type == 'venue'){
-			obj.location.gps = [lat,lon]
-		}else if(type == 'event'){
-			if(obj.venue != null){
-				//all events WILL have venues
-				obj.venue.location.gps = [lat,lon];
-			}
-		}
-		this.reolve(obj);
-	}
-
-	function tryget(){
-		addressGPS.getGPS(addr,function(location){
-			if(_.isString(location)){
-				if(location.match(/limit/i) != null && tries< 10){
-					console.log('gps api timeout, try again.');
-					setTimeout(tryget.bind(this),200)
-					return;
-				}else{
-					this.resolve(obj);
-				}
-			}else{
-				setLocation(location.latitude,location.longitude);
-			}	
-		}.bind(this));
-	}
-
-	//start
-	setAddress();
-	setTimeout(tryget.bind(this),delay);
-
-
-	return this.promise;
-});
 
 
 
@@ -222,38 +119,65 @@ We can then use that data to find duplicates before trying to find duplicates in
 
 sometimes we will
 */
-var fillGPS = p.sync(function(dataset){
 
-	var delay = 10;
+var addressGPS = require('./gps');
+
+var getGPS = p.sync(function(obj,delay){
+	//console.log(obj.location);
+	var addr = null;
+	var tries = 0;
 
 
-	var pipes = [];
+	function tryget(){
+		addressGPS.getGPS(addr,function(location){
+			if(_.isString(location)){
+				if(location.match(/limit/i) != null && tries< 10){
+					console.log('gps api timeout, try again.');
+					setTimeout(tryget.bind(this),200)
+					return;
+				}else{
+					this.resolve(null);
+				}
+			}else{
+			
+				obj.location.gps = [location.latitude,location.longitude]
+				this.resolve(obj);
+			}	
+		}.bind(this));
+	}
 
+	//start
+
+	addr = (obj.location.address + ' ' || '')  + (obj.location.city + ' ' || '') + (obj.location.statecode+' '||'');
+	if(addr == '' && obj.location.gps) this.resolve(obj);
+	else if( addr == '') this.resolve(null);
+	
+	setTimeout(tryget.bind(this),delay);
+
+	return this.promise;
+});
+
+
+var fillGPS = p.sync(function(datatype){
+
+	var delay = 200;
+	
 	//get GPS for venues.
-	_.each(dataset['venue'],function(obj,i){
-		pipes.push(getGPS(obj,delay*i).then(function(){
-			console.log('done trying to got venue gps.',i);
-		}));
-	});
-
-
-	//get GPS for events.
-	var venuesLength = dataset['venue'].length;
-	_.each(dataset['event'],function(obj,i){
-		pipes.push(getGPS(obj,delay*i+venuesLength*delay).then(function(){
-			console.log('done trying to got event gps.',i);
-		}));
-	})
-
-
 	var has_address = 0;
 
-	Promise.settle(pipes).then(function(results){
-		_.each(dataset,function(obj,i){
-			if(obj.location.gps != null) has_address++;
+	var pipes = _.map(datatype['venue'],function(obj,i){
+		return getGPS(obj,delay*i).then(function(obj){
+			if(obj) has_address++;
 		});
-		console.log('GPS DATA FOUND FOR : ',has_address,'/',dataset.length);
-		this.resolve(dataset);
+	})
+
+	
+	Promise.settle(pipes).then(function(){
+		
+		//DEBUG
+		console.log('GPS DATA FOUND FOR : ',has_address,'/',datatype['venue'].length);
+		
+		this.resolve(datatype);
 	}.bind(this));
 
 	return this.promise;
@@ -282,6 +206,7 @@ var fillGPS = p.sync(function(dataset){
 var match = {};
 
 match.event = function(ev1,ev2){
+
 
 	function sameArtists(art1,art2){
 		var count = 0;
@@ -401,7 +326,7 @@ SMART MERGING
 */
 
 
-var MergePriority = {'facebook':2.5,'eventful'1.5,'reverbnation':1,'jambase':1};
+var MergePriority = {'facebook':2.5,'eventful':1.5,'reverbnation':1,'jambase':1};
 
 
 //e2 overrides e1 if priority set to false. otherwise overrides based on MergePriority Array.
@@ -429,10 +354,11 @@ function mergeDocs(e1,e2,priority){//priority boolean defaults to true
 function mergeEvents(venue){
 	_.each(venue.events,function(ev1,i){
 		_.each(venue.events,function(ev2,j){
-		if(match['event'](ev1,ev2)){
-			venue.events[i] = mergeDocs(ev1,ev2);
-			delete venue.events[j];
-		}
+			if(match['event'](ev1,ev2)){
+				venue.events[i] = mergeDocs(ev1,ev2);
+				delete venue.events[j];
+			}
+		});
 	});
 }
 
@@ -445,20 +371,23 @@ var filterDuplicates = p.sync(function(typeset){
 
 	_.each(typeset,function(dataset,type){
 		_.each(dataset,function(d1,i){
-			if(d1.is == d2.is) return
-			
-			if(match[type](d1,d2) == true){
-				dataset[i] = MergeDocs(d2,d1);
-				if(dataset[i].events != null){
-					MergeEvents(dataset[i]);
+			_.each(dataset,function(d2,j){
+				if(d1.is == d2.is) return
+				
+				if(match[type](d1,d2) == true){
+					dataset[i] = MergeDocs(d2,d1);
+					if(dataset[i].events != null){
+						MergeEvents(dataset[i]);
+					}
+					console.log('same '+type+' found!',d1.name,d2.name)
+					dataset.splice(j,1)
 				}
-				console.log('same '+type+' found!',d1.name,d2.name)
-				dataset.splice(j,1)
-			}
-		});	
+			});	
+		})
+		
 	});
 
-	this.resolve(dataset);
+	this.resolve(typeset);
 	return this.promise;
 });
 
@@ -486,35 +415,30 @@ DATABASE SYNC FUNCTIONS
 */
 
 
-function syncArtists = p.async(function(typeset){
-	this.total = typeset['venues'].length;
-	this.data = typeset;	
-
-
-	
-
-	return this.promise;
-})
 
 
 
-
-
-function flipEvents = p.sync(function(typeset){
+var flipEvents = p.sync(function(typeset){
 
 	//flip events to display venues on top
-	var venues = _.map(typeset['events'],function(e){
+	var venues = _.map(typeset['event'],function(e){
+		
 		var venue = _.clone(e.venue);
+		if(venue.name == null){
+			venue.name = e.name;
+		}
 		delete e.venue;
 		venue.event = e;
 		return venue
 	});
 
+	console.log(typeset);
 
 
-	typeset['venues'] = typeset['venues'].concat(venues);
 
-	delete typeset['events'];
+	typeset['venue'] = typeset['venue'].concat(venues);
+
+	delete typeset['event'];
 
 	this.resolve(typeset);
 	return this.promise;
@@ -522,21 +446,94 @@ function flipEvents = p.sync(function(typeset){
 
 
 
-function syncVenues = p.async(function(typeset){
+var syncArtists = p.async(function(typeset){
+	this.data = typeset;
 
-	this.total = typeset['venues'].length;
+	var findName = p.sync(function(artist){
+		console.log('Artist Sync: failed to find artist by platform id, trying to find by name....')
+		db['artist'].find({$text: {$search: artist.name}}).limit(5)
+		then(function(err,docs){
+			if(docs != null && docs.length){
+				console.log('found documents for artist #',artist.name,' : ',docs);
+				console.log('TODO');
+				this.resolve(null);
+			}else{
+				console.log('Created a new artist in database.'); 
+				var a = new db['artist'](artist);
+				a.save().then(function(){
+					this.resolve();
+				}.bind(this));
+			}
+			this.resolve();
+		}.bind(this))
+
+		return this.promise;
+	});
+
+
+	_.each(typeset['artist'],function(artist){
+		
+		//try and do a text search for artist
+		db['artist'].find({
+			platforms: {$in : artist.platforms}
+		}).
+
+		//if we find an artist, merge
+		then(p.sync(function(err,docs){
+			if(docs != null && docs.length > 0){
+				console.log('found artists for',artist.name,'in data base for',artists);
+			}else return findName(artist);
+		})).
+
+		//incremement count
+		then(function(){
+			this.count++;
+			this.checkAsync();
+		}.bind(this))
+	
+	});
+
+	return this.promise;
+});
+
+
+
+
+function checkPlat(doc1,doc2){
+	var done = false
+	_.each(doc1.platforms,function(plat1,i){
+		_.each(doc2.platforms,function(plat2,i){
+			if(plat1.name == plat2.name && plat1.id == plat2.id) done = true
+			if(done) return false;
+		})
+
+		if(done) return true;
+	})
+}
+
+
+
+
+var syncVenues = p.async(function(typeset){
+
+	this.total = typeset['venue'].length;
 	this.data = typeset;
 
 
 
 
 	var findGPS = p.sync(function(venue){
-		
+			
+		if(venue.location.gps == null) return findName(venue);
+
+
 		//GPS Search Query within 10 meters
 		db['venue'].find({
-			location: { $near : {
-				$geometry : {type: "Point", coordinates : [venue.location.gps[0],venue.location.gps[1]]},
-				$maxDistance : 10
+			location:{gps:{
+				$near : {
+					$geometry : {type: "Point", coordinates : [venue.location.gps[0],venue.location.gps[1]]},
+					$maxDistance : 10
+				}
 			}}
 		}).
 
@@ -554,8 +551,13 @@ function syncVenues = p.async(function(typeset){
 				if(matches != null && matches[0][0] > 0.8){
 					this.resolve(venues[m_list.indexOf(matches[0][1])]);
 				}
+			}else{
+				findName(venue).then(function(doc){
+					this.resolve(doc);
+				}.bind(this));
 			}
-		}).then(function())
+		}.bind(this))
+
 		return this.promise;
 	});
 
@@ -591,10 +593,21 @@ function syncVenues = p.async(function(typeset){
 	});
 
 
+	function merge(doc,venue){
+		_.each(doc.events,function(ev,j){
+			_.each(venue.events,function(n_ev,i){
+				if(checkPlat(ev,n_ev)){
+					doc.events[j] = mergeDocs(ev,n_ev)
+					delete venue.events[i]
+				}
+			})
+		})
+		return mergeDocs(doc,venue)
+	}
 
 
 	_.each(typeset['venue'],function(venue,i){
-
+		console.log('find venue ',i,'in db')
 		//try and find one based on same platform ID
 		db['venue'].findOne({
 			platforms: {$in : venue.platforms}
@@ -614,12 +627,14 @@ function syncVenues = p.async(function(typeset){
 
 
 			if(doc != null){
-				doc = mergeDocs(doc,venue);
+				doc = merge(doc,venue);
 				returdoc.save();
 			}else{
 				console.log('creating new venue in database');
+				console.log(venue.name)
 				var n = new db['venue'](venue);
 				n.save(function(err,newv){
+					if(err) return console.error('NEW VENUE ENTRY SAVE ERROR:',err);
 					console.log('successfully saved venue :',newv.name);
 				});
 			}
@@ -646,19 +661,38 @@ function syncVenues = p.async(function(typeset){
 
 
 /*
-	1. check to make sure all events have venues...
-	2. ----
-*/
 
+	VALIDATION FILTERS
+
+*/
+var util = require('util');
 var validate = p.sync(function(typeset){
 
+
+	//EVENT MUST HAVE ATTACHED VENUE.
 	_.each(typeset['event'],function(e,i){
 		if(e.venue == null){
-			console.error('validate error: event found without venue!');
+			console.error('validation error: event found without venue!');
 			typeset['event'].splice(i,1);
 		}
 	});
 
+
+	//VENUE NAME REQUIRED.
+	_.each(typeset['venue'],function(v,i){
+		console.log(v.name)
+		if(v.name == null){
+			console.error('validation error: venue found without name...we dont like those, ignore');
+			delete typeset['venue'][i];
+		}
+
+		
+
+	
+
+	});
+
+	//console.log(util.inspect(typeset['venue'], {showHidden: false, depth: null}));
 	this.resolve(typeset)
 	return this.promise;
 });
@@ -682,22 +716,24 @@ module.exports = p.async(function(dataset,save){
 	SplitbyType(dataset).
 
 	//check all data to make sure all nesseary information for the matching process is included
+	then(flipEvents).
+
 	then(validate).
 	
 	//fill GPS data.
 	then(fillGPS).
 
 	//flip events to their
-	then(flipEvents).
+
 	
 	//merge any event duplicates.
-	then(filterDuplicates).
+	then(filterDuplicates)
 	
-	//sync values
-	then(syncVenues).
+	// //sync values
+	// then(syncVenues).
 
-	//sync artists
-	then(syncArtists)
+	// //sync artists
+	// then(syncArtists)
 
 	return this.promise;
 });

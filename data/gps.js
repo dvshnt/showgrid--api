@@ -1,7 +1,7 @@
 var request = require('request');
 
 
-var host = 'http://52.11.111.48:4040'
+var host = 'http://52.25.203.238:4040'
 var api  = 'http://maps.googleapis.com/maps/api/geocode/json'
 
 module.exports = {
@@ -11,7 +11,7 @@ module.exports = {
   getGPS: function(address, done){
     address = address.trim();
 
-    var url = host+"?target="+encodeURIComponent(api)+"&address=" + address + "&sensor=false";
+    var url = api+ "?" +"address=" + address + "&sensor=false";
 
     request(url, function(error, response, body){
      // console.log(body);

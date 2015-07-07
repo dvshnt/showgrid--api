@@ -13,12 +13,12 @@ var qs = require('querystring');
 var moment = require('moment');
 var _ = require('lodash');
 
+var p = require('../pFactory.js');
 
-var Venue = require('../models/venueModel');
 //Promise.longStackTraces();
 
 
-var current_key = null;
+var current_key = cfg.keys[0];
 
 
 module.exports.findEvents = function(opt){
@@ -45,6 +45,33 @@ module.exports.findEvents = function(opt){
 		q.page_size = opt.query_size;
 	}
 
+
+
+
+
+	//get items
+	var getItems = p.async(function(events){
+		this.total = events.length;
+		this.data = events;
+		_.each(events,function(e,i){
+			module.exports.getEvent({key:opt.key,id:e.id}).then(function(e_full){
+				module.exports.getVenue({key:opt.key,id:e_full.venue_id})
+				.then(module.exports.parseVenue)
+				.then(function(venue){
+					events[i].venue = venue;
+					console.log('got event venue');
+					this.checkAsync();
+				}.bind(this));
+				events[i] = e_full;
+			}.bind(this));
+		}.bind(this));
+
+		return this.promise;
+	});
+
+
+
+
 	return new Promise(function(response){
 		var got_pages = 0;
 		var total_pages = 0;
@@ -54,16 +81,24 @@ module.exports.findEvents = function(opt){
 				url : url + '?' + qs.stringify(q),
 				json: true
 			},function(err,res,data){
+
+				//get each event.
+
+
 				//console.log(data,"============================")
 				if(data.events.event != null && data.events.event.length > 0){
+					
 					events = events.concat(data.events.event)
 				}else if(data.events.event != null){
 					events = events.concat([data.events.event])
 				}
 				got_pages++;
 				if(got_pages >= total_pages){
-					//console.log("END FIND...QUERY SIZE REACHED.",got_pages,total_pages)
-					response(events)
+					console.log("END FIND...QUERY SIZE REACHED.",got_pages,total_pages)
+					getItems(events).then(function(events){
+						console.log("END FIND...GOT ALL ITEMS.",got_pages,total_pages)
+						response(events);
+					}.bind(this))
 				}
 			});
 		}
@@ -120,6 +155,7 @@ module.exports.findVenues = function(opt){
 					console.log("END FIND...QUERY SIZE REACHED.",got_pages,total_pages)
 					response(venues)
 				}
+
 			});
 		}
 	});
@@ -178,20 +214,30 @@ module.exports.parseArtist = function(artist){
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //FILTER EVENT
-module.exports.parseEvent = function(event){
-	var event =  {
+module.exports.parseEvent = p.sync(function(event){
+	console.log(event)
+	var n_event =  {
 		is: 'event',
 		name: event.title,
 		platforms:[{name:'eventful',id:event.id}],
 		description: event.description,
 		date: moment(event.start_time,moment.ISO_8601).utc().format(),
-		venue: {
-			platforms:[{name:'eventful',id:event.venue_id}],
-			location: {
-				address: event.venue_address
-			}
-		},
+		venue: event.venue,
 		artists: {
 			headers: (function(){
 			
@@ -211,27 +257,29 @@ module.exports.parseEvent = function(event){
 				}
 			})(),
 		},
-		banners: (function(){
-			if(event.image != null ){
-				if(event.image.medium != null){
-					return event.image.medium.url;
-				}else if(event.image.small != null){
-					return event.image.small.url;
-				}
-			}
-		})(),
+
+		banners : event.images != null ? _.map(event.images.image,function(img){
+			return img.large || img.medium || img.small
+		}) : null,
+
+		links : event.links != null ? _.map(event.links.link,function(img){
+			return img.large || img.medium || img.small
+		}) : null,
 	}
 
-	return new Promise(function(res,rej){
-		module.exports.getEvent({id:event.platforms[0].id}).then(function(raw_event){
-			if(raw_event.images != null) event.banners = raw_event.images.image.length != null ? raw_event.images.image : [raw_event.images.image];
-			if(raw_event.links != null) event.links = raw_event.links.link.length != null ? raw_event.links.link : [raw_event.links.link];
+	this.resolve(n_event)
+	return this.promise
+});
 
-			//console.log(event);
-			res(event);
-		});
-	});	
-}
+
+
+
+
+
+
+
+
+
 
 
 
@@ -252,7 +300,7 @@ module.exports.parseVenue = function(venue){
 			zip: venue.postal_code,
 			statecode: venue.region_abbr,
 			countrycode: venue.country_abbr,
-			gps: [venue.latitude,venue.longitude]		
+			gps: (venue.latitude != 0 && venue.longitude != 0) ? [venue.latitude,venue.longitude] : null		
 		}
 	}
 
@@ -273,12 +321,14 @@ module.exports.parseVenue = function(venue){
 			}
 
 			var getbanner = function(){
-				venue.banners = raw_venue.images.image;
+				venue.banners = _.map(raw_venue.images.image,function(img){
+					return img.large || img.medium || img.small
+				});
 			}
 
-			venue.address = raw_venue.address;
+			venue.location.address = raw_venue.address;
 			venue.banners = raw_venue.images != null ? raw_venue.images.image : [];
-			venue.tags = raw_venue.tags != null ? raw_venue.tags.tag : [];
+			//venue.tags = raw_venue.tags != null ? raw_venue.tags.tag : [];
 
 			res(venue);
 		});
