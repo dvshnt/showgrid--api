@@ -3,9 +3,13 @@ var scrapers = require('../scrapers.js')
 var Promise = require('bluebird');
 var db = Promise.promisifyAll(require('mongoose'));
 
+
+
+
+
 var eventSchema = new db.Schema({
+	platforms: scrapers.platformIds,
 	name: {type:String, index: 'text', required: true},
-	platforms: scrapers.platformIds, //Id's for different platforms.
 	date: {type: Date, index: 'text', required: true},
 	tickets: [{
 		price: Number,
@@ -16,6 +20,7 @@ var eventSchema = new db.Schema({
 			end: Date,
 		},
 	}],
+
 	private: {type: Boolean, default: false},
 	featured: {type:Boolean, default: false},
 	age: {type: Number,max: 21, default: 18},
@@ -25,11 +30,24 @@ var eventSchema = new db.Schema({
 		headliners:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}],
 		openers:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}]
 	},
+
+	//
 	banners: [{
 		height: Number,
 		width: Number,
 		url: String
-	}]
+	}],
+
+
+	//events may have unique locations ? useful for custom events and unofficial provate venues...
+	location: {
+		address: String,
+		city: String,
+		zip: {type: Number},
+		statecode: {type: String},
+		countrycode: {type: String},
+		gps: [{type:Number, index: '2dsphere'}]
+	},
 });
 
 
@@ -40,24 +58,28 @@ var venueSchema = new db.Schema({
 	location: {
 		address: String,
 		city: String,
-		zip: {type: Number,required: true},
-		statecode: {type: String,required: true},
-		countrycode: {type: String,required: true},
-		gps: [{type:Number, required: true, index: '2dsphere'}]
+		zip: {type: Number},
+		statecode: {type: String},
+		countrycode: {type: String},
+		gps: [{type:Number, index: '2dsphere'}]
 	},
-	links: [{type:String, required: true}],
+	links: [{type:String}],
 	tags: [{type: String}],
-	phone: {type: String, index: 'text'},
+	phone: {type: String},
 	banners: Array,
-	colors: {
-		primary: String,
-		secondary: String,
-	},
 	age: Number,
-	events: [eventSchema], //events at this venue (past and present)
+	events: [eventSchema], //all events for this venue
 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}], //users that are going to this venue
 	//artists: [{type:db.Schema.Types.ObjectId, ref: 'Artist'}] //artists that are performing at this venue
 },{autoIndex: false});
+
+
+
+
+
+
+
+
 
 venueSchema.methods.scrapeBanner = function(){
 	if (this.url == null) return console.error('failed to scrape venue with no url');
