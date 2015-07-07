@@ -291,7 +291,7 @@ match.event = function(ev1,ev2){
 				if(artt == art) return;
 				var m = fuzzy([art.name]).match(artt.name);
 				if(m != null && m[0][0] > 0.9) count++
-				else count --
+				else count--
 			});
 		});
 
@@ -425,6 +425,19 @@ function mergeDocs(e1,e2,priority){//priority boolean defaults to true
 
 
 
+//search for event duplicates in venue event list and merge them if neccesary.
+function mergeEvents(venue){
+	_.each(venue.events,function(ev1,i){
+		_.each(venue.events,function(ev2,j){
+		if(match['event'](ev1,ev2)){
+			venue.events[i] = mergeDocs(ev1,ev2);
+			delete venue.events[j];
+		}
+	});
+}
+
+
+
 
 
 
@@ -436,6 +449,9 @@ var filterDuplicates = p.sync(function(typeset){
 			
 			if(match[type](d1,d2) == true){
 				dataset[i] = MergeDocs(d2,d1);
+				if(dataset[i].events != null){
+					MergeEvents(dataset[i]);
+				}
 				console.log('same '+type+' found!',d1.name,d2.name)
 				dataset.splice(j,1)
 			}
@@ -445,51 +461,6 @@ var filterDuplicates = p.sync(function(typeset){
 	this.resolve(dataset);
 	return this.promise;
 });
-
-
-
-
-var eventsToVenues = p.sync(function(typeset){
-	
-	//go through each event (X.X)
-	_.each(typeset['event'],function(e,i){
-
-		//go through each venue (X.X)
-		var found = false
-		_.each(typeset['venue'],function(v,j){
-
-			//see if the events venue matches one of the venues from our venue type list
-			if(match['venue'](v,e.venue)){
-				typeset['event'].splice(i,1);
-
-				var merged = false
-				//go through each of the venue events and see if we can find a duplicate, if not append else merge existing event.
-				_.each(v.events,function(e2,i2){
-					if(match['event'](e2,e)){
-						console.log('eventsToVenues: found venue of event in typeset, and a duplicate event inside the venue event list, merging.')
-						v.events[i2] = mergeDocs(e2,e);
-						return false
-					}
-				})
-				if(!merged){
-					console.log('eventsToVenues: found venue of event in typeset but no duplicate event in venue event list, added new event to venue.')
-					v.events.push(e);
-					return false
-				}
-
-				found = true
-			}
-		})
-
-		if(found) return false;
-	});
-
-	this.resolve(typeset)
-
-	return this.promise;
-
-});
-
 
 
 
@@ -529,43 +500,23 @@ function syncArtists = p.async(function(typeset){
 
 
 
-function syncEvents = p.async(function(typeset){
-	this.total = typeset['venues'].length;
-	this.data = typeset;	
+function flipEvents = p.sync(function(typeset){
 
-
-	/*
-		since venues are subdocuments of events,
-		we have to search venues and match it with the event venue.
-	*/
-	// db['venue'].find({
-	// 	location: { $near : {
-	// 		$geometry : {type: "Point", coordinates : [venue.location.gps[0],venue.location.gps[1]]},
-	// 		$maxDistance : 10
-	// 	}}
-	// }).
-
-	_.each(typeset['event'],function(event,i){
-
-		//first lets see if we can find a venue with an event that is 
-		db['venue'].findOne({
-			platforms: {$in : event.venue.platforms}
-		}).
-
-		//return the GPS Pipeline
-		then(p.sync(function(err,doc){
-			if(doc != null) this.resolve(doc); 
-			else return findGPS(venue);
-			return this.promise;
-		})).
-
-		//return the GPS
-		then(function(doc){
-			if()
-		})
+	//flip events to display venues on top
+	var venues = _.map(typeset['events'],function(e){
+		var venue = _.clone(e.venue);
+		delete e.venue;
+		venue.event = e;
+		return venue
 	});
 
 
+
+	typeset['venues'] = typeset['venues'].concat(venues);
+
+	delete typeset['events'];
+
+	this.resolve(typeset);
 	return this.promise;
 })
 
@@ -730,22 +681,20 @@ module.exports = p.async(function(dataset,save){
 	//split raw data by into types for faster parsing.
 	SplitbyType(dataset).
 
+	//check all data to make sure all nesseary information for the matching process is included
 	then(validate).
 	
 	//fill GPS data.
 	then(fillGPS).
+
+	//flip events to their
+	then(flipEvents).
 	
 	//merge any event duplicates.
 	then(filterDuplicates).
 	
-	//find events that have venues that are in the data set and transfer the events over to the venues.
-	then(eventsToVenues).
-	
 	//sync values
 	then(syncVenues).
-	
-	//sync events
-	then(syncEvents).
 
 	//sync artists
 	then(syncArtists)
