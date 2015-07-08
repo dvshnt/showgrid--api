@@ -83,6 +83,10 @@ function sameGPS(coord1,coord2){
 
 var SplitbyType = p.sync(function(dataset){
 	var typeset = {};
+	_.each(db,function(val,key){
+		typeset[key] = [];
+	})
+
 
 	_.each(dataset,function(doc){
 		if(typeset[doc.is] == null) typeset[doc.is] = [];
@@ -141,6 +145,7 @@ var getGPS = p.sync(function(obj,delay){
 			}else{
 			
 				obj.location.gps = [location.latitude,location.longitude]
+				obj.location.address = location.prettyAddress
 				this.resolve(obj);
 			}	
 		}.bind(this));
@@ -432,8 +437,8 @@ var flipEvents = p.sync(function(typeset){
 		return venue
 	});
 
-	console.log(typeset);
 
+	//console.log(util.inspect(typeset, {showHidden: false, depth: null}));
 
 
 	typeset['venue'] = typeset['venue'].concat(venues);
@@ -449,7 +454,10 @@ var flipEvents = p.sync(function(typeset){
 var syncArtists = p.async(function(typeset){
 	this.data = typeset;
 
-	var findName = p.sync(function(artist){
+
+
+	//find artists in database by name
+	var findByName = p.sync(function(artist){
 		console.log('Artist Sync: failed to find artist by platform id, trying to find by name....')
 		db['artist'].find({$text: {$search: artist.name}}).limit(5)
 		then(function(err,docs){
@@ -482,7 +490,7 @@ var syncArtists = p.async(function(typeset){
 		then(p.sync(function(err,docs){
 			if(docs != null && docs.length > 0){
 				console.log('found artists for',artist.name,'in data base for',artists);
-			}else return findName(artist);
+			}else return findByName(artist);
 		})).
 
 		//incremement count
@@ -519,27 +527,34 @@ var syncVenues = p.async(function(typeset){
 	this.total = typeset['venue'].length;
 	this.data = typeset;
 
+	//console.log(util.inspect(typeset['venue'], {showHidden: false, depth: null}))
 
 
 
+
+	/*
+
+		find venues by their GPS.
+	
+	*/
 	var findGPS = p.sync(function(venue){
 			
-		if(venue.location.gps == null) return findName(venue);
+		if(venue.location.gps == null) return findByName(venue);
 
 
 		//GPS Search Query within 10 meters
 		db['venue'].find({
 			location:{gps:{
 				$near : {
-					$geometry : {type: "Point", coordinates : [venue.location.gps[0],venue.location.gps[1]]},
+					$geometry : {type: "Point", coordinates : venue.location.gps},
 					$maxDistance : 10
 				}
 			}}
 		}).
 
 
-		//if GPS Matches fuzzy compare the names, otherwise return with a findName Query (brute force)
-		then(function(err,venues){
+		//if GPS Matches fuzzy compare the names, otherwise return with a findByName Query (brute force)
+		then(function(venues,err){
 			if(venues != null && venues.length > 0){
 				var m_list = _.map(venues,function(v){
 					return v.name;
@@ -552,7 +567,8 @@ var syncVenues = p.async(function(typeset){
 					this.resolve(venues[m_list.indexOf(matches[0][1])]);
 				}
 			}else{
-				findName(venue).then(function(doc){
+				console.log('failed to find venue by GPS...')
+				findByName(venue).then(function(doc){
 					this.resolve(doc);
 				}.bind(this));
 			}
@@ -563,13 +579,20 @@ var syncVenues = p.async(function(typeset){
 
 
 
-	var findName = p.sync(function(venue){
+
+	/*
+	
+		find venues by their Name.
+	
+	*/
+	var findByName = p.sync(function(venue){
 
 		//search by name
 		db['venue'].find(
-			{$text: {$search: venue.name + venue.location.address}},
+			{$text: {$search: venue.name }},
 			{score: {$meta: "textScore"}}
-		).sort({score: {$meta: "textScore"}}).limit(5).then(function(err,venuelist){
+		)
+		.sort({score: {$meta: "textScore"}}).limit(5).then(function(venuelist,err){
 
 			if(venuelist != null && venuelist.length > 0){
 				console.log('GPS venue find failed for',venue.name,',found text searches...',venuelist)
@@ -593,6 +616,8 @@ var syncVenues = p.async(function(typeset){
 	});
 
 
+
+	//merge venues.
 	function merge(doc,venue){
 		_.each(doc.events,function(ev,j){
 			_.each(venue.events,function(n_ev,i){
@@ -606,15 +631,26 @@ var syncVenues = p.async(function(typeset){
 	}
 
 
+
+
+
+	/*
+
+	INITIAL SEARCH
+	
+	*/
 	_.each(typeset['venue'],function(venue,i){
-		console.log('find venue ',i,'in db')
+		
 		//try and find one based on same platform ID
 		db['venue'].findOne({
-			platforms: {$in : venue.platforms}
+			platformIds: {$in : _.map(venue.platforms,function(plat){
+				return plat.name+'/'+plat.id
+			})}
 		}).
 
 		//otherwise return the GPS Pipeline
-		then(p.sync(function(err,doc){
+		then(p.sync(function(doc,err){
+			
 			if(doc != null) this.resolve(doc); 
 			else return findGPS(venue);
 			return this.promise;
@@ -625,23 +661,23 @@ var syncVenues = p.async(function(typeset){
 		then(function(doc){
 			console.log('Venue search tries for',venue.name,'passed through with matched result:', (doc != null ? doc.name : 'NULL' ));
 
-
 			if(doc != null){
+				console.log('FOUND DOUCMENT & MERGING...')
 				doc = merge(doc,venue);
-				returdoc.save();
+				return doc.save();
 			}else{
 				console.log('creating new venue in database');
 				console.log(venue.name)
 				var n = new db['venue'](venue);
-				n.save(function(err,newv){
-					if(err) return console.error('NEW VENUE ENTRY SAVE ERROR:',err);
-					console.log('successfully saved venue :',newv.name);
-				});
+				return n.save();
 			}
 		}).
 
 		//final
-		then(function(){
+		then(function(v,err){
+
+			console.log('successfully saved venue :',v.name);
+
 			this.count++;
 			this.checkAsync();
 		}.bind(this))
@@ -680,7 +716,7 @@ var validate = p.sync(function(typeset){
 
 	//VENUE NAME REQUIRED.
 	_.each(typeset['venue'],function(v,i){
-		console.log(v.name)
+		//console.log(v.name)
 		if(v.name == null){
 			console.error('validation error: venue found without name...we dont like those, ignore');
 			delete typeset['venue'][i];
@@ -692,7 +728,7 @@ var validate = p.sync(function(typeset){
 
 	});
 
-	//console.log(util.inspect(typeset['venue'], {showHidden: false, depth: null}));
+
 	this.resolve(typeset)
 	return this.promise;
 });
@@ -727,13 +763,13 @@ module.exports = p.async(function(dataset,save){
 
 	
 	//merge any event duplicates.
-	then(filterDuplicates)
+	then(filterDuplicates).
 	
 	// //sync values
-	// then(syncVenues).
+	then(syncVenues).
 
-	// //sync artists
-	// then(syncArtists)
+	//sync artists
+	then(syncArtists)
 
 	return this.promise;
 });

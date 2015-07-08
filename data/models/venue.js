@@ -7,9 +7,15 @@ var db = Promise.promisifyAll(require('mongoose'));
 
 
 var eventSchema = new db.Schema({
-	platforms: [{name:String,id:String}],
-	name: {type:String, index: 'text', required: true},
-	date: {type: Date, index: 'text', required: true},
+	
+
+	//identification
+	platformIds:[{type:String}],
+	platforms: [{name:String,id:String,_id:false}],
+	
+
+	name: {type:String, required: true},
+	date: {type: Date, required: true},
 	tickets: [{
 		price: Number,
 		soldout: Boolean,
@@ -38,7 +44,7 @@ var eventSchema = new db.Schema({
 	}],
 
 
-	//events may have unique locations ? useful for custom events and unofficial provate venues...
+	//events may have unique locations ? useful for custom events and unofficial privatete venues...
 	location: {
 		address: String,
 		city: String,
@@ -52,10 +58,15 @@ var eventSchema = new db.Schema({
 
 
 var venueSchema = new db.Schema({
-	name: {type:String, required: true, index: 'text'},
-	platforms: [{name:String,id:String}],
+	
+	//identification
+	platformIds:[{type:String}],
+	platforms: [{name:String,id:String,_id:false}],
+	
+
+	name: {type:String, required: true},
 	location: {
-		address: String,
+		address: {type: String},
 		city: String,
 		zip: {type: Number},
 		statecode: {type: String},
@@ -70,26 +81,25 @@ var venueSchema = new db.Schema({
 	events: [eventSchema], //all events for this venue
 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}], //users that are going to this venue
 	//artists: [{type:db.Schema.Types.ObjectId, ref: 'Artist'}] //artists that are performing at this venue
-},{autoIndex: false});
+});
 
 
+venueSchema.index({
+	name: 'text',
+	'location.address':'text'
+});
 
-
-
-
-
-
-
-venueSchema.methods.scrapeBanner = function(){
-	if (this.url == null) return console.error('failed to scrape venue with no url');
-	else console.log('scraping banner for "',this.name,'"')
-}
-
-
-
+venueSchema.pre('save',function(next){
+	this.platformIds = _.map(this.platforms,function(plat){
+		return plat.name+'/'+plat.id;
+	});
+	next();
+});
 
 
 var venue = db.model('Venue',venueSchema);
+
+
 
 
 module.exports = venue;

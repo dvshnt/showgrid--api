@@ -41,7 +41,7 @@ module.exports.async = function(func){
 		ObamaDelivers.timeout = 0;
 		ObamaDelivers.checkAsync= function(){
 			this.count++;
-			if(this.count > this.total){
+			if(this.count >= this.total){
 				this.resolve(this.data);
 			}
 		}.bind(ObamaDelivers);

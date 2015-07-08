@@ -1,6 +1,6 @@
 {
-	"dev_db":"mongodb://localhost/test",
-	"live_db":"mongodb://localhost/live",
+	"dev_db":"mongodb://localhost/showgrid-dev1",
+	"live_db":"mongodb://localhost/showgrid-live1",
 	"apis" : {
 		"eventful" : {
 			"api": "http://api.eventful.com/json",

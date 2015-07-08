@@ -55,14 +55,21 @@ module.exports.findEvents = function(opt){
 		this.data = events;
 		_.each(events,function(e,i){
 			module.exports.getEvent({key:opt.key,id:e.id}).then(function(e_full){
+				
 				module.exports.getVenue({key:opt.key,id:e_full.venue_id})
+				
 				.then(module.exports.parseVenue)
+				
 				.then(function(venue){
 					events[i].venue = venue;
 					console.log('got event venue');
+					console.log(this.count,this.total);
 					this.checkAsync();
 				}.bind(this));
+				
 				events[i] = e_full;
+			
+
 			}.bind(this));
 		}.bind(this));
 
@@ -94,9 +101,9 @@ module.exports.findEvents = function(opt){
 				}
 				got_pages++;
 				if(got_pages >= total_pages){
-					console.log("END FIND...QUERY SIZE REACHED.",got_pages,total_pages)
+					console.log("END FIND...QUERY SIZE REACHED.")
 					getItems(events).then(function(events){
-						console.log("END FIND...GOT ALL ITEMS.",got_pages,total_pages)
+						console.log("END FIND EVENT...GOT ALL ITEMS.",got_pages,total_pages)
 						response(events);
 					}.bind(this))
 				}
@@ -134,6 +141,24 @@ module.exports.findVenues = function(opt){
 		q.page_size = opt.query_size;
 	}
 
+
+
+	var getItems = p.async(function(venues){
+		this.total = venues.length;
+		this.data = venues;
+		_.each(venues,function(e,i){
+			module.exports.getVenue({key:opt.key,id:e.id}).then(function(v_full){
+				venues[i] = v_full;
+				console.log('got full venue');
+				this.checkAsync();
+			}.bind(this));
+		}.bind(this));
+
+		return this.promise;
+	});
+
+
+
 	return new Promise(function(response){
 		var got_pages = 0;
 		var total_pages = 0;
@@ -152,14 +177,19 @@ module.exports.findVenues = function(opt){
 				}
 				got_pages++;
 				if(got_pages >= total_pages){
-					console.log("END FIND...QUERY SIZE REACHED.",got_pages,total_pages)
-					response(venues)
+					getItems(venues).then(function(venues){
+						response(venues);
+						console.log("END FIND VENUE...GOT ALL ITEMS.")
+					}.bind(this))
+					console.log("END FIND VENUE...QUERY SIZE REACHED.",got_pages,total_pages)
 				}
 
 			});
 		}
 	});
 }
+
+
 
 //GET
 function get(uri,opt){
@@ -198,6 +228,21 @@ module.exports.getVenue = function(opt){
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //PARSE ARTIST
 module.exports.parseArtist = function(artist){
 	var parsed =  {
@@ -230,7 +275,7 @@ module.exports.parseArtist = function(artist){
 
 //FILTER EVENT
 module.exports.parseEvent = p.sync(function(event){
-	console.log(event)
+	
 	var n_event =  {
 		is: 'event',
 		name: event.title,
@@ -262,8 +307,8 @@ module.exports.parseEvent = p.sync(function(event){
 			return img.large || img.medium || img.small
 		}) : null,
 
-		links : event.links != null ? _.map(event.links.link,function(img){
-			return img.large || img.medium || img.small
+		links : event.links != null ? _.map(event.links.link,function(link){
+			return link.url
 		}) : null,
 	}
 
@@ -288,9 +333,11 @@ module.exports.parseEvent = p.sync(function(event){
 
 
 //FILTER VENUE DATA
-module.exports.parseVenue = function(venue){
-	//console.log('PARSE')
-	var venue = {
+module.exports.parseVenue = p.sync(function(venue){
+	console.log('PARSE')
+
+
+	var n_venue = {
 		is: 'venue',
 		platforms:[{name:'eventful',id:venue.id}],
 		name: venue.name,	
@@ -301,36 +348,26 @@ module.exports.parseVenue = function(venue){
 			statecode: venue.region_abbr,
 			countrycode: venue.country_abbr,
 			gps: (venue.latitude != 0 && venue.longitude != 0) ? [venue.latitude,venue.longitude] : null		
-		}
-	}
+		},
+	};
+
+		
+	if(venue.links != null && venue.links.link.length != null){
+		n_venue.links = _.map(venue.links.link,function(link){
+			return link.url;
+		});				
+	}else if(venue.links != null && venue.links.link.url != null){
+		n_venue.links = [venue.links.link.url];
+	} 
 
 
-	//get link
-	return new Promise(function(res,rej){
-		module.exports.getVenue({id:venue.platforms[0].id}).then(function(raw_venue){
-			if(raw_venue == null) return res(venue);
 
-			var getlink = function(){
-				if(raw_venue.links != null && raw_venue.links.link.length != null){
-					venue.links = _.map(raw_venue.links.link,function(link){
-						return link.url;
-					});				
-				}else if(raw_venue.links != null && raw_venue.links.link.url != null){
-					venue.links = [raw_venue.links.link.url];
-				} 
-			}
+	n_venue.banners = _.map(venue.images.image,function(img){
+		return img.large || img.medium || img.small;
+	});
+		
+	
 
-			var getbanner = function(){
-				venue.banners = _.map(raw_venue.images.image,function(img){
-					return img.large || img.medium || img.small
-				});
-			}
-
-			venue.location.address = raw_venue.address;
-			venue.banners = raw_venue.images != null ? raw_venue.images.image : [];
-			//venue.tags = raw_venue.tags != null ? raw_venue.tags.tag : [];
-
-			res(venue);
-		});
-	})
-}
+	this.resolve(n_venue)
+	return this.promise;
+});

@@ -3,7 +3,12 @@ var db = Promise.promisifyAll(require('mongoose'));
 
 var scrapers = require('../scrapers.js')
 var artistSchema = new db.Schema({
-	platforms: [{name:String,id:String}],
+
+	//identification
+	platformIds:[{type:String}],
+	platforms: [{name:String,id:String,_id:false}],
+
+
 	isGroup: {type: Boolean,default: false}, //artist Schema can be a band/group and an artist at the same time.
 	name: {type:String, required: true, index: 'text'},
 	demand: Number, //how much demand for this artist?
@@ -24,6 +29,12 @@ artistSchema.pre('save',function(next){
 
 var artist = db.model('Artist',artistSchema);
 
+artistSchema.pre('save',function(next){
+	this.platformIds = _.map(this.platforms,function(plat){
+		return plat.name+'/'+plat.id;
+	});
+	next();
+});
 
 
 
