@@ -101,46 +101,36 @@ function main(opt){
 			.then(function(data){
 				if(data.length == null) return //console.error('UPDATE ERR:',plat_name,endpoint,'data must be an ARRAY!');
 
-				////console.log('got',plat_name,'data!', data.length)
+				
 			
 				return new Promise(function(exit_pipe,reject2){
 					var data_total = data.length;
 					var data_count = 0;
 					var data_error = 0;
 					var pipes = [];
+					
 					_.each(data,function(raw_obj,i){
 						var retries = 0;
 						//create a transform pipe for each object in the data array
-						var obj_pipe = new Promise(function(res,rej){
-							res(raw_obj);
-						}).cancellable();
+						var obj_pipe = Promise.resolve(raw_obj);
 
-						obj_pipe = obj_pipe.delay(i*50);
-
-
+				
 						//cycle through all the filters.
 						_.each(scraper.filters[endpoint],function(filter){
-							if(filter.then != null) obj_pipe = obj_pipe.then(filter.error(function(err,res){
-								//console.log("ERROR WTF")
-							}));
-							else obj_pipe = obj_pipe.then(function(dat){
-								return new Promise(function(res,rej){
-									data[i] = dat;
-									res(filter(dat));
-								});
-							});
-						}.bind(this));
+							obj_pipe = obj_pipe.then(filter);
+						});
+
 
 						//when object has gone through all filters, replace with origional object.
 						obj_pipe = obj_pipe.then(function(parsed_obj){
 							if(parsed_obj == null){
 								data.splice(i,1);
-								//console.log('FAILED PARSE',data_count);
+								console.error('FAILED PARSE',data_count);
 								return;
 							}
 							data[i] = parsed_obj;
 							data_count ++;
-							////console.log(plat_name,endpoint,data_count);
+							//console.log(plat_name,endpoint,data_count);
 						}).timeout(60000).catch(Promise.TimeoutError, function(e) {
 							throw new Error("couldn't fetch content after 60 seconds, timeout");
 				        })
@@ -152,8 +142,9 @@ function main(opt){
 
 					}.bind(this));
 
+
 					Promise.settle(pipes).then(function(results){
-						//console.log('done scraping ',plat_name,'/',endpoint,'total:',results.length);
+						console.log('done scraping ',plat_name,'/',endpoint,'total:',results.length);
 						exit_pipe(data);
 					});
 				});

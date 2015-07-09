@@ -62,8 +62,8 @@ module.exports.findEvents = function(opt){
 				
 				.then(function(venue){
 					events[i].venue = venue;
-					console.log('got event venue');
-					console.log(this.count,this.total);
+					//console.log('got event venue');
+					//console.log(this.count,this.total);
 					this.checkAsync();
 				}.bind(this));
 				
@@ -101,9 +101,9 @@ module.exports.findEvents = function(opt){
 				}
 				got_pages++;
 				if(got_pages >= total_pages){
-					console.log("END FIND...QUERY SIZE REACHED.")
+					console.log("END FIND...QUERY SIZE REACHED.",got_pages,total_pages)
 					getItems(events).then(function(events){
-						console.log("END FIND EVENT...GOT ALL ITEMS.",got_pages,total_pages)
+						console.log("END FIND EVENT...GOT ALL ITEMS.",events.length)
 						response(events);
 					}.bind(this))
 				}
@@ -149,7 +149,7 @@ module.exports.findVenues = function(opt){
 		_.each(venues,function(e,i){
 			module.exports.getVenue({key:opt.key,id:e.id}).then(function(v_full){
 				venues[i] = v_full;
-				console.log('got full venue');
+				//console.log('got full venue');
 				this.checkAsync();
 			}.bind(this));
 		}.bind(this));
@@ -179,9 +179,9 @@ module.exports.findVenues = function(opt){
 				if(got_pages >= total_pages){
 					getItems(venues).then(function(venues){
 						response(venues);
-						console.log("END FIND VENUE...GOT ALL ITEMS.")
+						//console.log("END FIND VENUE...GOT ALL ITEMS.",got_pages,total_pages)
 					}.bind(this))
-					console.log("END FIND VENUE...QUERY SIZE REACHED.",got_pages,total_pages)
+					//console.log("END FIND VENUE...QUERY SIZE REACHED.",venues.length)
 				}
 
 			});
@@ -275,7 +275,7 @@ module.exports.parseArtist = function(artist){
 
 //FILTER EVENT
 module.exports.parseEvent = p.sync(function(event){
-	
+
 	var n_event =  {
 		is: 'event',
 		name: event.title,
@@ -334,7 +334,7 @@ module.exports.parseEvent = p.sync(function(event){
 
 //FILTER VENUE DATA
 module.exports.parseVenue = p.sync(function(venue){
-	console.log('PARSE')
+
 
 
 	var n_venue = {
@@ -351,7 +351,8 @@ module.exports.parseVenue = p.sync(function(venue){
 		},
 	};
 
-		
+
+	//get links	
 	if(venue.links != null && venue.links.link.length != null){
 		n_venue.links = _.map(venue.links.link,function(link){
 			return link.url;
@@ -360,13 +361,15 @@ module.exports.parseVenue = p.sync(function(venue){
 		n_venue.links = [venue.links.link.url];
 	} 
 
+	//get banners
+	if(venue.images != null && _.isArray(venue.images.image))
+		n_venue.banners = _.map(venue.images.image,function(img){
+			return img.large || img.medium || img.small;
+		});
+	else if(venue.images != null && venue.images.image != null)
+		n_venue.banners = [venue.images.image.large || venue.images.image.medium || venue.images.image.small]
 
 
-	n_venue.banners = _.map(venue.images.image,function(img){
-		return img.large || img.medium || img.small;
-	});
-		
-	
 
 	this.resolve(n_venue)
 	return this.promise;

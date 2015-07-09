@@ -47,10 +47,6 @@ var eventSchema = new db.Schema({
 	//events may have unique locations ? useful for custom events and unofficial privatete venues...
 	location: {
 		address: String,
-		city: String,
-		zip: {type: Number},
-		statecode: {type: String},
-		countrycode: {type: String},
 		gps: [{type:Number, index: '2dsphere'}]
 	},
 });
@@ -60,28 +56,32 @@ var eventSchema = new db.Schema({
 var venueSchema = new db.Schema({
 	
 	//identification
-	platformIds:[{type:String}],
+	platformIds:[{type:String,required: true}],
 	platforms: [{name:String,id:String,_id:false}],
 	
 
 	name: {type:String, required: true},
+	
+
 	location: {
-		address: {type: String},
-		city: String,
-		zip: {type: Number},
-		statecode: {type: String},
-		countrycode: {type: String},
+		address: {type: String, required:true},
 		gps: [{type:Number, index: '2dsphere'}]
 	},
+
 	links: [{type:String}],
+
 	tags: [{type: String}],
+	
 	phone: {type: String},
+
 	banners: Array,
 	age: Number,
 	events: [eventSchema], //all events for this venue
 	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}], //users that are going to this venue
 	//artists: [{type:db.Schema.Types.ObjectId, ref: 'Artist'}] //artists that are performing at this venue
 });
+
+
 
 
 venueSchema.index({
