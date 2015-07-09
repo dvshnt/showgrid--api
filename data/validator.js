@@ -15,7 +15,7 @@ var fuzzy = require('fuzzyset.js'); //fuzzy matching for finding models that are
 
 var p = require('./pFactory.js'); //promise factory shortucts.
 
-
+var colors = require('colors');
 
 /*
 Model validator for events/venues/artists finds a similar model and if one is found that has a definite match, (like for example same name)
@@ -92,59 +92,51 @@ var SplitbyType = p.sync(function(dataset){
 
 
 
+
+
+
+
 /*
 
-We need to get the GPS data for venue and events.
-Event gps data is automatically linked with that events venue.
-We can then use that data to find duplicates before trying to find duplicates in the databse and also store it for future use in the database.
+////////////////////
+GET GPS
+////////////////////
 
-sometimes we will
+We need to get the GPS data for venue and events to compare them later on!
+GPS data is brought to us by GOOGLE the AI.
+
 */
 
 var addressGPS = require('./gps');
 
-var getGPS = p.sync(function(obj,delay){
+var getGPS = p.sync(function(obj){
 	//console.log(obj.location);
 	var addr = null;
 	var tries = 0;
 
 
 	function tryget(){
-		addressGPS.getGPS(obj.address,function(location){
-			if(_.isString(location)){
-				//console.log(location);
-				if(location.match(/limit/i) != null && tries< 10){
-					console.log('gps api timeout, try again.');
+		addressGPS(obj.name,obj.location)
+		.then(function(loc){
+			if(_.isString(loc)){
+				console.log(('getGPS WARN for: '+loc).gray);
+				if(loc.match(/limit/i) != null && tries< 10){
 					setTimeout(tryget.bind(this),200)
 					return;
 				}else{
-					this.resolve(null);
+					this.resolve(loc);
 				}
 			}else{
-				console.log('found GPS FOR',addr,' addr | ',obj.name,' : ',location.prettyAddress)
-				obj.location = {
-					address: location.prettyAddress,
-					gps: [location.latitude,location.longitude],
-				}
-				this.resolve(obj);
+				
+				this.resolve(loc);
 			}	
 		}.bind(this));
 	}
 
-	if(obj.location.address == null && obj.location.gps != null){
-		this.resolve(obj);
-		return this.promise;
-	}
 
-
-
-	console.log(obj.location.address,obj.location.gps)
-
-
-	addr = (obj.location.address || '') + ' '  + (obj.location.city||'') + ' ' + (obj.location.statecode||'') + ' '+ (obj.location.zip||'') + ' '+ (obj.name||'');
-
+	// console.log('TO GETGPS',obj.name,obj.platforms[0].id,obj.location.address,obj.location.gps)
 	
-	setTimeout(tryget.bind(this),delay);
+	tryget.bind(this)();
 
 	return this.promise;
 });
@@ -152,28 +144,61 @@ var getGPS = p.sync(function(obj,delay){
 
 var fillGPS = p.sync(function(datatype){
 
-	var delay = 200;
+	var delay = 150;
 	
 	//get GPS for venues.
 	var has_address = 0;
 
+
+
 	var pipes = _.map(datatype['venue'],function(obj,i){
-		return getGPS(obj,delay*i).then(function(obj){
-			if(obj) has_address++;
+		return Promise.resolve(obj).delay(delay*i).then(getGPS).then(function(loc){
+			if(loc != null && !_.isString(loc)){
+				has_address++;
+				obj.location = loc;
+				obj.location.confirmed = true
+				console.log('getGPS SUCC for: '.green,obj.name.magenta,loc);
+			}else{
+				obj.location.confirmed = false;
+				console.log('getGPS FAIL for: '.red,obj.name.magenta,' ',loc.red.bold,obj.platforms,'\n',obj.location);
+			}
 		});
-	})
+	});
 
 	
 	Promise.settle(pipes).then(function(){
-		
-		//DEBUG
-		console.log('GPS DATA FOUND FOR : ',has_address,'/',datatype['venue'].length);
+		var ratio = has_address/datatype['venue'].length;
+		var str = (has_address+'/'+datatype['venue'].length);
+		if(ratio < 0.5) str = str.toString().red;
+		else if(ratio < 0.7) str = str.toString().yellow
+		else if(ratio < 0.85) str = str.toString().green
+		else ratio = ratio.cyan
+		console.log('GPS DATA : '.bgBlue,str.bold,' ratio: ',ratio);		
 		
 		this.resolve(datatype);
 	}.bind(this));
 
 	return this.promise;
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -253,28 +278,69 @@ match.event = function(ev1,ev2){
 
 match.venue = function(v1,v2){
 
+	function checkname(){
+
+		var n_match = fuzzy([v1.name]).get(v2.name);
+		var contains = v1.name.match(new RegExp(v2.name,'i')) || v2.name.match(new RegExp(v1.name,'i'));
+
+
+		if(contains != null || (n_match != null && n_match[0][0] > 0.9)) return true;
+		return false;
+	}
+
+
+	function checkID(){
+		var match = false
+		_.each(v1.platforms,function(plat1){
+			if(match) return false;
+			_.each(v2.platforms,function(plat2){
+				if(plat2.name == plat1.name && plat2.id == plat1.id) match = true;
+				if(match) return false		
+			});
+		});
+		return match;
+	}
+
+
+	//check by ID's.
+	if(checkID() == true){
+		console.log('matched IDs'.bold.green,v1.name.inverse,v2.name)
+		return true;
+	}
+
 
 	//this is usually this case
-	if(v1.location.gps != null && v2.location.gps != null){
+	else if(v1.location.gps != null && v2.location.gps != null){
 		
 		//if venue GPS locations are similar...
-		if(sameGPS(v1.location.gps,v2.location.gps) == true){
-			//console.log(v1.location.address,v2.location.address);
-			//fuzzy match the names and check if the match is > 0.4 (bare minimum)
+		if(sameGPS(v1.location.gps,v2.location.gps)){
+			//console.log("SAME GPS")
 			var n_match = fuzzy([v1.name]).get(v2.name);
-			if(n_match != null && n_match[0] > 0.5) return true;
+			//console.log("MATCH IS",n_match);
+			if(n_match != null && n_match[0][0] > 0.5){
+				console.log('matched GPS/Names'.bold.green,v1.name.inverse,v2.name)
+				return true;
+			}
 			else return false
-		} return true;
+		}else{
+			//console.log("CHECK NAME")
+			if (checkname()){
+				console.log('matched Names'.bold.green,v1.name.inverse,v2.name)
+				return true
+			} 
+			else return false;
+		}
+
 	
 	//1/200 this will happen and and its not guaranteed to work. 
 	}else{
-		var n_match = fuzzy([v1.name]).get(v2.name);
-		var a_match = fuzzy([v1.location.address]).get(v2.location.address);
-		if(n_match != null && a_match != null && n_match[0][0] > 0.8 && a_match[0][0] > 0.8) return true;
-		if(n_match > 0.9) return true
+		//console.log("CHECK NAME 2")
+		if (checkname()){
+			console.log('matched Names'.bold.green,v1.name.inverse,v2.name)
+			return true
+		} 
+		else return false;
 	}
-	
-	return false
 }
 
 
@@ -328,14 +394,14 @@ function fuzzyMatch(str1,str2){
 
 function sameGPS(coord1,coord2){
 	var maxd = 0.00001;
-	console.log('check GPS',coord1,coord2);
+	//console.log('check GPS',coord1,coord2);
 	var d = Math.sqrt((coord1[0]-coord2[0])*(coord1[0]-coord2[0])+(coord1[1]-coord2[1])*(coord1[1]-coord2[1]));
 
 	
 
 
 	if(d<maxd){
-		console.log('same gps: ',d);
+		//console.log('same gps: ',d);
 		return true
 	} 
 	else return false
@@ -353,6 +419,13 @@ function mergeDocs(e1,e2,priority){//priority boolean defaults to true
 
 	var i1 = 0;
 	var i2 = 0;
+
+	var loc = null;
+	if(e2.location && e2.location.confirmed) loc = e2.location;
+	if(e1.location && e1.location.confirmed) loc = e1.location;
+	
+
+
 	
 	_.each(e1.platforms,function(plat){
 		i1+= MergePriority[plat.name]
@@ -361,9 +434,17 @@ function mergeDocs(e1,e2,priority){//priority boolean defaults to true
 		i2+= MergePriority[plat.name]
 	});
 
+	
+	//merged document.
+	var merged = (i1 >= i2) ? _.merge(e2,e1) : _.merge(e1,e2);
+	if(loc != null) merged.location = loc;
 
-	if(i1 >= i2) return _.merge(e2,e1);
-	else return _.merge(e1,e2);
+
+	//merge and potential subdocuments.
+	if(merged.events != null) mergeEvents(merged);
+
+
+	return merged
 };
 
 
@@ -380,50 +461,63 @@ function mergeEvents(venue){
 	});
 }
 
+
+
+
+
+
+
+
+/*
+
+FILTER OUT DUPLICATES BY MATCHING BY TYPE.
+
+*/
 var filterDuplicates = p.sync(function(typeset){
-
-
-
-
-
 	_.each(typeset,function(dataset,type){
 
 
+		var l = dataset.length;
 
-
-		console.log('before filter dup,',type,dataset.length)
-
+		// console.log(util.inspect(_.map(dataset,function(dat){
+		// 	return [dat.platforms,dat.name,dat.events != null ? dat.events.length : -1];
+		// }), {showHidden: false, depth: null}));	
 
 		for(var i = 0;i<dataset.length;i++){
-			if(i == false) continue;
+			if(!dataset[i]) continue;
 			for(var j = 0;j<dataset.length;j++){
-				if(j == false) continue;
-				if(j == i) continue;
-				console.log('comparing',i,dataset[i].name,j,dataset[j].name)
-
-
-				if(match[type](dataset[i],dataset[j]) == true){
-					console.log('same '+type+' found!',i,dataset[i].name,j,dataset[j].name)
-
+				if(!dataset[j] || j == i) continue;
+				if(match[type](dataset[i],dataset[j])){
+					console.log('MERGING...'.bgBlue,dataset[i].name.inverse,dataset[j].name);
 					dataset[i] = mergeDocs(dataset[i],dataset[j]);
-					if(dataset[i].events != null) mergeEvents(dataset[i]);
-					
-					dataset[j] = false;
+					dataset[j] = null;
 				}
 			}
 		}
 
-		// dataset = _.filter(dataset, function(n) {
-		//   n != null;
-		// });
 
-		console.log('after filter dup,',type,dataset.length,_.map(dataset,function(d){return d.name}));
-		
+		dataset = _.filter(dataset, function(n) {
+		  return !(!n);
+		});
+
+		console.log(('FILTER '+type+' : ').bgBlue,('-'+(l-dataset.length)).yellow.bold,(dataset.length+'/'+l).cyan.bold);
+
+		console.log(util.inspect(_.map(dataset,function(dat){
+			return [dat.platforms,dat.name];
+		}), {showHidden: false, depth: null}));
 	});
 
 	this.resolve(typeset);
 	return this.promise;
 });
+
+
+
+
+
+
+
+
 
 var flipEvents = p.sync(function(typeset){
 
@@ -783,14 +877,29 @@ var validate = p.sync(function(typeset){
 	});
 
 
-	//VENUE NAME REQUIRED.
+
 	_.each(typeset['venue'],function(v,i){
-		//console.log(v.name)
+		
+		//VENUE NAME REQUIRED.
 		if(v.name == null){
-			console.error('validation error: venue found without name...we dont like those, ignore');
+			console.error('validate ERR'.bold.redBg, 'venue w/o name...we dont like those, ignore'.red,v.platforms);
+			delete typeset['venue'][i];
+		}else{
+			v.name = v.name.replace('&','and')
+		}
+
+
+		//VENUE ADDRESS REQUIRED.
+		if((v.location.address == null || v.location.address.length < 5) && (v.location.gps == null || v.location.gps.length < 2)) {
+			console.log('validate ERR'.bold.bgRed, 'venue w/o address && gps'.red,v.platforms,v.name);
 			delete typeset['venue'][i];
 		}
 	});
+
+
+
+
+
 
 
 	this.resolve(typeset)
@@ -836,6 +945,7 @@ module.exports = p.async(function(dataset,save){
 	.then(flipEvents)
 
 
+
 	//check all data to make sure all nesseary information for the matching process is included
 	.then(validate)
 
@@ -845,8 +955,12 @@ module.exports = p.async(function(dataset,save){
 
 
 	//merge any event duplicates.
-	//.then(filterDuplicates)
+	.then(filterDuplicates)
 	
+	// .tap(function(typeset){
+	// 	console.log('\n\n\n\n\n\n\n')
+	// 	console.log(typeset);
+	// })
 
 	// //sync documents
 	// .then(syncVenues).then(syncArtists)

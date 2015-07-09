@@ -20,7 +20,13 @@ update({
 				key: api_cfg.eventful.keys[0],
 
 			},
-			endpoints : ['event'],
+			endpoints : ['event','venue'],
+		},
+		'reverbnation': {
+			params: {
+				key: api_cfg.eventful.keys[0],
+			},
+			endpoints : ['venue'],
 		},
 		// 'reverbnation': {
 		// 	endpoints : ['venue'],	

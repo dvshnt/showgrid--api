@@ -342,8 +342,8 @@ module.exports.parseVenue = p.sync(function(venue){
 		platforms:[{name:'eventful',id:venue.id}],
 		name: venue.name,	
 		location: {
-			address:venue.venue_address,
-			city: venue.city_name,
+			address:venue.address,
+			city: venue.city,
 			zip: venue.postal_code,
 			statecode: venue.region_abbr,
 			countrycode: venue.country_abbr,

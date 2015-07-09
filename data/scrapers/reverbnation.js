@@ -275,6 +275,8 @@ module.exports.getVenue = function(id){
 	var response;
 	var reject;
 	var tries = 0;
+
+	//console.log(cfg.api+'/venue/'+id)
 	function get(){
 		
 		request({url : cfg.api+'/venue/'+id})
@@ -379,7 +381,7 @@ module.exports.parseVenueFindItem = function(venue){
 
 
 	return new Promise(function(resolve,reject){
-		module.exports.getVenue(parsed.platforms[0]).then(function(body){
+		module.exports.getVenue(parsed.platforms[0].id).then(function(body){
 			if(body == null) return;
 	
 			var $ = cheerio.load(body);
@@ -396,6 +398,8 @@ module.exports.parseVenueFindItem = function(venue){
 				statecode: $(addr[2]).text(),
 				countrycode: $(addr[3]).text(),	
 			}
+
+		
 
 
 			//contact info..
@@ -476,10 +480,10 @@ module.exports.parseVenueFindItem = function(venue){
 				var photos_linkid = photos_link.match(/(?!photo_)\d+/);
 			}
 			if(photos_linkid != null){
-				var promise = getVenueEvents(parsed.platforms[0])
+				var promise = getVenueEvents(parsed.platforms[0].id)
 					.then(getVenueBanners(photos_linkid,parsed));
 			}else{
-				var promise = getVenueEvents(parsed.platforms[0]);
+				var promise = getVenueEvents(parsed.platforms[0].id);
 			}
 			
 			
