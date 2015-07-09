@@ -109,12 +109,8 @@ var getGPS = p.sync(function(obj,delay){
 	var tries = 0;
 
 
-
-
 	function tryget(){
-
-		
-		addressGPS.getGPS(addr,function(location){
+		addressGPS.getGPS(obj.address,function(location){
 			if(_.isString(location)){
 				//console.log(location);
 				if(location.match(/limit/i) != null && tries< 10){
@@ -133,14 +129,7 @@ var getGPS = p.sync(function(obj,delay){
 				this.resolve(obj);
 			}	
 		}.bind(this));
-
-
-
 	}
-
-	//We essentially need 2 location parameters
-	//Prettified google
-
 
 	if(obj.location.address == null && obj.location.gps != null){
 		this.resolve(obj);
@@ -523,6 +512,7 @@ var syncArtists = p.async(function(typeset){
 
 		//incremement count
 		then(function(){
+			this.count++;
 			this.checkAsync();
 		}.bind(this))
 	
@@ -737,6 +727,7 @@ var syncVenues = p.async(function(typeset){
 
 			console.log('successfully saved venue :',v.name);
 
+			this.count++;
 			this.checkAsync();
 		}.bind(this))
 
@@ -813,59 +804,6 @@ var validate = p.sync(function(typeset){
 
 
 
-var updateVenuesByID = p.async(function(typeset){
-
-	this.data = typeset['venue'];
-	this.total = typeset['venue'].length;
-
-
-	_.each(typeset['venue'],function(venue,i){
-
-			
-		//Try and find one based on same platform ID
-		db['venue'].findOne({
-			platformIds: {$in : _.map(venue.platforms,function(plat){
-				return plat.name+'/'+plat.id
-			})}
-		}).
-
-		//Save and delete raw document, or keep document for further refining.
-		then(function(doc){
-			if(doc != null){
-				console.log('FOUND DOUCMENT BY ID & SILENTLY MERGING...')
-				doc = merge(doc,venue,'silent');
-				return doc.save().then(function(v){
-					console.log('successfully saved venue :',v.name);
-					this.checkAsync();
-				}.bind(this));
-				typeset['venue'][i] = null;
-			}else{
-				this.checkAsync();
-			}
-		});
-	}.bind(this));
-
-
-
-	typeset['venue'] = _.filter(typeset['venue'],function(v){
-		return v != null;
-	});
-
-	
-
-	return this.promise;
-
-});
-
-
-
-
-var updateArtistsByID = p.async(function(typeset){
-	//TODO
-	this.resolve(typeset);
-	return this.promise;
-});
-
 
 
 
@@ -897,34 +835,21 @@ module.exports = p.async(function(dataset,save){
 	//flip events to their
 	.then(flipEvents)
 
+
 	//check all data to make sure all nesseary information for the matching process is included
 	.then(validate)
 
-	//remove duplicate documents.
-	.then(filterDuplicates)
 
-	.tap(function(typeset){
-		console.log('before updated venues by id, left: ',typeset['venue'].length);
-	})
-	
-	//try and find documents with same ID and merge with existing data
-	.then(updateVenuesByID).then(updateArtistsByID)
-	
-	.tap(function(typeset){
-		console.log('after updated venues by id, left: ',typeset['venue'].length);
-	})
-	//If update fails, fill GPS data
+	//fill GPS data.
 	.then(fillGPS)
 
-	//remove duplicate documents again based on new GPS data 
-	.then(filterDuplicates)
 
 	//merge any event duplicates.
-	
+	//.then(filterDuplicates)
 	
 
 	// //sync documents
-	//.then(syncVenues).then(syncArtists)
+	// .then(syncVenues).then(syncArtists)
 
 	return this.promise;
 });

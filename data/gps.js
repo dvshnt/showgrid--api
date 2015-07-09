@@ -1,55 +1,44 @@
-var request = require('request');
+
+
+var Promise = require('bluebird')
+
+var request = Promise.promisify(require('request').get);
+
+
 var _ = require('lodash');
+var p = require('./pFactory');
 
-var host = 'http://52.25.203.238:4040'
-var api  = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json?&key=AIzaSyBci_u3i7KQ2Oezc7B8rDMhcBN4av8gFWs&radius=2'
+var places_api  = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
+var geo_api  = 'https://maps.googleapis.com/maps/api/geocode/json';
+var key = 'AIzaSyDxX-LXG4B1H6LRNxHNCKJErQPyeK2KW7o';
 
+module.exports = p.sync(function(name,addr){
 
+	if(addr.address != null){
+		address = addr.address.trim();
+	}
 
-module.exports = {
-  // Call done() with an object containing latitude, longitude, and prettyAddress 
-  // properties corresponding to the GPS coordinates and human readable form of address
-  getGPS: function(addrObj,gps,radius, done){
+	//use geo api to find approximate location and then use the gps to find the exact place location
+	if(addr.gps == null && addr.address != null){
+		return geocode(addr).then(geoplace);
+	//use address and gps and name to find exact location
+	}else if(addr.gps != null){
+		return geoplace(addr);
+	}
 
-    if(addrObj == null){
+	var geoplace = request(places_api+ "?" +"keyword=" + addr.address + "&key="+key+'&sensor=false').then(function(loc,err){
+		if(loc.formatted_address == null || loc.geometry == null) return(loc);
+		return{
+			address: loc.formatted_address,
+			gps: [loc.geometry.location.lat,loc.geometry.location.lng]
+		}
+	});
 
-    }
-
-    address = address.trim();
-
-    var url = api+ "?" +"address=" + address + "&sensor=false";
-
-    request(url, function(error, response, body){
-     // console.log(body);
-
-      if(error){
-        console.log(error);
-      }
-      var result = JSON.parse(body);
-     
-      if(result.results && result.results.length){
-        var loc = result.results[0];
-
-        done({
-          latitude: loc.geometry.location.lat,
-          longitude: loc.geometry.location.lng,
-          prettyAddress: loc.formatted_address
-          // zip: (function(){
-          //   var addr = null
-          //   _.each(loc['address_components'],function(prop){
-          //      if(prop['types'].indexOf('postal_code') > 0){
-          //         addr = prop['long_name'];
-          //         return false;
-          //      };
-          //   });
-          //   return addr;
-          // })()
-        });
-      }else{
-        done(result.status)
-      }
-    
-    });
-  }
-
-};
+	var geocode = request(places_api+ "?" +"keyword=" + addr.address + "&key="+key+'&sensor=false').then(function(loc,err){
+		if(loc.results == null) return(loc);
+		return{
+			address: loc.formatted_address,
+			gps: [results[0loc.geometry.location.lat,loc.geometry.location.lng]
+		}
+	});
+});
