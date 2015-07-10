@@ -87,7 +87,9 @@ Basic Rest endpoints that handle GET requests for users and apps and POST, PUT a
 
 To get a ticketing link for TicketFly venues, we need to first determine if the venue is a TicketFly venue. 
 
-We could create a field in the venue's model to indicate this. Conversely, we can just call TicketFly's API on demand and check if the venue is in the set of returned venues for a given area.
+We could create a field in the venue's model to indicate the ticketing provider for each venue. 
+
+Conversely, we can just call TicketFly's API on demand and check if the venue is in the set of returned venues for a given area.
 
 TicketFly's API is straightforward as FUCK! You should read the .pdf I sent to get up to speed with it. Very easy.
 
