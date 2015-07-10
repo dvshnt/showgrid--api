@@ -5,7 +5,6 @@ var api_cfg = require('./data/data_config').apis;
 
 var update = require('./data/update.js');
 
-
 update({
 	params: {
 		zip: '37064',
@@ -18,27 +17,19 @@ update({
 		'eventful': {
 			params: {
 				key: api_cfg.eventful.keys[0],
-
 			},
 			endpoints : ['event','venue'],
 		},
 		'reverbnation': {
-			params: {
-				key: api_cfg.eventful.keys[0],
-			},
 			endpoints : ['venue'],
 		},
-		// 'reverbnation': {
-		// 	endpoints : ['venue'],	
-		// },
-	
-		// 'jambase' : {
-		// 	endpoints : ['venue','event','artist'],
-		// 	key : api_cfg.jambase.keys[0],
-		// 	params: {
-		// 		zip: '37064'
-		// 	},
-		// }
+		 'jambase' : {
+			endpoints : ['venue','event'],
+			params: {
+				key : api_cfg.jambase.keys[1],
+				zip: '37064'
+			},
+		}
 	},
 	save: true
 

@@ -50,7 +50,7 @@ Returns a promise that resolves when the data is saved or updated into the datab
 
 
 
-
+var types = ['venue','event','artist'];
 
 
 
@@ -58,21 +58,22 @@ Returns a promise that resolves when the data is saved or updated into the datab
 var SplitbyType = p.sync(function(dataset){
 
 
-
 	var typeset = {};
-	_.each(db,function(val,key){
-		typeset[key] = [];
-	})
-
+	_.each(types,function(type){
+		typeset[type] = [];
+	});
 
 	_.each(dataset,function(doc){
-		if(typeset[doc.is] == null) typeset[doc.is] = [];
+		if(typeset[doc.is] == null){
+			console.log('split ERR:',doc.is,'is not a type of',types,doc);
+			return;
+		}
 
 		typeset[doc.is].push(doc);
 		delete doc.is;
 	});
 
-	//Sort typesets is required because when we compile events it equals nigger.
+	//Sort typesets is required in order to properly filter
 	_.sortBy(typeset,function(dat,type){
 		if(type == 'event') return 0;
 		if(type == 'venue') return 2;
@@ -152,7 +153,13 @@ var fillGPS = p.sync(function(datatype){
 
 
 	var pipes = _.map(datatype['venue'],function(obj,i){
-		return Promise.resolve(obj).delay(delay*i).then(getGPS).then(function(loc){
+
+
+		return Promise
+		.resolve(obj)
+		.delay(delay*i)
+		.then(getGPS)
+		.then(function(loc){
 			if(loc != null && !_.isString(loc)){
 				has_address++;
 				obj.location = loc;
@@ -163,7 +170,7 @@ var fillGPS = p.sync(function(datatype){
 				console.log('getGPS FAIL for: '.red,obj.name.magenta,' ',loc.red.bold,obj.platforms,'\n',obj.location);
 			}
 		});
-	});
+	}.bind(this));
 
 	
 	Promise.settle(pipes).then(function(){
@@ -205,50 +212,49 @@ var fillGPS = p.sync(function(datatype){
 
 */
 var util = require('util');
-var validate = p.sync(function(typeset){
+var validate = p.sync(function(dataset){
+
+	_.each(dataset,function(doc,i){
+		if(doc == null) return
+		if(doc.is == null){
+			dataset[i] == null;
+		}
+		if(doc.platforms == null){
+			console.error('validate ERR'.bold.bgRed,'no platform for '.red,doc);
+			dataset[i] = null;
+		}
+
+		if(doc.is == 'event'){
+			if(doc.venue == null){
+				console.error('validate ERR'.bold.bgRed,'event found without venue!'.red);
+				dataset[i] = null;
+			}
+		}
+
+		if(doc.is == 'venue'){
+			if(doc.name == null){
+				console.error('validate ERR'.bold.redBg, 'venue w/o name...we dont like those, ignore'.red,doc.platforms);
+				dataset[i] = null;
+			}
 
 
-	//EVENT MUST HAVE ATTACHED VENUE.
-	_.each(typeset['event'],function(e,i){
-		if(e.venue == null){
-			console.error('validation error: event found without venue!');
-			typeset['event'].splice(i,1);
+			//VENUE ADDRESS REQUIRED.
+			if((doc.location.address == null || doc.location.address.length < 5) && (doc.location.gps == null || doc.location.gps.length < 2)) {
+				console.log('validate ERR'.bold.bgRed, 'venue w/o address && gps'.red,doc.platforms,doc.name);
+				dataset[i] = null;
+			}
 		}
 	});
 
 
-	typeset['event'] = _.filter(typeset['event'], function(n) {
+
+	var dataset = _.filter(dataset, function(n) {
 	  return !(!n);
 	});
 
-	_.each(typeset['venue'],function(v,i){
-		
-		//VENUE NAME REQUIRED.
-		if(v.name == null){
-			console.error('validate ERR'.bold.redBg, 'venue w/o name...we dont like those, ignore'.red,v.platforms);
-			typeset['venue'][i] = null;
-		}else{
-			v.name = v.name.replace('&','and')
-		}
 
 
-		//VENUE ADDRESS REQUIRED.
-		if((v.location.address == null || v.location.address.length < 5) && (v.location.gps == null || v.location.gps.length < 2)) {
-			console.log('validate ERR'.bold.bgRed, 'venue w/o address && gps'.red,v.platforms,v.name);
-			typeset['venue'][i] = null;
-		}
-	});
-
-
-	typeset['venue'] = _.filter(typeset['venue'], function(n) {
-	  return !(!n);
-	});
-
-
-
-
-
-	this.resolve(typeset)
+	this.resolve(dataset)
 	return this.promise;
 });
 
@@ -337,9 +343,11 @@ match.event = function(ev1,ev2){
 match.venue = function(v1,v2){
 
 	function checkname(){
+		var t_name1 = v1.name.replace(/\sand\s|\s&\s/,' ');
+		var t_name2 = v2.name.replace(/\sand\s|\s&\s/,' ');
 
-		var n_match = fuzzy([v1.name]).get(v2.name);
-		var contains = v1.name.match(new RegExp(v2.name,'i')) || v2.name.match(new RegExp(v1.name,'i'));
+		var n_match = fuzzy([t_name1]).get(t_name2);
+		var contains = t_name1.match(new RegExp(t_name2,'i')) || t_name2.match(new RegExp(t_name1,'i'));
 
 
 		if(contains != null || (n_match != null && n_match[0][0] > 0.9)) return true;
@@ -537,14 +545,11 @@ var filterDuplicates = p.sync(function(typeset){
 
 		var l = dataset.length;
 
-		// console.log(util.inspect(_.map(dataset,function(dat){
-		// 	return [dat.platforms,dat.name,dat.events != null ? dat.events.length : -1];
-		// }), {showHidden: false, depth: null}));	
 
 		for(var i = 0;i<dataset.length;i++){
-			if(!dataset[i]) continue;
+			if(dataset[i] == null) continue;
 			for(var j = 0;j<dataset.length;j++){
-				if(!dataset[j] || j == i) continue;
+				if(dataset[j] == null || j == i) continue;
 				if(match[type](dataset[i],dataset[j])){
 					console.log('MERGING...'.bgBlue,dataset[i].name.inverse,dataset[j].name);
 					dataset[i] = mergeDocs(dataset[i],dataset[j]);
@@ -555,14 +560,17 @@ var filterDuplicates = p.sync(function(typeset){
 
 
 		dataset = _.filter(dataset, function(n) {
-		  return !(!n);
+		  return n != null;
 		});
 
 		console.log(('FILTER '+type+' : ').bgBlue,('-'+(l-dataset.length)).yellow.bold,(dataset.length+'/'+l).cyan.bold);
 
 		console.log(util.inspect(_.map(dataset,function(dat){
-			return [dat.platforms,dat.name];
-		}), {showHidden: false, depth: null}));
+			return dat.name;
+		}).sort(), {showHidden: false, depth: null}));
+
+		typeset[type] = dataset;
+
 	});
 
 	this.resolve(typeset);
@@ -581,7 +589,6 @@ var flipEvents = p.sync(function(typeset){
 
 	//flip events to display venues on top
 	var venues = _.map(typeset['event'],function(e){
-		
 		var venue = _.clone(e.venue);
 		if(venue.name == null){
 			venue.name = e.name;
@@ -768,7 +775,7 @@ var syncVenues = p.async(function(typeset){
 					this.resolve(venues[m_list.indexOf(matches[0][1])]);
 				}
 			}else{
-				console.log('failed to find venue by GPS...')
+				//console.log('failed to find venue by GPS...')
 				findByName(venue).then(function(doc){
 					this.resolve(doc);
 				}.bind(this));
@@ -834,7 +841,8 @@ var syncVenues = p.async(function(typeset){
 	
 	*/
 	_.each(typeset['venue'],function(venue,i){
-		
+	
+				
 		//try and find one based on same platform ID
 		db['venue'].findOne({
 			platformIds: {$in : _.map(venue.platforms,function(plat){
@@ -856,7 +864,7 @@ var syncVenues = p.async(function(typeset){
 			//console.log('Venue search tries for',venue.name,'passed through with matched result:', (doc != null ? doc.name : 'NULL' ));
 
 			if(doc != null){
-				console.log('FOUND DOUCMENT & MERGING...')
+				console.log('FOUND DOUCMENT & MERGING...',venue.name,doc.name)
 				doc = merge(doc,venue);
 				return doc.save();
 			}else{
@@ -909,35 +917,6 @@ var syncVenues = p.async(function(typeset){
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /*
 
 Syncroniously filter through all fetched data, merge any duplicates and re-arrange data then sync it with the database.
@@ -946,33 +925,16 @@ Syncroniously filter through all fetched data, merge any duplicates and re-arran
 
 module.exports = p.async(function(dataset,save){
 
-	//split raw data by into types for faster parsing.
-	SplitbyType(dataset)
+
+	console.log('DATASET LENGTH:'.bold.bgBlue,dataset.length.toString().yellow.bold)
 
 
-	//flip events to their
-	.then(flipEvents)
-
-
-
-	//check all data to make sure all nesseary information for the matching process is included
-	.then(validate)
-
-
-	//fill GPS data.
-	.then(fillGPS)
-
-
-	//merge any event duplicates.
-	.then(filterDuplicates)
-	
-	// .tap(function(typeset){
-	// 	console.log('\n\n\n\n\n\n\n')
-	// 	console.log(typeset);
-	// })
-
-	// //sync documents
-	// .then(syncVenues).then(syncArtists)
+	validate(dataset) 	//validate data
+	.then(SplitbyType) //split raw data by into types for faster parsing
+	.then(flipEvents)  //flip events to their
+	.then(fillGPS) //fill GPS data.
+	.then(filterDuplicates) //merge any dat
+	.then(syncVenues).then(syncArtists) // sync documents with database
 
 	return this.promise;
 });

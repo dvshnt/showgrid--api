@@ -12,11 +12,12 @@ var Promise = require('bluebird');
 var qs = require('querystring');
 var moment = require('moment');
 
+var p = require('../pFactory')
+
+var _ = require('lodash')
 
 
-
-
-
+var colors = require('colors');
 
 //Promise.longStackTraces();
 
@@ -30,6 +31,7 @@ var get = function(type,opts,cb){
 }
 
 
+
 //FIND VENUES
 module.exports.findVenues = function(opt){
 	var url = cfg.api+'/venues';
@@ -38,13 +40,21 @@ module.exports.findVenues = function(opt){
 	if(opt.zip != null) q.zipCode = opt.zip;
 	if(opt.radius != null) q.radius = opt.radius;
 
+	console.log(url + '?' + qs.stringify(q))
 
 	function get(resolve,reject){
 		request.get({
 			url : url + '?' + qs.stringify(q),
 			json: true
 		},function(err,res,data){
-			console.log('got raw venue data !');
+				
+			if(data.Venues == null){
+				console.log("Jambase findVenues ERR: ".bgRed.bold,data)
+				return resolve(null);
+			}
+			if(data == null){
+				return resolve(null);
+			}
 			resolve(data.Venues);
 		});
 	}
@@ -52,8 +62,14 @@ module.exports.findVenues = function(opt){
 }
 
 
+
+
+
+
+
 //FIND SHOWS
 module.exports.findEvents = function(opt){
+
 	var url = cfg.api+'/events';
 	var q = {api_key:opt.key,page:0};
 
@@ -66,6 +82,15 @@ module.exports.findEvents = function(opt){
 			url : url + '?' + qs.stringify(q),
 			json: true
 		},function(err,res,data){
+			if(data == null){
+				return resolve(null);
+			}
+
+			if(data.Events == null){
+				console.log("Jambase findEvents ERR: ".bgRed.bold,data)
+				return resolve(null);
+			}
+
 			console.log('got raw events data !');
 			resolve(data.Events);
 		});
@@ -83,12 +108,13 @@ module.exports.findEvents = function(opt){
 
 
 
-
+Promise.longStackTraces();
 
 
 //PARSE A VENUE
-module.exports.parseVenue = function(venue){
-	return{
+module.exports.parseVenue = p.sync(function(venue){
+	
+	var v = {
 		is: 'venue',
 		name: venue.Name,
 		platforms:[{name:'jambase',id:venue.Id}],
@@ -100,9 +126,13 @@ module.exports.parseVenue = function(venue){
 			countrycode: venue.CountryCode,
 			gps: [venue.Latitude,venue.Longitude],
 		},
-		links: _.isArray(venu.Url) ? venue.Url : [venue.Url],
-	};	
-}
+
+	};
+
+	v.links = venue.Url.length != null ? venue.Url : [venue.Url];
+	this.resolve(v);
+	return this.promise;
+})
 
 
 
@@ -120,14 +150,13 @@ module.exports.parseArtist = function(artist){
 
 
 //PARSE A SHOW
-module.exports.parseEvent = function(event){
-	return{
+module.exports.parseEvent = p.sync(function(event){
+	var e = {
 		is: 'event',
 		platforms:[{name:'jambase',id:event.Id}],
 		date: moment(event.Date,moment.ISO_8601).utc().format(), //ISO 8601 +0.00 UTC DATE FORMAT ONLY!
 		name: event.Name,
 		age: null,
-		venue: module.exports.parseVenue(event.Venue),
 		tickets: [{
 			url: event.ticketUrl
 		}],
@@ -140,4 +169,12 @@ module.exports.parseEvent = function(event){
 			})()
 		}
 	};
-}
+
+
+	module.exports.parseVenue(event.Venue).then(function(v){
+		e.venue = v;
+		this.resolve(e);
+	}.bind(this));
+
+	return this.promise;
+});

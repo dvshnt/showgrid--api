@@ -286,7 +286,7 @@ module.exports.parseEvent = p.sync(function(event){
 		artists: {
 			headers: (function(){
 			
-				if(event.performer == null) return;
+				if(event.performer == null) return null;
 
 				if(event.performer.length != null){
 					var performers = _.each(event.performer,function(artist){
@@ -295,19 +295,19 @@ module.exports.parseEvent = p.sync(function(event){
 						}
 					});
 					return performers;
-				}else if(event.performer != null){
+				}else
 					return [{
 						platforms:[{name:'eventful',id:event.performer.id}],
 					}]
-				}
+				
 			})(),
 		},
 
-		banners : event.images != null ? _.map(event.images.image,function(img){
+		banners : event.images != null && _.isArray(event.images.image) ? _.map(event.images.image,function(img){
 			return img.large || img.medium || img.small
 		}) : null,
 
-		links : event.links != null ? _.map(event.links.link,function(link){
+		links : event.links != null && _.isArray(event.links.link) ? _.map(event.links.link,function(link){
 			return link.url
 		}) : null,
 	}

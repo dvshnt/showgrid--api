@@ -70,6 +70,7 @@ module.exports =  {
 
 
 	/*
+
 		40-50% of all data from eventful seems to be scraped from reverbnation because the event/venues link back to reverb
 		with the sponsor message "find out more at reverbnation!"
 		
@@ -92,9 +93,9 @@ module.exports =  {
 	},
 
 	/*
+
 	all events/shows in reverbnation are linked directly with the venues, there is not search functionality for events. 
-		
-	to update data from reverbnation just send the search query for the venues and it auto update all the events!
+	to update data from reverbnation just send the search query for the venues and it should auto update all the events.
 
 	*/
 	'reverbnation' : {
@@ -119,6 +120,12 @@ module.exports =  {
 		venue data such as events are labled with fb_
 	*/
 	'facebook' : {
+
+	},
+
+
+	//get tickets for venue events.
+	'ticketfly' : {
 
 	}
 }

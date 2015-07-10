@@ -42,7 +42,7 @@ var linkFiller = function(model_list,log){
 
 
 
-
+Promise.longStackTraces();
 
 
 function main(opt){
@@ -114,13 +114,14 @@ function main(opt){
 						//create a transform pipe for each object in the data array
 						var obj_pipe = Promise.resolve(raw_obj);
 
-				
+						obj_pipe = obj_pipe.delay(50*i)
+
 						//cycle through all the filters.
 						_.each(scraper.filters[endpoint],function(filter){
 							obj_pipe = obj_pipe.then(filter);
 						});
 
-
+						
 						//when object has gone through all filters, replace with origional object.
 						obj_pipe = obj_pipe.then(function(parsed_obj){
 							if(parsed_obj == null){
