@@ -11,7 +11,7 @@ update({
 		zip: '37064',
 		country: 'US',
 		radius: 50,
-		query_size:15,
+		query_size:100,
 		sort: 'popularity'
 	},
 	platforms: {

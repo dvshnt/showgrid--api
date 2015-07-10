@@ -157,8 +157,8 @@ var fillGPS = p.sync(function(datatype){
 				has_address++;
 				obj.location = loc;
 				obj.location.confirmed = true
-				console.log('getGPS SUCC for: '.green,obj.name.magenta,loc);
-			}else{
+				console.log('getGPS SUCC for: '.green,obj.name.magenta);
+			}else if(_.isString(loc)){
 				obj.location.confirmed = false;
 				console.log('getGPS FAIL for: '.red,obj.name.magenta,' ',loc.red.bold,obj.platforms,'\n',obj.location);
 			}
@@ -167,12 +167,13 @@ var fillGPS = p.sync(function(datatype){
 
 	
 	Promise.settle(pipes).then(function(){
+		console.log(has_address,datatype['venue'].length)
 		var ratio = has_address/datatype['venue'].length;
-		var str = (has_address+'/'+datatype['venue'].length);
-		if(ratio < 0.5) str = str.toString().red;
-		else if(ratio < 0.7) str = str.toString().yellow
-		else if(ratio < 0.85) str = str.toString().green
-		else ratio = ratio.cyan
+		var str = (has_address+'/'+datatype['venue'].length).toString();
+		if(ratio < 0.5) str = str.red;
+		else if(ratio < 0.7) str = str.yellow
+		else if(ratio < 0.85) str = str.green
+		else str = str.cyan
 		console.log('GPS DATA : '.bgBlue,str.bold,' ratio: ',ratio);		
 		
 		this.resolve(datatype);
@@ -193,6 +194,63 @@ var fillGPS = p.sync(function(datatype){
 
 
 
+
+
+
+
+
+/*
+
+	VALIDATION FILTERS
+
+*/
+var util = require('util');
+var validate = p.sync(function(typeset){
+
+
+	//EVENT MUST HAVE ATTACHED VENUE.
+	_.each(typeset['event'],function(e,i){
+		if(e.venue == null){
+			console.error('validation error: event found without venue!');
+			typeset['event'].splice(i,1);
+		}
+	});
+
+
+	typeset['event'] = _.filter(typeset['event'], function(n) {
+	  return !(!n);
+	});
+
+	_.each(typeset['venue'],function(v,i){
+		
+		//VENUE NAME REQUIRED.
+		if(v.name == null){
+			console.error('validate ERR'.bold.redBg, 'venue w/o name...we dont like those, ignore'.red,v.platforms);
+			typeset['venue'][i] = null;
+		}else{
+			v.name = v.name.replace('&','and')
+		}
+
+
+		//VENUE ADDRESS REQUIRED.
+		if((v.location.address == null || v.location.address.length < 5) && (v.location.gps == null || v.location.gps.length < 2)) {
+			console.log('validate ERR'.bold.bgRed, 'venue w/o address && gps'.red,v.platforms,v.name);
+			typeset['venue'][i] = null;
+		}
+	});
+
+
+	typeset['venue'] = _.filter(typeset['venue'], function(n) {
+	  return !(!n);
+	});
+
+
+
+
+
+	this.resolve(typeset)
+	return this.promise;
+});
 
 
 
@@ -856,55 +914,6 @@ var syncVenues = p.async(function(typeset){
 
 
 
-
-
-
-/*
-
-	VALIDATION FILTERS
-
-*/
-var util = require('util');
-var validate = p.sync(function(typeset){
-
-
-	//EVENT MUST HAVE ATTACHED VENUE.
-	_.each(typeset['event'],function(e,i){
-		if(e.venue == null){
-			console.error('validation error: event found without venue!');
-			typeset['event'].splice(i,1);
-		}
-	});
-
-
-
-	_.each(typeset['venue'],function(v,i){
-		
-		//VENUE NAME REQUIRED.
-		if(v.name == null){
-			console.error('validate ERR'.bold.redBg, 'venue w/o name...we dont like those, ignore'.red,v.platforms);
-			delete typeset['venue'][i];
-		}else{
-			v.name = v.name.replace('&','and')
-		}
-
-
-		//VENUE ADDRESS REQUIRED.
-		if((v.location.address == null || v.location.address.length < 5) && (v.location.gps == null || v.location.gps.length < 2)) {
-			console.log('validate ERR'.bold.bgRed, 'venue w/o address && gps'.red,v.platforms,v.name);
-			delete typeset['venue'][i];
-		}
-	});
-
-
-
-
-
-
-
-	this.resolve(typeset)
-	return this.promise;
-});
 
 
 

@@ -37,64 +37,86 @@ module.exports = p.sync(function(name,addr){
 	var getplace = p.sync(function(status){
 
 		var type = 'keyword';
+		var switch_ands = false;
 		var tries = 0;
-		var get = function(){
 
-			if(type === -1) url = places_api+ "?"+type+"=" + name + "&key="+key+'&location='+addr.gps[0]+','+addr.gps[1]+'&radius='+default_radius+'&sensor=false';
-			else url = places_api+ "?"+type+"=" + name + "&key="+key+'&location='+addr.gps[0]+','+addr.gps[1]+'&radius='+default_radius+'&sensor=false';
+		name = name.replace(/\sand\s|\s&\s/,' ');
+
+		var get = function(){
+			
+			url = places_api+ "?"+type+"=" + name + "&key="+key+'&location='+addr.gps[0]+','+addr.gps[1]+'&radius='+default_radius+'&sensor=false';
+			
 
 			return request({url:url,json:true})
 			.spread(function(res,loc,err){
 				//console.log('GOT PLACE');
 				
 				if(loc.results == null || loc.results.length == 0){
-					if(tries >= 2) return this.resolve(status || loc.status);
+					if(tries >=2) return this.resolve(status || loc.status);
 					else {
+					
 						type = 'name';
 						tries++;
 						return get();
 					}
 				}
+
+				var found = null;
+
+
+				//match by address
+				_.each(loc.results,function(res){
+					if(res.vicinity.match(new RegExp(address,'i')) != null){
+						found = res;
+						return false;
+					}
+				})
 				
 
-				var match_list = [];
-				var match_list = _.map(loc.results,function(pl){
-					return pl.name;
-				});
+				//if match by address failed, match by name
+				if(found == null){
+					var match_list = [];
+					var match_list = _.map(loc.results,function(pl){
+						return pl.name.replace(/\sand\s|\s&\s/,' ');;
+					});
 
-				var matches = fuzzy(match_list).get(name);
-				tries++;
-				if(matches != null){
-					//do another contains match incase there are extra words in the title.
-					var contains = matches[0][1].match(new RegExp(name,'i')) || name.match(new RegExp(matches[0][1],'i'));
-
+					var matches = fuzzy(match_list).get(name);
+					tries++;
 
 					
-					//console.log('MATCH for ',matches[0][1],' vs ',name,'is ',matches[0][0]);
-				//	console.log('GOT GEOPLACE for ',name,matches[0][0]);
-					if( matches[0][0] >= 0.8 || contains != null){
 
-					//	console.log('MATCHED ',matches[0][1],' | ',name);
-						var loc = loc.results[match_list.indexOf(matches[0][1])]
-						
-						this.resolve({
-							address: loc.vicinity,
-							gps: [loc.geometry.location.lat,loc.geometry.location.lng]
-						});
+					_.each(matches,function(match,i){
 
-					}else if(tries<2){
 
-						var loc = loc.results[0];
-						addr.gps = [loc.geometry.location.lat,loc.geometry.location.lng];
-						get();
+						//matched business name
+						var contains = match[1].match(new RegExp(name,'i')) || name.match(new RegExp(match[1],'i'));
+						if( match[0] >= 0.75 || contains != null){
+							found = loc.results[match_list.indexOf(match[1])]
+							return false;
+						} 
+					});
+				}
 
-					}else this.resolve(null);
-					
+			
+			
+				if(found){
+					this.resolve({
+						address: found.vicinity,
+						gps: [found.geometry.location.lat,found.geometry.location.lng]
+					});
 				}else if(tries<2){
 					var loc = loc.results[0];
 					addr.gps = [loc.geometry.location.lat,loc.geometry.location.lng];
+					
 					get();
-				}else this.resolve(null)
+				}else{
+					console.log(loc.results[0].vicinity,address)
+					console.log(matches,name)
+					this.resolve('NO_MATCH');
+				} 
+
+
+
 			}.bind(this));
 		}.bind(this)
 
@@ -155,7 +177,7 @@ module.exports = p.sync(function(name,addr){
 
 	//else return null because not enough info.
 	}else{
-		this.resolve(null);
+		this.resolve('BAD_INFO');
 		return this.promise;
 	}
 });
