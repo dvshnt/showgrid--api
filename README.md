@@ -84,3 +84,24 @@ Basic Rest endpoints that handle GET requests for users and apps and POST, PUT a
 * _u_: showgrid
 * _p_: sh0wgr1d
 * _k_: <<< PENDING >>>
+
+
+#### TicketFly Affiliation ####
+To get a ticketing link for TicketFly venues, we need to first determine if the venue is a TicketFly venue. 
+
+We could create a field in the venue's model to indicate the ticketing provider for each venue. 
+
+Conversely, we can just call TicketFly's API on demand and check if the venue is in the set of returned venues for a given area.
+
+TicketFly's API is straightforward as FUCK! You should read the .pdf I sent to get up to speed with it. Very easy.
+
+In order to get only TicketFly events for an area (Appendix C), you just add `tflyTicketed=true` to the request.
+
+To form a ticketing link, we need to do the following:
+* You will receive a ticketing link (ticketPurchaseURL) for each event
+* Use the Share-A-Sale base URL `http://www.shareasale.com/r.cfm?B=02&U=XXXX&M=01&urllink= `
+* Parameters should be as follows: 
+  * B=02&U=1118395&M=01&urllink=(ticketPurchaseURL from event)
+* The resulting Share-A-Sale link should be used in place of the standard TicketFly link.
+
+We get 25% of every transaction made immediately after clicking this link.   
