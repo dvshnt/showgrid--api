@@ -459,7 +459,7 @@ function fuzzyMatch(str1,str2){
 }
 
 function sameGPS(coord1,coord2){
-	var maxd = 0.00001;
+	var maxd = 0.0001;
 	//console.log('check GPS',coord1,coord2);
 	var d = Math.sqrt((coord1[0]-coord2[0])*(coord1[0]-coord2[0])+(coord1[1]-coord2[1])*(coord1[1]-coord2[1]));
 
@@ -483,22 +483,35 @@ var MergePriority = {'facebook':2.5,'eventful':1.5,'reverbnation':1,'jambase':1}
 function mergeDocs(e1,e2,priority){//priority boolean defaults to true
 	if(priority != null && priority == false) return _.merge(e2,e1);
 
-	var i1 = 0;
-	var i2 = 0;
-
-	var loc = null;
-	if(e2.location && e2.location.confirmed) loc = e2.location;
-	if(e1.location && e1.location.confirmed) loc = e1.location;
+	var i1 = 0,i2 = 0;
 	
 
-
-	
+	//priority dicision making.
 	_.each(e1.platforms,function(plat){
 		i1+= MergePriority[plat.name]
 	});
 	_.each(e2.platforms,function(plat){
 		i2+= MergePriority[plat.name]
 	});
+
+	if(e1.events != null && e2.events.length != null){
+		if(e1.events.length > e2.events.length) i1+=2;
+		if(e1.events.length < e2.events.length) i2+=2;
+	}
+
+
+	// locations
+	var loc = null;
+	if(e2.location.confirmed && e1.location.confirmed){
+		if(i2 >= i1) loc = e2.location;
+		else loc = e1.location;
+	}
+	else if(e2.location && e2.location.confirmed) loc = e2.location;
+	else if(e1.location && e1.location.confirmed) loc = e1.location;
+	
+
+
+	
 
 	
 	//merged document.
@@ -508,7 +521,6 @@ function mergeDocs(e1,e2,priority){//priority boolean defaults to true
 
 	//merge and potential subdocuments.
 	if(merged.events != null) mergeEvents(merged);
-
 
 	return merged
 };
@@ -593,9 +605,8 @@ var flipEvents = p.sync(function(typeset){
 		if(venue.name == null){
 			venue.name = e.name;
 		}
-		delete e.venue;
-		venue.event = e;
-		return venue
+		venue.events = [e];
+		return venue;
 	});
 
 
@@ -932,6 +943,7 @@ module.exports = p.async(function(dataset,save){
 	validate(dataset) 	//validate data
 	.then(SplitbyType) //split raw data by into types for faster parsing
 	.then(flipEvents)  //flip events to their
+	.then(filterDuplicates) //merge any dat
 	.then(fillGPS) //fill GPS data.
 	.then(filterDuplicates) //merge any dat
 	.then(syncVenues).then(syncArtists) // sync documents with database

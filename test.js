@@ -10,7 +10,7 @@ update({
 		zip: '37064',
 		country: 'US',
 		radius: 50,
-		query_size:500,
+		query_size:50,
 		sort: 'popularity'
 	},
 	platforms: {
@@ -18,7 +18,7 @@ update({
 			params: {
 				key: api_cfg.eventful.keys[0],
 			},
-			endpoints : ['venue'],
+			endpoints : ['event'],
 		},
 		// 'reverbnation': {
 		// 	endpoints : ['venue'],

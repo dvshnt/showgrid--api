@@ -76,14 +76,19 @@ function search(type,opt){
 
 
 	function get(page,delay){
+
+
+
+
 		tries[page] = tries[page] || 0;
-		q.page = page;
+		
 
 
 
 		Promise
 		.delay(delay)
 		.then(function(){
+			q.page = page;
 			return request({
 				url : url + '?' + qs.stringify(q),
 			})
@@ -100,6 +105,7 @@ function search(type,opt){
 
 		.spread(function(res,body){
 			if(body == null) return;
+		
 			if(results.length >= opt.query_size) return;
 			sent_requests++;
 			var $ = cheerio.load(body);
@@ -111,9 +117,13 @@ function search(type,opt){
 				if(results.length >= opt.query_size) return null;
 				return results.push($.html(node))
 			});
+
+
+
+			//LOG
 			process.stdout.clearLine();
 			process.stdout.cursorTo(0);
-			process.stdout.write('reverb : fetching ids '+results.length.toString().yellow.bold+' / '+opt.query_size.toString().cyan.bold);
+			process.stdout.write(''+page.toString().gray+' '+results.length.toString().yellow+' / '+opt.query_size.toString().cyan);
 
 
 			
@@ -121,10 +131,7 @@ function search(type,opt){
 			if(results.length >= opt.query_size){
 				console.log('\ngot REVERB ALL:'.green,results.length.toString().yellow.bold)
 				return response(results);
-			}else if(sent_requests >= sent_requests_aprrox){
-				get()
 			}
-
 		}.bind(this))
 	};
 
@@ -132,20 +139,31 @@ function search(type,opt){
 	var sent_requests = 0;
 
 	getTotal().then(function(total){
-		console.log('got REVERB MAX:'.green,total.toString().yellow.bold)
+		console.log('rvrb: got max:'.gray,total.toString().yellow)
 		total = total;
-		if(total < 0) response([]);
+		
+		//banned from reverbnation
+		if(total < 0) return response([]);
+		
+
 		if(opt.query_size > total) opt.query_size = total;
 		
 
+
+		//how many pages?
 		sent_requests_aprrox = Math.floor(opt.query_size/pagination_count+1);
 		sent_requests = 0;
+		console.log('fetching',sent_requests_aprrox,'pages')
 
 
-		for(var i = 0;i<sent_requests_aprrox;i++){
+		for(var i = 1;i<sent_requests_aprrox+1;i++){
 			//console.log('GET PAGE',i)
 			get(i,del*i)
 		}
+
+
+
+
 	}.bind(this))
 
 	

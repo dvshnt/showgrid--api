@@ -110,6 +110,7 @@ function main(opt){
 					var pipes = [];
 					
 					_.each(data,function(raw_obj,i){
+						
 						var retries = 0;
 						//create a transform pipe for each object in the data array
 						var obj_pipe = Promise.resolve(raw_obj);
@@ -143,6 +144,7 @@ function main(opt){
 							data_count ++;
 							//console.log(plat_name,endpoint,data_count);
 						})
+
 						
 
 						pipes.push(obj_pipe);

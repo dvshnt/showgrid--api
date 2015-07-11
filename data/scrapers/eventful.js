@@ -55,7 +55,11 @@ module.exports.findEvents = function(opt){
 		this.data = events;
 		_.each(events,function(e,i){
 			module.exports.getEvent({key:opt.key,id:e.id}).then(function(e_full){
-				
+				if(e_full == null){
+					this.checkAsync();
+					events[i] = e_full;
+					return;
+				}
 				module.exports.getVenue({key:opt.key,id:e_full.venue_id})
 				
 				.then(module.exports.parseVenue)
