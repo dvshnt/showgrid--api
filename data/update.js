@@ -101,7 +101,7 @@ function main(opt){
 			.then(function(data){
 				if(data.length == null) return //console.error('UPDATE ERR:',plat_name,endpoint,'data must be an ARRAY!');
 
-				
+				console.log('GOT RAW DATA',plat_name.cyan+'/'+endpoint.cyan,':',data.length.toString().yellow.bold);
 			
 				return new Promise(function(exit_pipe,reject2){
 					var data_total = data.length;
@@ -114,7 +114,13 @@ function main(opt){
 						//create a transform pipe for each object in the data array
 						var obj_pipe = Promise.resolve(raw_obj);
 
-						obj_pipe = obj_pipe.delay(50*i)
+
+						if(plat_name == 'eventful'){
+							
+						}else{
+							obj_pipe = obj_pipe.delay(100*i)
+						}
+						
 
 						//cycle through all the filters.
 						_.each(scraper.filters[endpoint],function(filter){
@@ -128,13 +134,15 @@ function main(opt){
 								data.splice(i,1);
 								console.error('FAILED PARSE',data_count);
 								return;
+							}else{
+								process.stdout.clearLine();
+								process.stdout.cursorTo(0);
+								process.stdout.write('PARSED '.green+plat_name.cyan+'/'+endpoint.cyan+ ' '+(data_count+1).toString().yellow.bold+' / '+ (data.length).toString().cyan.bold+' '+(parsed_obj.name != null ? parsed_obj.name.gray : ''));
 							}
 							data[i] = parsed_obj;
 							data_count ++;
 							//console.log(plat_name,endpoint,data_count);
-						}).timeout(60000).catch(Promise.TimeoutError, function(e) {
-							throw new Error("couldn't fetch content after 60 seconds, timeout");
-				        })
+						})
 						
 
 						pipes.push(obj_pipe);
@@ -145,7 +153,8 @@ function main(opt){
 
 
 					Promise.settle(pipes).then(function(results){
-						console.log('done scraping ',plat_name,'/',endpoint,'total:',results.length);
+						process.stdout.write('\n')
+						console.log('DONE PARSING '.green,plat_name.cyan+'/'+endpoint.green);
 						exit_pipe(data);
 					});
 				});

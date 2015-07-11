@@ -101,9 +101,9 @@ module.exports.findEvents = function(opt){
 				}
 				got_pages++;
 				if(got_pages >= total_pages){
-					console.log("END FIND...QUERY SIZE REACHED.",got_pages,total_pages)
+					console.log("\nGOT EVENTFUL EVENTS  PARTIAL".green,got_pages,total_pages)
 					getItems(events).then(function(events){
-						console.log("END FIND EVENT...GOT ALL ITEMS.",events.length)
+						console.log("\nGOT EVENTFUL EVENTS FULL".green,events.length)
 						response(events);
 					}.bind(this))
 				}
@@ -177,6 +177,7 @@ module.exports.findVenues = function(opt){
 				}
 				got_pages++;
 				if(got_pages >= total_pages){
+					console.log("\nGOT EVENTFUL VENUE PAGES".green,got_pages,'/',total_pages)
 					getItems(venues).then(function(venues){
 						response(venues);
 						//console.log("END FIND VENUE...GOT ALL ITEMS.",got_pages,total_pages)
@@ -336,7 +337,8 @@ module.exports.parseEvent = p.sync(function(event){
 module.exports.parseVenue = p.sync(function(venue){
 
 
-
+//	var lol = 0;
+	//console.log(lol++)
 	var n_venue = {
 		is: 'venue',
 		platforms:[{name:'eventful',id:venue.id}],
@@ -351,24 +353,27 @@ module.exports.parseVenue = p.sync(function(venue){
 		},
 	};
 
-
+	//console.log(lol++)
 	//get links	
-	if(venue.links != null && venue.links.link.length != null){
+	if(venue.links != null && _.isArray(venue.links.link)){
 		n_venue.links = _.map(venue.links.link,function(link){
 			return link.url;
 		});				
-	}else if(venue.links != null && venue.links.link.url != null){
+	}else if(venue.links != null && venue.links.link != null ){
 		n_venue.links = [venue.links.link.url];
 	} 
 
+	//console.log(lol++)
 	//get banners
 	if(venue.images != null && _.isArray(venue.images.image))
 		n_venue.banners = _.map(venue.images.image,function(img){
-			return img.large || img.medium || img.small;
+			return (img.large || img.medium || img.small);
 		});
 	else if(venue.images != null && venue.images.image != null)
-		n_venue.banners = [venue.images.image.large || venue.images.image.medium || venue.images.image.small]
+		var img = venue.images.image.large || venue.images.image.medium || venue.images.image.small
+		n_venue.banners = [img]
 
+	//console.log(lol++)
 
 
 	this.resolve(n_venue)

@@ -55,6 +55,7 @@ module.exports.findVenues = function(opt){
 			if(data == null){
 				return resolve(null);
 			}
+			console.log("Jambase GOT ALL: ".green,data.Venues.length.toString().yellow.bold)
 			resolve(data.Venues);
 		});
 	}

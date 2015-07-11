@@ -9,11 +9,11 @@ var cfg = require('../data_config.json').apis.reverbnation;
 var cheerio = require('cheerio');
 var Promise = require('bluebird');
 var p = require('../pFactory.js');
-var del = 200;
+var del = 300;
 
 var request = Promise.promisify(require('request').get);
 
-
+var colors = require('colors');
 var qs = require('querystring');
 var moment = require('moment');
 var _ = require('lodash');
@@ -58,7 +58,12 @@ function search(type,opt){
 		request({
 			url : url + '?' + qs.stringify(q),
 		}).spread(function(res,body){
+			if(body == null) return this.resolve(-1);
 			var $ = cheerio.load(body);
+			if($('.content-container > .js-results-div > .alert-box > h5').html() == null) {
+				if (body.match('automated requests') != null) console.log('REVERB SCRAPE ERR: '.bgRed.bold,'BANNED'.red)
+				return this.resolve(-1);
+			}
 			total = $('.content-container > .js-results-div > .alert-box > h5').html().match(/^\d{0,4}/);
 			if(total != null) total = parseInt(total[0]);
 			this.resolve(total);
@@ -92,9 +97,10 @@ function search(type,opt){
 			};
 			return [null,null];
 		})
+
 		.spread(function(res,body){
 			if(body == null) return;
-
+			if(results.length >= opt.query_size) return;
 			sent_requests++;
 			var $ = cheerio.load(body);
 			var nodes = $('.content-container > .js-results-div > ul > li');
@@ -105,14 +111,15 @@ function search(type,opt){
 				if(results.length >= opt.query_size) return null;
 				return results.push($.html(node))
 			});
+			process.stdout.clearLine();
+			process.stdout.cursorTo(0);
+			process.stdout.write('reverb : fetching ids '+results.length.toString().yellow.bold+' / '+opt.query_size.toString().cyan.bold);
 
-			if(opt.query_size > total){
-				opt.query_size = total
-			}
 
-			console.log(results.length);
+			
 
-			if(results.length >= (opt.query_size || total)){
+			if(results.length >= opt.query_size){
+				console.log('\ngot REVERB ALL:'.green,results.length.toString().yellow.bold)
 				return response(results);
 			}else if(sent_requests >= sent_requests_aprrox){
 				get()
@@ -125,8 +132,9 @@ function search(type,opt){
 	var sent_requests = 0;
 
 	getTotal().then(function(total){
-		
+		console.log('got REVERB MAX:'.green,total.toString().yellow.bold)
 		total = total;
+		if(total < 0) response([]);
 		if(opt.query_size > total) opt.query_size = total;
 		
 
@@ -181,7 +189,7 @@ module.exports.findShows = function(opt){
 
 
 //go through all pages and get all the events from the venue
-function getVenueEvents(venueid){
+var getVenueEvents = p.sync(function(venueid){
 
 	var page = 0;
 	var current = 1;
@@ -194,7 +202,6 @@ function getVenueEvents(venueid){
 		//console.log('get',cfg.api+'/venue/load_schedule/'+venueid+'?page='+current);
 
 		
-
 		var promise = request({url : cfg.api+'/venue/load_schedule/'+venueid+'?page='+current})
 		.catch(function(e){
 			//console.log('get venue events error ',venueid,tries);
@@ -213,7 +220,7 @@ function getVenueEvents(venueid){
 			var $ = cheerio.load(body);
 			var nuggets = $('.show_nugget');
 
-			if(nuggets.length == 0) return resolve({});
+			if(nuggets.length == 0) return this.resolve([]);
 
 			var loaded_count = 0; 
 			var loaded_total = nuggets.length;
@@ -226,7 +233,7 @@ function getVenueEvents(venueid){
 							date: data.date
 						}) != null){
 							//console.log('all events found.. resolve venue events.')
-							resolve(events);
+							this.resolve(events);
 						}else{
 							//if no same events are found that means we can push that data and try and get more.
 
@@ -237,17 +244,13 @@ function getVenueEvents(venueid){
 					}else{
 						events.push(data);
 					}
-				});
+				}.bind(this));
 			});
 		}.bind(this));
 	};
 
-	return new Promise(function(res,rej){
-		resolve = res;
-		reject = rej;
-		get();
-	});
-};
+	return this.promise;
+});
 
 
 
@@ -375,18 +378,25 @@ var getVenueBanners = p.sync(function(photoid){
 
 
 	function get(){
-		request({url : cfg.api+'/venue/view_photo_popup/photo_'+photoid})
-		.delay(del)
-		.catch(function(error){
-			console.log('failed to fetch banenrs, try#',tries)
+
+		Promise.delay(100)
+		
+		.then(function(){
+			return request({url : cfg.api+'/venue/view_photo_popup/photo_'+photoid})
+		})
+		
+		.spread(function(err,res,body){
+			if(body == null) this.resolve([]);
+			
+			var banners  = parseVenuePhotos(body);
+			this.resolve(banners);
+		}.bind(this))
+		.catch(function(){
+			console.log('failed to fetch bannanas, try#',tries)
 			if(tries < 10){
 				tries++;
-				get();
-			}else this.resolve(null);
-		}.bind(this))
-		.spread(function(res,body){
-			if(body == null) this.resolve(null);
-			this.resolve(parseVenuePhotos(body));
+				get.bind(this)();
+			}else this.resolve([]);
 		}.bind(this))
 	}
 
@@ -466,6 +476,8 @@ module.exports.parseVenueFindItem = p.sync(function(venue){
 			statecode: $(addr[2]).text(),
 			countrycode: $(addr[3]).text(),	
 		}
+
+		parsed.events = [];
 		
 	
 
@@ -550,8 +562,11 @@ module.exports.parseVenueFindItem = p.sync(function(venue){
 
 		var promise = getVenueEvents(parsed.platforms[0].id)
 		.then(p.sync(function(events){
+			console.log(events);
 			parsed.events = events;
-			this.resolve();
+		
+			//console.log('REVERB GOT EVNTS:'.green,parsed.events.length.toString().yellow.bold,parsed.name.gray)
+			this.resolve(parsed);
 			return this.promise;				
 		}))
 
@@ -560,7 +575,8 @@ module.exports.parseVenueFindItem = p.sync(function(venue){
 			promise = getVenueBanners(photos_linkid)
 			.then(p.sync(function(banners){
 				parsed.banners = banners
-				this.resolve();
+				//console.log('REVERB GOT BANNERS:'.green,parsed.banners.length.toString().yellow.bold,parsed.name.gray)
+				this.resolve(parsed);
 				return this.promise;
 			}));
 		}
@@ -569,7 +585,8 @@ module.exports.parseVenueFindItem = p.sync(function(venue){
 	}
 
 
-	module.exports.getVenue(parsed.platforms[0].id).then(parse).then(function(){
+	module.exports.getVenue(parsed.platforms[0].id).then(parse).then(function(parsed){
+
 		this.resolve(parsed);
 	}.bind(this));
 

@@ -45,7 +45,7 @@ module.exports = p.sync(function(name,addr){
 		var get = function(){
 			
 			url = places_api+ "?"+type+"=" + name + "&key="+key+'&location='+addr.gps[0]+','+addr.gps[1]+'&radius='+default_radius+'&sensor=false';
-			
+			//console.log(url);
 
 			return request({url:url,json:true})
 			.spread(function(res,loc,err){
@@ -134,8 +134,8 @@ module.exports = p.sync(function(name,addr){
 
 
 	var geocode = function(){
-
-		return request({url:geo_api+ "?" +"address=" + addr_strict + "&key="+key+'&sensor=false',json:true})
+	
+		return request({url:geo_api+ "?" +"address=" + addr_strict + ""+'&sensor=false',json:true})
 		.spread(p.sync(function(res,loc,err){
 			//console.log('GECODE FOR',name,addr,loc)
 			

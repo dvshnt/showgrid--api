@@ -10,7 +10,7 @@ update({
 		zip: '37064',
 		country: 'US',
 		radius: 50,
-		query_size:100,
+		query_size:500,
 		sort: 'popularity'
 	},
 	platforms: {
@@ -18,18 +18,17 @@ update({
 			params: {
 				key: api_cfg.eventful.keys[0],
 			},
-			endpoints : ['event','venue'],
-		},
-		'reverbnation': {
 			endpoints : ['venue'],
 		},
-		 'jambase' : {
-			endpoints : ['venue','event'],
-			params: {
-				key : api_cfg.jambase.keys[1],
-				zip: '37064'
-			},
-		}
+		// 'reverbnation': {
+		// 	endpoints : ['venue'],
+		// },
+		// 'jambase' : {
+		// 	endpoints : ['venue','event'],
+		// 	params: {
+		// 		key : api_cfg.jambase.keys[1],
+		// 	},
+		// }
 	},
 	save: true
 

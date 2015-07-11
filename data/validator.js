@@ -65,7 +65,7 @@ var SplitbyType = p.sync(function(dataset){
 
 	_.each(dataset,function(doc){
 		if(typeset[doc.is] == null){
-			console.log('split ERR:',doc.is,'is not a type of',types,doc);
+			console.log('split ERR:',doc.is,'is not a type of',types,doc.name);
 			return;
 		}
 
@@ -145,7 +145,7 @@ var getGPS = p.sync(function(obj){
 
 var fillGPS = p.sync(function(datatype){
 
-	var delay = 150;
+	var delay = 250;
 	
 	//get GPS for venues.
 	var has_address = 0;
@@ -220,7 +220,7 @@ var validate = p.sync(function(dataset){
 			dataset[i] == null;
 		}
 		if(doc.platforms == null){
-			console.error('validate ERR'.bold.bgRed,'no platform for '.red,doc);
+			console.error('validate ERR'.bold.bgRed,'no platform for '.red,doc.name);
 			dataset[i] = null;
 		}
 
