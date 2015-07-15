@@ -10,7 +10,7 @@ var artistSchema = new db.Schema({
 
 
 	isGroup: {type: Boolean,default: false}, //artist Schema can be a band/group and an artist at the same time.
-	name: {type:String, required: true, index: 'text'},
+	name: {type:String, required: true},
 	demand: Number, //how much demand for this artist?
 	created: {required: true, type:Date},
 	links: [{type:String}],
@@ -24,6 +24,11 @@ artistSchema.pre('save',function(next){
 
 	if(!this.created) this.created = new Date().toISOString(); //add timestamp
 	next();
+});
+
+
+venueSchema.index({
+	name: 'text',
 });
 
 

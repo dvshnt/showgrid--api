@@ -86,7 +86,6 @@ var venueSchema = new db.Schema({
 
 venueSchema.index({
 	name: 'text',
-	'location.address':'text'
 });
 
 venueSchema.pre('save',function(next){

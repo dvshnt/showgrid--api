@@ -196,16 +196,6 @@ var fillGPS = p.sync(function(datatype){
 
 
 
-
-
-
-
-
-
-
-
-
-
 /*
 
 	VALIDATION FILTERS
@@ -257,19 +247,6 @@ var validate = p.sync(function(dataset){
 	this.resolve(dataset)
 	return this.promise;
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -400,26 +377,6 @@ match.artist = function(a1,a2){
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /*
 
 SMART MERGING
@@ -471,8 +428,8 @@ Merge Venue:
 	age ->
 	events ->
 */
-
-function mergeVenues(e1,e2,priority){//priority boolean defaults to true
+var merge = {};
+merge.venue = function(e1,e2,priority){//priority boolean defaults to true
 	if(e1 == null || e2 == null) return e1 || e2 || null;
 	
 
@@ -548,7 +505,7 @@ function mergeVenues(e1,e2,priority){//priority boolean defaults to true
 				return false;
 			}
 		});
-		if(!good) merged.events[matched] = mergeEvents(merged.events[matched],event,null,i1,i2);
+		if(!good) merged.events[matched] = merge['event'](merged.events[matched],event,null,i1,i2);
 		else merged.events.push(event);
 	});
 	
@@ -594,7 +551,7 @@ MERGE EVENTS:
 */
 
 //search for event duplicates in venue event list and merge them if neccesary.
-function mergeEvents(e1,e2,priority,count1,count2){
+merge.event = function(e1,e2,priority,count1,count2){
 	if(e1 == null || e2 == null) return e1 || e2 || null;
 	
 
@@ -655,7 +612,7 @@ function mergeEvents(e1,e2,priority,count1,count2){
 					return false;
 				}
 			});
-			if(!good) merged.artists.headliners[matched] = mergeArtists(merged.artists.headliners[matched],event,null,i1,i2);
+			if(!good) merged.artists.headliners[matched] = merge['artist'](merged.artists.headliners[matched],event,null,i1,i2);
 			else merged.artists.headliners.push(event);
 		});
 
@@ -669,7 +626,7 @@ function mergeEvents(e1,e2,priority,count1,count2){
 					return false;
 				}
 			});
-			if(!good) merged.artists.openers[matched] = mergeArtists(merged.artists.openers[matched],event,null,i1,i2);
+			if(!good) merged.artists.openers[matched] = merge['artist'](merged.artists.openers[matched],event,null,i1,i2);
 			else merged.artists.openers.push(event);
 		});
 }
@@ -722,7 +679,7 @@ function artistWeight(e1,e2){
 
 	if(e1.created != null && e2.created != null){
 		if(e1.created < e2.created){
-			i1*= 1.5; //TODO AND TEST
+			i1*= 1.5; //TEST
 		}
 	}
 	
@@ -733,7 +690,7 @@ function artistWeight(e1,e2){
 
 
 
-function mergeArtists(e1,e2,priority){
+merge.artist = function(e1,e2,priority){
 	if(e1 == null || e2 == null) return e1 || e2 || null;
 	var i1 = 0,i2 = 0;
 	var merged = {};
@@ -747,7 +704,8 @@ function mergeArtists(e1,e2,priority){
 	//platforms ->
 	merged.platforms = _.uniq(_.union(e1.platforms,e2.platforms),'name','id');
 
-
+	if(i1 >= i2 && e1.name != null) merged.name = e1.name
+	else merged.name = e2.name 
 
 	//private ->
 	if(i1 >= i2 && e1.private != null) merged.private = e1.private
@@ -772,38 +730,21 @@ function mergeArtists(e1,e2,priority){
 	merged.members = [];
 
 	_.each(_.union(e1.members,e2.members),function(membr){
-		var duplicate = false;
-		_.each(merged.members,function(new_membr){
-			if(match['artist'](member,membr)){
-				duplicate = true;
+		var duplicate = null;
+		_.each(merged.members,function(new_membr,i){
+			if(match['artist'](membr,new_membr)){
+				duplicate = i;
 				return false;	
 			}
-			duplicate = true;
 		})
-	})
+		if(duplicate != null) merged.members[duplicate] = merge['artist'](merged.members[duplicate],membr);
+		else merged.members.push(membr);
+	});
 
-	//isGroup
-
+	//isGroup ->
+	merged.isGroup = merged.members.length > 0 ? true : false;
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -816,35 +757,37 @@ FILTER OUT DUPLICATES BY MATCHING BY TYPE.
 var filterDuplicates = p.sync(function(typeset){
 	_.each(typeset,function(dataset,type){
 
-
 		var l = dataset.length;
 
-
-		for(var i = 0;i<dataset.length;i++){
+		//match and merge
+		for(var i = 0;i<l;i++){
 			if(dataset[i] == null) continue;
-			for(var j = 0;j<dataset.length;j++){
+			for(var j = 0;l;j++){
 				if(dataset[j] == null || j == i) continue;
 				if(match[type](dataset[i],dataset[j])){
 					console.log('MERGING...'.bgBlue,dataset[i].name.inverse,dataset[j].name);
-					dataset[i] = mergeDocs(dataset[i],dataset[j]);
+					dataset[i] = merge[type](dataset[i],dataset[j]);
 					dataset[j] = null;
 				}
 			}
 		}
 
-
+		//delete nulls
 		dataset = _.filter(dataset, function(n) {
 		  return n != null;
 		});
 
-		console.log(('FILTER '+type+' : ').bgBlue,('-'+(l-dataset.length)).yellow.bold,(dataset.length+'/'+l).cyan.bold);
-
-		console.log(util.inspect(_.map(dataset,function(dat){
-			return dat.name;
-		}).sort(), {showHidden: false, depth: null}));
-
+		//reference back
 		typeset[type] = dataset;
 
+
+
+
+		//LOG
+		console.log(('FILTER '+type+' : ').bgBlue,('-'+(l-dataset.length)).yellow.bold,(dataset.length+'/'+l).cyan.bold);
+		console.log(util.inspect(_.map(dataset,function(dat){
+			return dat.name;
+		}).sort(), {showHidden: false, depth: null}));		
 	});
 
 	this.resolve(typeset);
@@ -882,17 +825,6 @@ var flipEvents = p.sync(function(typeset){
 	this.resolve(typeset);
 	return this.promise;
 })
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -958,19 +890,6 @@ var syncArtists = p.async(function(typeset){
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 function checkPlat(doc1,doc2){
 	var done = false
 	_.each(doc1.platforms,function(plat1,i){
@@ -988,40 +907,40 @@ function checkPlat(doc1,doc2){
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 var syncVenues = p.async(function(typeset){
 
 	this.total = typeset['venue'].length;
 	this.data = typeset;
 
-	//console.log(util.inspect(typeset['venue'], {showHidden: false, depth: null}))
-
-
 
 
 	/*
 
-		find venues by their GPS.
+	FIND BY ID
+	
+	*/
+	var findById = p.sync(function(venue){
+		db['venue'].findOne({
+			platformIds: {$in : _.map(venue.platforms,function(plat){
+				return plat.name+'/'+plat.id
+			})}
+		}).then(function(doc,err){
+			if(err) return this.reject(err);
+			if(doc != null) return this.resolve(doc); 
+			this.promise = findByGPS(venue); //move down to try and find by gps
+		}.bind(this));
+
+		return this.promise;
+	});
+
+	/*
+
+	ELSE FIND BY GPS
 	
 	*/
 	var findByGPS = p.sync(function(venue){
 			
 		if(venue.location.gps == null) return findByName(venue);
-
 
 		//GPS Search Query within 10 meters
 		db['venue'].find({
@@ -1033,7 +952,6 @@ var syncVenues = p.async(function(typeset){
 			}}
 		}).
 
-
 		//if GPS Matches fuzzy compare the names, otherwise return with a findByName Query (brute force)
 		then(function(venues,err){
 			if(venues != null && venues.length > 0){
@@ -1043,25 +961,21 @@ var syncVenues = p.async(function(typeset){
 
 				var matches = fuzzy(m_list).get(venue.name);
 
-				console.log('Found venue entry in DB with similar GPS..comparing name',venue.name,'with best match ->',matches[0]);
+				//console.log('Found venue entry in DB with similar GPS..comparing name',venue.name,'with best match ->',matches[0]);
+				
 				if(matches != null && matches[0][0] > 0.8){
 					this.resolve(venues[m_list.indexOf(matches[0][1])]);
 				}
-			}else{
-				//console.log('failed to find venue by GPS...')
-				findByName(venue).then(function(doc){
-					this.resolve(doc);
-				}.bind(this));
-			}
-		}.bind(this))
+			}else this.promise = function(){ return findByName(venue) }.bind(this);
+		}.bind(this));
 
 		return this.promise;
 	});
 
 
 	/*
-	
-		find venues by their Name.
+
+	ELSE FIND BY NAME
 	
 	*/
 	var findByName = p.sync(function(venue){
@@ -1071,20 +985,20 @@ var syncVenues = p.async(function(typeset){
 			{$text: {$search: venue.name }},
 			{score: {$meta: "textScore"}}
 		)
-		.sort({score: {$meta: "textScore"}}).limit(5).then(function(venuelist,err){
-
+		.sort({score: {$meta: "textScore"}})
+		.limit(5)
+		.then(function(venuelist,err){
+			if(err) return this.reject(err);
 			if(venuelist != null && venuelist.length > 0){
-
 				var m_list = _.map(venuelist,function(v){
 					return v.name;
 				});
-				console.log('GPS venue find failed for',venue.name,',found text searches...',m_list)
-
-
 				var matches = fuzzy(m_list).get(venue.name);
-
-
-				this.resolve(venuelist[0])
+				if(matches != null && matches[0][0] > 0.8){
+					this.resolve(venuelist[m_list.indexOf(matches[0][1])]);
+				}else{
+					this.resolve(venuelist[0])
+				}
 			}else{
 				this.resolve(null);
 				
@@ -1095,91 +1009,134 @@ var syncVenues = p.async(function(typeset){
 		return this.promise;
 	});
 
-	//merge venues.
-	function merge(doc,venue){
-		_.each(doc.events,function(ev,j){
-			_.each(venue.events,function(n_ev,i){
-				if(checkPlat(ev,n_ev)){
-					doc.events[j] = mergeDocs(ev,n_ev)
-					delete venue.events[i]
-				}
-			})
-		})
-		return mergeDocs(doc,venue)
-	}
 
-	/*
 
-	INITIAL SEARCH
-	
-	*/
+
+
 	_.each(typeset['venue'],function(venue,i){
-	
-				
-		//try and find one based on same platform ID
-		db['venue'].findOne({
-			platformIds: {$in : _.map(venue.platforms,function(plat){
-				return plat.name+'/'+plat.id
-			})}
-		}).
+		findById(venue)
 
-		//otherwise return the GPS Pipeline
-		then(p.sync(function(doc,err){
-			
-			if(doc != null) this.resolve(doc); 
-			else return findByGPS(venue);
-			return this.promise;
-		})).
+		.then(p.sync(function(doc,err){
+			if(err) return this.reject(err);
+			if(doc == null) return this.resolve(null);
 
+			return db['venue'].populate(doc,{
+				path: 'events.artists'
+			})
+		}))
 
-		//once all search tries pass through...
-		then(function(doc){
-			//console.log('Venue search tries for',venue.name,'passed through with matched result:', (doc != null ? doc.name : 'NULL' ));
-
-			if(doc != null){
-				console.log('FOUND DOUCMENT & MERGING...',venue.name,doc.name)
-				doc = merge(doc,venue);
-				return doc.save();
-			}else{
+		.then(function(doc,err){
+			if(err) return this.reject(err);
+			if(doc == null){
 				console.log('creating new venue in database',venue.name);
-
-				var n = new db['venue'](venue);
-
-				//log 
-				n.validate(function(err) {
-					if(!err) return;
-				    console.error('VALIDATION ERROR:',err);
+				var new_venue = new db['venue'](venue);
+				new_venue.validate(function(err){
+					if(err) console.error('DB.VENUE VALIDATION ERR:'.bold.bgRed,err);
 				});
-				
-				return n.save();
+
+				return new_venue.save();
 			}
-		}).
 
-		//final
-		then(function(v,err){
+			console.log('FOUND DB.VENUE & MERGING...',venue.name,doc.name);
+			return doc.save(merge['venue'](doc,venue));	
+		})
 
+		.then(function(v,err){
 			console.log('successfully saved venue :',v.name);
-
-			this.count++;
 			this.checkAsync();
 		}.bind(this))
 
 	}.bind(this));
 
 	return this.promise;
-})
+});
 
 
 
 
+var syncArtists = p.async(function(data){
 
 
 
+	var findById = p.sync(function(artist){
+		db['artist'].findOne({
+			platformIds: {$in : _.map(artist.platforms,function(plat){
+				return plat.name+'/'+plat.id
+			})}
+		}).then(function(doc,err){
+			if(err) return this.reject(err);
+			if(doc != null) return this.resolve(doc); 
+			
+			this.promise = findByName(venue); //try and find artist (or group) by name
+		}.bind(this))
+
+		return this.promise;
+	})
+
+	var findByName = p.sync(function(artist){
+		//search by name
+		db['artist'].find(
+			{$text: {$search: artist.name }},
+			{score: {$meta: "textScore"}}
+		)
+		.sort({score: {$meta: "textScore"}})
+		.limit(5)
+		.then(function(artistlist,err){
+			if(err) return this.reject(err);
+			if(!_.isArray(artistlist)) return this.resolve(null);
+
+			var m_list = _.map(artistlist,function(v){
+				return v.name;
+			});
+
+			var matches = fuzzy(m_list).get(artist.name)
+
+			if(_.isArray(matches) && matches[0][0] > 0.8) return this.resolve(artistlist[m_list.indexOf(matches[0][1])]);
+			
+			return this.resolve(null)
+		}.bind(this))
+
+		return this.promise;
+	})
+
+
+	var findByMembers = p.sync(function(artist){
+		//TODO
+	})
 
 
 
+	this.data = data['artist'];
+	this.count = data['artist'].length;
 
+	_.each(data['artist'],function(artist,i){
+		
+		findById(artist)
+		
+		.then(function(doc,err){
 
+			if(err) return this.reject(err);
+
+			if(!_.isOject(doc)){
+				console.log('creating new artist in database',artist.name);
+				var new_artist = new db['venue'](venue);
+				new_artist.validate(function(err){
+					if(err) console.log('DB.ARTIST VALIDATION ERR:'.bold.bgRed,err);
+				});
+				return new_artist.save();
+			}
+
+			console.log('FOUND DB.ARTIST & MERGING...',artist.name,doc.name);
+			return doc.save(merge['artist'](doc,artist));
+		}.bind(this))
+		.then(function(v,err){
+			console.log('successfully saved artist :',v.name);
+			this.checkAsync();
+		}.bind(this))
+	});
+
+	return this.promise;
+});
 
 
 
