@@ -453,11 +453,7 @@ function parseVenuePhotos(body){
 	var $ = cheerio.load(body);
 	var banners  = $('.photo_browser img');
 	return _.map(banners,function(el){
-		return {
-			height: 0,
-			width: 0,
-			url: $(el).attr('lazy_load')
-		}
+		return $(el).attr('lazy_load')
 	});
 }
 

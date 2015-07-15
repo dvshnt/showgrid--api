@@ -282,7 +282,17 @@ var validate = p.sync(function(dataset){
 
 
 */
+function checkname(v1,v2){
+	var t_name1 = v1.name.replace(/\sand\s|\s&\s/,' ');
+	var t_name2 = v2.name.replace(/\sand\s|\s&\s/,' ');
 
+	var n_match = fuzzy([t_name1]).get(t_name2);
+	var contains = t_name1.match(new RegExp(t_name2,'i')) || t_name2.match(new RegExp(t_name1,'i'));
+
+
+	if(contains != null || (n_match != null && n_match[0][0] > 0.9)) return true;
+	return false;
+}
 
 var match = {};
 
@@ -304,37 +314,14 @@ match.event = function(ev1,ev2){
 		return count;
 	};
 
-	//event 1 data
-	if( !ev1.venue.location.gps){
-		ev1n1 = ev1.date + ' ' + ev1.venue.name + ' ' + ev1.name
-	}
-	ev1n2 = ev1.date + ' ' +ev1.name;
-
-	//event 2 data
-	if(!ev2.venue.location.gps){
-		ev1n2 = ev1.date + ' ' +ev1.name;
-	}
-	ev2n2 = ev2.date + ' ' + ev2.venue.name + ' ' + ev2.name
 	
-	//
-	if(ev1.venue.location.gps && ev2.venue.location.gps){
-		if( ! sameGPS(ev2.venue.location.gps,ev2.venue.location.gps) == 0) return false;
-		
-		if(ev1.date == ev2.date){
-			return true
-		}
 
-		var n_match = fuzzy([ev1.name]).get(ev2.name);
-
-		if(n_match != null && n_match[0][0]>0.9) return true
-	}else{
-		var v_match = fuzzy([ev1.venue.name]).get(ev2.venue.name);
-		//var n_match = fuzzy([ev1.name]).get(ev2.name);
-		
-		if(ev1.date == ev2.date && v_match[0][0] > 0.9 && sameArtists(ev1.artists,ev2.artists) >= 0){
-			return true
-		}
+	checkname(ev1,ev2);
+	
+	if(ev1.date == ev2.date && v_match[0][0] > 0.9 && sameArtists(ev1.artists,ev2.artists) >= 0){
+		return true
 	}
+
 
 	return false
 };
@@ -342,17 +329,7 @@ match.event = function(ev1,ev2){
 
 match.venue = function(v1,v2){
 
-	function checkname(){
-		var t_name1 = v1.name.replace(/\sand\s|\s&\s/,' ');
-		var t_name2 = v2.name.replace(/\sand\s|\s&\s/,' ');
 
-		var n_match = fuzzy([t_name1]).get(t_name2);
-		var contains = t_name1.match(new RegExp(t_name2,'i')) || t_name2.match(new RegExp(t_name1,'i'));
-
-
-		if(contains != null || (n_match != null && n_match[0][0] > 0.9)) return true;
-		return false;
-	}
 
 
 	function checkID(){
@@ -390,7 +367,7 @@ match.venue = function(v1,v2){
 			else return false
 		}else{
 			//console.log("CHECK NAME")
-			if (checkname()){
+			if (checkname(v1,v2)){
 				console.log('matched Names'.bold.green,v1.name.inverse,v2.name)
 				return true
 			} 
@@ -401,7 +378,7 @@ match.venue = function(v1,v2){
 	//1/200 this will happen and and its not guaranteed to work. 
 	}else{
 		//console.log("CHECK NAME 2")
-		if (checkname()){
+		if (checkname(v1,v2)){
 			console.log('matched Names'.bold.green,v1.name.inverse,v2.name)
 			return true
 		} 
@@ -479,13 +456,37 @@ function sameGPS(coord1,coord2){
 var MergePriority = {'facebook':2.5,'eventful':1.5,'reverbnation':1,'jambase':1};
 
 
-//e2 overrides e1 if priority set to false. otherwise overrides based on MergePriority Array.
-function mergeDocs(e1,e2,priority){//priority boolean defaults to true
-	if(priority != null && priority == false) return _.merge(e2,e1);
 
-	var i1 = 0,i2 = 0;
+/*
+Merge Venue:
+ 	platforms ->
+ 	name ->
+	location ->
+	links ->
+	tags ->
+	phone ->
+	banners ->
+	age ->
+	events ->
+*/
+
+function mergeVenues(e1,e2,priority){//priority boolean defaults to true
+	if(e1 == null || e2 == null) return;
 	
 
+	var i1 = 0,i2 = 0;
+	var merged = {platforms:[],events:[]};
+
+	//prioritize based on how many external links
+	i1+=e1.links.length/2;
+	i2+=e2.links.length/2;
+
+	//prioritize based on creation date
+	
+
+	if(priority != null && priority == false) i2 = 1337;
+
+	
 	//priority dicision making.
 	_.each(e1.platforms,function(plat){
 		i1+= MergePriority[plat.name]
@@ -494,13 +495,17 @@ function mergeDocs(e1,e2,priority){//priority boolean defaults to true
 		i2+= MergePriority[plat.name]
 	});
 
-	if(e1.events != null && e2.events.length != null){
-		if(e1.events.length > e2.events.length) i1+=2;
-		if(e1.events.length < e2.events.length) i2+=2;
-	}
+
+	//platforms ->
+	merged.platforms = _.uniq(_.union(e1.platforms,e2.platforms),'name','id');
 
 
-	// locations
+	//names ->
+	if(i1 >= i2) merged.name = e1.name
+	else merged.name = e2.name
+
+
+	//location ->
 	var loc = null;
 	if(e2.location.confirmed && e1.location.confirmed){
 		if(i2 >= i1) loc = e2.location;
@@ -508,39 +513,133 @@ function mergeDocs(e1,e2,priority){//priority boolean defaults to true
 	}
 	else if(e2.location && e2.location.confirmed) loc = e2.location;
 	else if(e1.location && e1.location.confirmed) loc = e1.location;
-	
 
 
-	
+	//links ->
+	merged.links = _.uniq(e1.links,e2.links);
 
-	
-	//merged document.
-	var merged = (i1 >= i2) ? _.merge(e2,e1) : _.merge(e1,e2);
-	if(loc != null) merged.location = loc;
+	//->tags
+	merged.tags = _.uniq(e1.tags,e2.tags,function(tag){
+		if(_.isNumber(tag)) tag = tag.toString();
+		return tag.toLowerCase();
+	})
 
+	//phone ->
+	if(i1 >= i2 && e1.phone != null) merged.phone = e1.phone;
+	else merged.phone = e2.phone;
 
-	//merge and potential subdocuments.
-	if(merged.events != null) mergeEvents(merged);
+	//banners ->
+	merged.banners = _.uniq(_.union(e1.banners,e2.banners));
+
+	//age ->
+	if(i1 >= i2 && e1.age != null) merged.age = e1.age;
+	else merged.age = e2.age;
+
+	//events ->
+	if(_.isArray(e2.events) && _.isArray(e1.events)){
+		_.each(_.union(e2.events,e1.events),function(event){
+			var good = true,
+				matched = 0;
+			_.each(merged.events,function(new_event,i){
+				if(_.match['event'](new_event,event)){
+					good = false;
+					matched = i;
+					return false;
+				}
+			});
+			if(!good) merged.events[matched] = mergeEvents(merged.events[matched],event);
+			else merged.events.push(event);
+		});
+	}
 
 	return merged
 };
 
 
 
+
+/*
+MERGE EVENTS: 
+
+
+	platforms:-> 
+	name: -> 
+	date: -> 
+	tickets: [{
+		price: Number,
+		soldout: Boolean,
+		url: String,
+		broker: String,
+		sale: {
+			start: Date,
+			end: Date,
+		},
+	}],
+	private: ->
+	featured: ->
+	age: ->
+	description: ->
+	banners: ->
+	location: ->
+
+*/
+
+
+
+
 //search for event duplicates in venue event list and merge them if neccesary.
-function mergeEvents(venue){
-	_.each(venue.events,function(ev1,i){
-		_.each(venue.events,function(ev2,j){
-			if(match['event'](ev1,ev2)){
-				venue.events[i] = mergeDocs(ev1,ev2);
-				delete venue.events[j];
-			}
-		});
-	});
+function mergeEvents(e1,e2,priority,count1,count2){
+	if(e1 == null || e2 == null) return;
+	
+
+	var i1 = 0,i2 = 0;
+	var merged = {platforms:[],events:[]};
+		
+	if(priority != null && priority == false) i2 = 1337;
+
+
+	//platforms ->
+	merged.platforms = _.uniq(_.union(e1.platforms,e2.platforms),'name','id');
+
+	//name -> (required)
+	if(i1 >= i2) merged.name = e1.name
+	else merged.name = e2.name
+
+	//date -> (required)
+	if(i1 >= i2) merged.date = e1.date
+	else merged.date = e2.date	
+
+	//tickets ->
+	merged.tickets = _.uniq(_.union(e1.tickets,e2.tickets),'url');
+
+	//private ->
+	if(i1 >= i2 && e1.private != null) merged.private = e1.private
+	else merged.private = e2.private
+
+	//featured ->
+	if(i1 >= i2 && e1.private != null) merged.private = e1.private
+	else merged.private = e2.private
+
+	//age ->
+	if(i1 >= i2 && e1.private != null) merged.private = e1.private
+	else merged.private = e2.private
+
+	//description ->
+	if(i1 >= i2 && e1.description != null) merged.description = e1.description
+	else merged.description = e2.pdescription
+
+	//banners ->
+	merged.banners = _.uniq(_.union(e1.banners,e2.banners));
+
+	//location ->
+	if(i1 >= i2 && e1.location != null) merged.location = e1.location
+	else merged.location = e2.location
 }
 
 
+function mergeArtists(e1,e2,priority){
 
+}
 
 
 

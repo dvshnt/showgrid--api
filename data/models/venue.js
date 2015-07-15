@@ -19,7 +19,8 @@ var eventSchema = new db.Schema({
 	tickets: [{
 		price: Number,
 		soldout: Boolean,
-		url: String, 
+		url: String,
+		broker: String,
 		sale: {
 			start: Date,
 			end: Date,
@@ -37,11 +38,7 @@ var eventSchema = new db.Schema({
 	},
 
 	//
-	banners: [{
-		height: Number,
-		width: Number,
-		url: String
-	}],
+	banners: [{type: String}],
 
 
 	//events may have unique locations ? useful for custom events and unofficial privatete venues...
@@ -59,6 +56,7 @@ var venueSchema = new db.Schema({
 	platformIds:[{type:String,required: true}],
 	platforms: [{name:String,id:String,_id:false}],
 	
+	created: {type: Date, required: true},
 
 	name: {type:String, required: true},
 	

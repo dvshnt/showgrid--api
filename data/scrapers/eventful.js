@@ -254,10 +254,14 @@ module.exports.parseArtist = function(artist){
 		name: artist.name,
 		platforms:[{name:'eventful',id:artist.id}],
 		demand: artist.demand_count,
-	}
+		banners : event.images != null && _.isArray(artist.images.image) ? _.map(artist.images.image,function(img){
+			return img.large || img.medium || img.small
+		}) : null,
 
-	if(artist.images != null) parsed.banners = artist.images.image.length != null ? artist.images.image : [artist.images.image];
-	if(artist.links != null) parsed.links = artist.links.link.length != null ? artist.links.link : [artist.links.link];
+		links : event.links != null && _.isArray(artist.links.link) ? _.map(artist.links.link,function(link){
+			return link.url
+		}) : null,
+	}
 
 	return parsed;
 }

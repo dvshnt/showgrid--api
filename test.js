@@ -14,15 +14,15 @@ update({
 		sort: 'popularity'
 	},
 	platforms: {
-		'eventful': {
-			params: {
-				key: api_cfg.eventful.keys[0],
-			},
-			endpoints : ['event'],
-		},
-		// 'reverbnation': {
+		// 'eventful': {
+		// 	params: {
+		// 		key: api_cfg.eventful.keys[0],
+		// 	},
 		// 	endpoints : ['venue'],
 		// },
+		'reverbnation': {
+			endpoints : ['venue'],
+		},
 		// 'jambase' : {
 		// 	endpoints : ['venue','event'],
 		// 	params: {
