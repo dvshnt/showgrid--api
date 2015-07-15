@@ -36,6 +36,8 @@ var eventSchema = new db.Schema({
 		headliners:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}],
 		openers:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}]
 	},
+	demand: Number,
+	created: Date,
 
 	//
 	banners: [{type: String}],

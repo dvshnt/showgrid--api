@@ -261,6 +261,8 @@ module.exports.parseArtist = function(artist){
 		links : event.links != null && _.isArray(artist.links.link) ? _.map(artist.links.link,function(link){
 			return link.url
 		}) : null,
+		created : artist.created,
+
 	}
 
 	return parsed;
@@ -292,6 +294,7 @@ module.exports.parseEvent = p.sync(function(event){
 		description: event.description,
 		date: moment(event.start_time,moment.ISO_8601).utc().format(),
 		venue: event.venue,
+		created: event.created,
 		artists: {
 			headers: (function(){
 			
@@ -359,6 +362,7 @@ module.exports.parseVenue = p.sync(function(venue){
 			countrycode: venue.country_abbr,
 			gps: (venue.latitude != 0 && venue.longitude != 0) ? [venue.latitude,venue.longitude] : null		
 		},
+		created : venue.created
 	};
 
 	//console.log(lol++)
