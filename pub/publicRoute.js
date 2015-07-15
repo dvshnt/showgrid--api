@@ -1,30 +1,60 @@
 var router = require('express').Router();
-var data = require('../data/data');
 
-var reverbnation = require('../data/scrapers/reverbnation');
+var db = require('../data/data');
+var update = require('../data/update');
 
-function getVenues(req,res,next){
-	reverbnation.findVenues({
-		zip: '37064',
-		country: 'US',
-		radius: 50,
-		query_size: 1,
-	}).then(function(data){
-		res.status(200).send(data[0]);
-	})
+var cities = require('cities');
+
+
+
+
+function findVenues(req,res,next){
+	db['venue'].find()
 }
 
-function getShows(req,res,next){
-	
-}
-
-function getUsers(req,res,next){
+function createVenue(req,res,next){
 
 }
 
-function getArtists(req,next,res){
+function getVenue(req,res,next){
 
 }
+
+
+
+
+
+function findEvents(req,res,next){
+
+}
+
+function createEvent(req,res,next){
+
+}
+
+function updateEvent(req,res,next){
+
+}
+
+
+
+
+
+
+function findArtists(req,res,next){
+
+}
+
+function createArtist(req,res,next){
+
+}
+
+function updateArtist(req,res,next){
+
+}
+
+
+
 
 
 
@@ -32,9 +62,34 @@ function getArtists(req,next,res){
 
 
 module.exports = function(){
-	router.get('/venues',getVenues);
 
-	router.get('/users',getUsers);
+	// VENUE ROUTES
+	router.route('/venue')
+		.get(findVenues)
+		.post(createVenue)
+	router.route('/venue/:id')
+		.get(getVenue)
+		.put(updateVenue)
+
+	//EVENT ROUTES
+	router.route('/event')
+		.get(findEvents)
+		.post(createEvent)
+	router.route('/event/:id')
+		.get(getEvent)
+		.put(updateEvent)
+	
+	//ARTIST ROUTES
+	router.route('/artist')
+		.get(findArtists)
+		.post(createArtist)
+	router.route('/artist/:id')
+		.get(getArtist)
+		.put(updateArtist)
+
+	//UPDATE ROUTES
+	router.route('/update')
+		.get(updateAll)
 
 	return router
 }
