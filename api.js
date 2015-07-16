@@ -1,12 +1,14 @@
 //dependecies
 var express = require('express'); //express for routing
 var debug = require('debug')('api');
+var bodyParser = require('body-parser');
 
 //initialize express app
 var app = express();
 
 
-
+app.use(bodyParser.json()); // for parsing application/json
+app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
 
 //use database
@@ -21,14 +23,9 @@ app.use(passport.session());
 
 
 
-//Public API Allowed access for everybody.
-var pub = require('./pub/publicRoute');
-app.use('/pub',pub);
-
-var usr = require('./usr/userRoute')(passport);
-//Private API for user optimization.
-app.use('/usr',usr);
-
+//main API route.
+var main_routes = require('./routes/main');
+app.use('/',main_routes);
 
 
 
@@ -87,11 +84,10 @@ process.on('uncaughtException', function (error) {
 });
 
 
-module.exports = app;
 
 
+/*SERVER PORT*/
 app.set('port', process.env.PORT || 3000);
-
 var server = app.listen(app.get('port'), function() {
   debug('Express server listening on port ' + server.address().port);
 });
@@ -99,4 +95,9 @@ var server = app.listen(app.get('port'), function() {
 
 
 
+
 require('./test');
+
+
+
+module.exports = app;

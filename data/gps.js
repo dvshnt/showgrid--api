@@ -19,7 +19,7 @@ var fuzzy = require('fuzzyset.js')
 var default_radius = 50; 
 
 
-module.exports = p.sync(function(name,addr){
+module.exports = p.sync(function(name,addr,loose){
 
 
 	var address = null;
@@ -160,9 +160,14 @@ module.exports = p.sync(function(name,addr){
 	};
 
 
+
+	if(addr.address != null && loose == true){
+		return geocode();
+	}
+
  
 	//use geo api to find approximate location and then use the gps to find the exact place location
-	if(addr.address != null){
+	else if(addr.address != null){
 		
 		geocode().then(getplace).then(function(loc){
 			this.resolve(loc)

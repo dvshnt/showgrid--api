@@ -508,6 +508,8 @@ merge.venue = function(e1,e2,priority){//priority boolean defaults to true
 		if(!good) merged.events[matched] = merge['event'](merged.events[matched],event,null,i1,i2);
 		else merged.events.push(event);
 	});
+
+
 	
 
 	return merged
@@ -1030,15 +1032,20 @@ var syncVenues = p.async(function(typeset){
 			if(doc == null){
 				console.log('creating new venue in database',venue.name);
 				var new_venue = new db['venue'](venue);
+				db[]
+
+
 				new_venue.validate(function(err){
 					if(err) console.error('DB.VENUE VALIDATION ERR:'.bold.bgRed,err);
 				});
 
 				return new_venue.save();
 			}
-
+			doc = _.merge(doc,merge['venue'](doc,venue));
 			console.log('FOUND DB.VENUE & MERGING...',venue.name,doc.name);
-			return doc.save(merge['venue'](doc,venue));	
+
+
+			return doc.save();	
 		})
 
 		.then(function(v,err){
@@ -1127,7 +1134,8 @@ var syncArtists = p.async(function(data){
 			}
 
 			console.log('FOUND DB.ARTIST & MERGING...',artist.name,doc.name);
-			return doc.save(merge['artist'](doc,artist));
+			doc = _.merge(doc,merge['artist'](doc,artist))
+			return doc.save();
 		}.bind(this))
 		.then(function(v,err){
 			console.log('successfully saved artist :',v.name);
