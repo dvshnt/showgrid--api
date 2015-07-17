@@ -2,7 +2,7 @@ var _ = require('lodash');
 var Promise = require('bluebird');
 var db = Promise.promisifyAll(require('mongoose'));
 
-
+var Artist = require('./artist');
 
 
 
@@ -88,12 +88,18 @@ venueSchema.index({
 	name: 'text',
 });
 
+
+
+
 venueSchema.pre('save',function(next){
+
 	this.platformIds = _.map(this.platforms,function(plat){
 		return plat.name+'/'+plat.id;
 	});
 	next();
 });
+
+
 
 
 var venue = db.model('Venue',venueSchema);

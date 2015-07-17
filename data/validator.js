@@ -55,7 +55,7 @@ var types = ['venue','event','artist'];
 
 
 
-var SplitbyType = p.sync(function(dataset){
+var SplitbyType = function(dataset){
 
 
 	var typeset = {};
@@ -80,10 +80,8 @@ var SplitbyType = p.sync(function(dataset){
 		if(type == 'artist') return 1;
 	})
 
-	this.resolve(typeset);
-
-	return this.promise;
-});
+	return p.pipe(dataset)
+};
 
 
 
@@ -364,12 +362,19 @@ match.venue = function(v1,v2){
 }
 
 
-match.artist = function(a1,a2){
-	
-	var a_match = fuzzy([a1.name]).get(a2.name);
 
-	if(a_match != null && a_match >= 0.9) return true;
+match.artist = function(a1,a2){
+
+	if(_.isString(a1) && _.isString(a2)){
+		if(a1 === a2) return true;
+		return false;
+	}
 	
+	if(checkname(a1.name,a2.name)){
+		console.log('MATCHED ARTISTS',a1.name,a2.name);
+		return true;
+	}
+
 	return false
 }
 
@@ -603,33 +608,33 @@ merge.event = function(e1,e2,priority,count1,count2){
 	else merged.location = e2.location
 
 	//artists ->
-
 		//headliners
 		_.each(_.union(e2.artists.headliners,e1.artists.headliners),function(artist){
+
 			var good = true, matched = 0;
 			_.each(merged.artists.headliners,function(new_artist,i){
-				if(_.match['event'](new_artist,artist)){
+				if(_.match['artist'](new_artist,artist)){
 					good = false;
 					matched = i;
 					return false;
 				}
 			});
-			if(!good) merged.artists.headliners[matched] = merge['artist'](merged.artists.headliners[matched],event,null,i1,i2);
-			else merged.artists.headliners.push(event);
+			if(!good) merged.artists.headliners[matched] = merge['artist'](merged.artists.headliners[matched],artist);
+			else merged.artists.headliners.push(artist);
 		});
 
 		//openers
 		_.each(_.union(e2.artists.openers,e1.artists.openers),function(artist){
 			var good = true, matched = 0;
 			_.each(merged.artists.openers,function(new_artist,i){
-				if(_.match['event'](new_artist,artist)){
+				if(_.match['artist'](new_artist,artist)){
 					good = false;
 					matched = i;
 					return false;
 				}
 			});
-			if(!good) merged.artists.openers[matched] = merge['artist'](merged.artists.openers[matched],event,null,i1,i2);
-			else merged.artists.openers.push(event);
+			if(!good) merged.artists.openers[matched] = merge['artist'](merged.artists.openers[matched],artist);
+			else merged.artists.openers.push(artist);
 		});
 }
 
@@ -694,6 +699,11 @@ function artistWeight(e1,e2){
 
 merge.artist = function(e1,e2,priority){
 	if(e1 == null || e2 == null) return e1 || e2 || null;
+	
+	if(_.isString(e1) && _.isString(e2)){
+		return e1;
+	}
+	
 	var i1 = 0,i2 = 0;
 	var merged = {};
 	if(priority != null && priority == false) i2 = 1337;
@@ -756,7 +766,7 @@ merge.artist = function(e1,e2,priority){
 FILTER OUT DUPLICATES BY MATCHING BY TYPE.
 
 */
-var filterDuplicates = p.sync(function(typeset){
+var filterDuplicates = function(typeset){
 	_.each(typeset,function(dataset,type){
 
 		var l = dataset.length;
@@ -774,13 +784,11 @@ var filterDuplicates = p.sync(function(typeset){
 			}
 		}
 
+
 		//delete nulls
-		dataset = _.filter(dataset, function(n) {
+		typeset[type] = _.filter(dataset, function(n) {
 		  return n != null;
 		});
-
-		//reference back
-		typeset[type] = dataset;
 
 
 
@@ -792,9 +800,8 @@ var filterDuplicates = p.sync(function(typeset){
 		}).sort(), {showHidden: false, depth: null}));		
 	});
 
-	this.resolve(typeset);
-	return this.promise;
-});
+	return p.pipe(typeset);
+};
 
 
 
@@ -804,7 +811,7 @@ var filterDuplicates = p.sync(function(typeset){
 
 
 
-var flipEvents = p.sync(function(typeset){
+var flipEvents = function(typeset){
 
 	//flip events to display venues on top
 	var venues = _.map(typeset['event'],function(e){
@@ -824,9 +831,8 @@ var flipEvents = p.sync(function(typeset){
 
 	delete typeset['event'];
 
-	this.resolve(typeset);
-	return this.promise;
-})
+	return p.pipe(typeset);
+}
 
 
 
@@ -857,7 +863,6 @@ var syncArtists = p.async(function(typeset){
 			}
 			this.resolve();
 		}.bind(this))
-
 		return this.promise;
 	});
 
@@ -881,7 +886,6 @@ var syncArtists = p.async(function(typeset){
 			this.count++;
 			this.checkAsync();
 		}.bind(this))
-	
 	});
 
 	return this.promise;
@@ -905,14 +909,36 @@ function checkPlat(doc1,doc2){
 }
 
 
+function linkEventArtists(typeset){
+	_.each(typeset['venue'],function(venue){
+		_.each(venue.event,function(e){
+			e.artists.headliners = _.map(e.artists.headliners,function(a){
+				var comp = _.findWhere(typeset['artists'],{name:a.name},'_id');
+				if(_.isString(comp)) return comp
+				return null;
+			});
 
+			e.artists.openers = _.map(e.artists.openers,function(a){
+				var comp = _.findWhere(typeset['artists'],{name:a.name},'_id');
+				if(_.isString(comp)) return comp
+				return null;
+			});
 
+			console.log('LINK E.A'.bgRed,e.artists.headliners,e.artists.openers);
+		});
+	});
+
+	return p.pipe(typeset);
+}
 
 
 var syncVenues = p.async(function(typeset){
 
 	this.total = typeset['venue'].length;
 	this.data = typeset;
+
+
+	//replace artists with id's
 
 
 
@@ -1013,8 +1039,6 @@ var syncVenues = p.async(function(typeset){
 
 
 
-
-
 	_.each(typeset['venue'],function(venue,i){
 		findById(venue)
 
@@ -1032,8 +1056,8 @@ var syncVenues = p.async(function(typeset){
 			if(doc == null){
 				console.log('creating new venue in database',venue.name);
 				var new_venue = new db['venue'](venue);
-				db[]
-
+				
+				_.each()
 
 				new_venue.validate(function(err){
 					if(err) console.error('DB.VENUE VALIDATION ERR:'.bold.bgRed,err);
@@ -1041,7 +1065,25 @@ var syncVenues = p.async(function(typeset){
 
 				return new_venue.save();
 			}
-			doc = _.merge(doc,merge['venue'](doc,venue));
+
+
+
+
+			//this is the complete full new document;
+			var new_doc = merge['venue'](doc,venue);
+
+
+			_.each(new_doc.events,function(e){
+				e.artists.headliners = _.map(e.artists.headliners,function(artist){
+					return artist._id;
+				})
+				e.artists.openers = _.map(e.artists.openers,function(artist){
+					return artist._id;
+				})
+			});
+
+
+			doc = _.merge(doc,new_doc);
 			console.log('FOUND DB.VENUE & MERGING...',venue.name,doc.name);
 
 
@@ -1049,6 +1091,10 @@ var syncVenues = p.async(function(typeset){
 		})
 
 		.then(function(v,err){
+
+
+			venue[i] = v;
+
 			console.log('successfully saved venue :',v.name);
 			this.checkAsync();
 		}.bind(this))
@@ -1138,6 +1184,9 @@ var syncArtists = p.async(function(data){
 			return doc.save();
 		}.bind(this))
 		.then(function(v,err){
+
+			artist[i] = v;
+
 			console.log('successfully saved artist :',v.name);
 			this.checkAsync();
 		}.bind(this))
@@ -1149,8 +1198,17 @@ var syncArtists = p.async(function(data){
 
 
 
+var extractArtists = function(types){
+	_.each(types['venue'],function(venue){
+		_.each(venue.events,function(event){
+			_.each(_.union(event.artist.headliners,event.artist.openers),function(artist){
+				types['artist'].push(artist);
+			});
+		});
+	});
 
-
+	return p.pipe(types);
+};
 
 
 
@@ -1170,10 +1228,17 @@ module.exports = p.async(function(dataset,save){
 	validate(dataset) 	//validate data
 	.then(SplitbyType) //split raw data by into types for faster parsing
 	.then(flipEvents)  //flip events to their
-	.then(filterDuplicates) //merge any dat
+	.then(filterDuplicates) //merge any data
 	.then(fillGPS) //fill GPS data.
-	.then(filterDuplicates) //merge any dat
-	.then(syncVenues).then(syncArtists) // sync documents with database
+	.then(extractArtists) // extract artists out of each event and link their platform ids to the venue events
+	.then(filterDuplicates) //filter and merge entries that may not have been found because of slightly different GPS addresses.
+	
+	
+	.then(linkEventArtists)
+	//.then(syncArtists) //sync all artists and upon save add the document id to the raw artist object to reference it later in syncVenues
+	//.then(syncVenues) // sync documents with database , when syncing event artists save it as a map of artist document ids
+
+	
 
 	return this.promise;
 });

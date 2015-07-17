@@ -113,7 +113,7 @@ Promise.longStackTraces();
 
 
 //PARSE A VENUE
-module.exports.parseVenue = p.sync(function(venue){
+module.exports.parseVenue = function(venue){
 	
 	var v = {
 		is: 'venue',
@@ -131,9 +131,8 @@ module.exports.parseVenue = p.sync(function(venue){
 	};
 
 	v.links = venue.Url.length != null ? venue.Url : [venue.Url];
-	this.resolve(v);
-	return this.promise;
-})
+	return p.pipe(v)
+}
 
 
 

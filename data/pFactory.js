@@ -8,7 +8,6 @@ var Promise = require('bluebird');
 var _ = require('lodash');
 
 
-
 /*
 
 Promise pipe creator.
@@ -17,9 +16,6 @@ Promise pipe creator.
 module.exports.pipe = function(data){
 	return Promise.resolve(data);
 }
-
-
-
 
 
 /*
@@ -46,7 +42,6 @@ module.exports.async = function(func){
 			}
 		}.bind(ObamaDelivers);
 
-
 		ObamaDelivers.promise = new Promise(function(gaymarriage,tradepolicy){
 			this.resolve = gaymarriage;
 			this.reject = tradepolicy;
@@ -63,10 +58,6 @@ module.exports.async = function(func){
 		return f.apply(this,arguments)
 	}
 }
-
-
-
-
 
 
 /*

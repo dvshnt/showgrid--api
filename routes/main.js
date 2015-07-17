@@ -24,6 +24,11 @@ zipcode or lat and lon variables
  * @param {int} limit - max amount of entries;
  * @param {string} active - only find venues that have active events.
  */
+
+
+
+
+
 function findVenues(req,res,next,callback){
 	if(req.query.zip != null){
 
@@ -190,6 +195,24 @@ function findEvents_GPS(req,res,next){
 		})
 }
 
+function getEvent(req,res,next){
+	var db_q = {};
+
+	if(req.params.id != null){
+		db_q.events._id = req.params.id;
+	}else if(req.params.platname != null && req.params.platid != null){
+		db_q.events.platformIds = req.params.platname+'/'+req.params.platid
+	}else{
+		return res.status(500).send('INVALID PARAMS')
+	}
+
+
+	db['venue'].find().where(db_q).then(function(doc,err){
+		if(err) return res.status(500).send('INTERNAL ERR');
+		if(doc == null) res.status(404).send('NOTHING FOUND');
+		res.json(doc);
+	});
+}
 
 
 /**
@@ -222,14 +245,27 @@ function updateEvent(req,res,next){
  * @constructor 
 
 
- find the artists associated with with any events in an area.
- * @param {string} zip - zip code to search in 
- * @param {float} lat - latitude to search around 
- * @param {float} lon - longitude to search around 
- * @param {string} radius - radius around that zip code, defaults to 50
+Find the artists associated with any events in an area.
 
- * @param {int} limit - max amount of entries;
- * @param {string} active - only find venues that have active events.
+
+Performing in a specific location 
+(required zip or lat/long)
+
+ * @param {string} zip - zip code to search in (required / optional)
+ * @param {number} lat - latitude to search around (required / optional)
+ * @param {number} lon - longitude to search around (required / optional)
+ * @param {number} radius - radius around that zip code, defaults to 50 (optional)
+
+
+Performing in a specific time range 
+(optional, default: current date -> one week ahead)
+
+ * @param {date} mindate - artists whos events have a minimum date (optional)
+ * @param {date} maxdate - artists whos events have a maximum date (optional)
+
+
+
+ * @param {int} limit - max amount of entries; (optional, default: 500)
  */
 function findArtists(req,res,next){
 	if(req.query.zip != null){
@@ -243,14 +279,56 @@ function findArtists(req,res,next){
 	}else if(req.query.lat != null && req.query.lon != null){
 		//FIND BY GPS (a bit faster)
 		res.locals.location = [req.query.lat,req.query.lon];
-		return findEvents_GPS(req,res,next)
+		return findArtists_GPS(req,res,next)
 	}else{
 		res.status(500).send('INVALID PARAMS');
 	}
 }
 
 
+
+function findArtists_GPS(req,res,next){
+
+
+	//
+	var db_q = {
+		location:{gps:{
+			$near : {
+				$geometry : {type: "Point", coordinates : res.locals.location},
+				$maxDistance : parseInt(req.query.radius) || 50
+			},
+		}},
+		events: {
+			$date : {$gt: req.params.mindate || new Date(Date()).toISOString(), $lt: req.params.maxdate || new Date(Date.parse(Date())+oneweek).toISOString()},
+		},
+	}
+
+	if(req.query.active) db_q.events = {$exists: true, $not: {$size: 0}};
+
+	return db['venue']
+		.find(db_q)
+		.populate('events.artists.headliners','events.artists.openers')
+		.then(function(docs,err){
+			if(err) return res.status(500).send('INTERNAL ERR');
+			if(docs == null) return res.status(404).send('NOTHING FOUND');
+		
+
+			var events = _.takeRight(
+				_.sortBy(_.union(
+					_.map(docs,function(doc){
+						return doc.events
+					})
+				),function(event){
+					return Date.parse(event.date)
+				}),(req.query.limit != null && req.query.limit < 500) ? Math.floor(parseInt(req.query.limit)) : 100)
+
+
+			res.json(events);
+		})
+}
+
 function getArtist(req,res,next){
+	
 	res.status(500).send('TODO');
 }
 

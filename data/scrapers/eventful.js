@@ -285,7 +285,7 @@ module.exports.parseArtist = function(artist){
 
 
 //FILTER EVENT
-module.exports.parseEvent = p.sync(function(event){
+module.exports.parseEvent = function(event){
 
 	var n_event =  {
 		is: 'event',
@@ -324,9 +324,8 @@ module.exports.parseEvent = p.sync(function(event){
 		}) : null,
 	}
 
-	this.resolve(n_event)
-	return this.promise
-});
+	return p.pipe(n_event)
+}
 
 
 
@@ -345,7 +344,7 @@ module.exports.parseEvent = p.sync(function(event){
 
 
 //FILTER VENUE DATA
-module.exports.parseVenue = p.sync(function(venue){
+module.exports.parseVenue = function(venue){
 
 
 //	var lol = 0;
@@ -387,7 +386,5 @@ module.exports.parseVenue = p.sync(function(venue){
 
 	//console.log(lol++)
 
-
-	this.resolve(n_venue)
-	return this.promise;
-});
+	return p.pipe(n_venue)
+};
