@@ -5,7 +5,7 @@ var cities = require('cities');
 var Promise = require('bluebird');
 var p = require('../data/pFactory');
 var gps = require('../data/gps');
-
+var _ = require('lodash');
 
 
 /**
@@ -92,10 +92,6 @@ Searches for one venue with an id or a specifc platform and platform id
  * @param {string} id - id to search for
  * @param {string} platname - platform name
  * @param {string} platid - platform id
-
-
- * @param {int} limit - max amount of entries;
- * @param {string} active - only find venues that have active events.
  */
 function getVenue(req,res,next){
 
@@ -168,7 +164,7 @@ function findEvents_GPS(req,res,next){
 			},
 		}},
 		events: {
-			$date : {$gt: req.params.mindate || new Date(Date()).toISOString(), $lt: req.params.maxdate || new Date(Date.parse(Date())+oneweek).toISOString()},
+			date : {$gt: req.params.mindate || new Date(Date()).toISOString(), $lt: req.params.maxdate || new Date(Date.parse(Date())+oneweek).toISOString()},
 		},
 	}
 
@@ -195,6 +191,19 @@ function findEvents_GPS(req,res,next){
 		})
 }
 
+
+
+/**
+ * GET EVENT
+ * @constructor 
+
+
+Searches for one event with an id or a specifc platform and platform id
+
+ * @param {string} id - id to search for
+ * @param {string} platname - platform name
+ * @param {string} platid - platform id
+ */
 function getEvent(req,res,next){
 	var db_q = {};
 
@@ -207,7 +216,7 @@ function getEvent(req,res,next){
 	}
 
 
-	db['venue'].find().where(db_q).then(function(doc,err){
+	db['venue'].findOne(db_q).then(function(doc,err){
 		if(err) return res.status(500).send('INTERNAL ERR');
 		if(doc == null) res.status(404).send('NOTHING FOUND');
 		res.json(doc);
@@ -215,19 +224,7 @@ function getEvent(req,res,next){
 }
 
 
-/**
- * CREATE AN EVENT
- * @constructor 
 
- * @param {string} zip - zip code to search in 
- * @param {float} lat - latitude to search around 
- * @param {float} lon - longitude to search around 
- * @param {string} radius - radius around that zip code, defaults to 50
-
-
- * @param {int} limit - max amount of entries;
- * @param {string} active - only find events that have artists
- */
 function createEvent(req,res,next){
 	res.status(500).send('TODO');
 }
@@ -289,8 +286,6 @@ function findArtists(req,res,next){
 
 function findArtists_GPS(req,res,next){
 
-
-	//
 	var db_q = {
 		location:{gps:{
 			$near : {
@@ -299,7 +294,8 @@ function findArtists_GPS(req,res,next){
 			},
 		}},
 		events: {
-			$date : {$gt: req.params.mindate || new Date(Date()).toISOString(), $lt: req.params.maxdate || new Date(Date.parse(Date())+oneweek).toISOString()},
+			date : {$gt: req.params.mindate || new Date(Date()).toISOString(), $lt: req.params.maxdate || new Date(Date.parse(Date())+oneweek).toISOString()},
+
 		},
 	}
 
@@ -311,26 +307,60 @@ function findArtists_GPS(req,res,next){
 		.then(function(docs,err){
 			if(err) return res.status(500).send('INTERNAL ERR');
 			if(docs == null) return res.status(404).send('NOTHING FOUND');
-		
+			
+			var artists = [];
 
-			var events = _.takeRight(
-				_.sortBy(_.union(
-					_.map(docs,function(doc){
-						return doc.events
-					})
-				),function(event){
-					return Date.parse(event.date)
-				}),(req.query.limit != null && req.query.limit < 500) ? Math.floor(parseInt(req.query.limit)) : 100)
+			_.each(docs,function(venue){
+				_.each(venue.events,function(event){
+					artists = artists.concat(_.union(event.artists.headliners,event.artists.openers));
+				});
+			});
 
 
-			res.json(events);
+			var artists = _.sortBy(_.takeRight(artists,(req.query.limit != null && req.query.limit < 500) ? Math.floor(parseInt(req.query.limit)) : 100),function(a){
+				return a.demand || 0
+			});
+
+			res.json(artists);
 		})
 }
 
+
+/**
+ * GET ARTIST
+ * @constructor 
+
+
+Searches for one eartist with an id or a specifc platform and platform id
+
+ * @param {string} id - id to search for
+ * @param {string} platname - platform name
+ * @param {string} platid - platform id
+ */
 function getArtist(req,res,next){
-	
-	res.status(500).send('TODO');
+	var db_q = {};
+
+	if(req.params.id != null){
+		db_q._id = req.params.id;
+	}else if(req.params.platname != null && req.params.platid != null){
+		db_q.platformIds = req.params.platname+'/'+req.params.platid
+	}else{
+		return res.status(500).send('INVALID PARAMS')
+	}
+
+
+	db['artist'].findOne(db_q).then(function(doc,err){
+		if(err) return res.status(500).send('INTERNAL ERR');
+		if(doc == null) res.status(404).send('NOTHING FOUND');
+		res.json(doc);
+	});
 }
+
+
+
+
+
+
 
 
 
