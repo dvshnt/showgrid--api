@@ -62,7 +62,7 @@ var venueSchema = new db.Schema({
 
 	name: {type:String, required: true},
 	
-	
+
 
 	location: {
 		address: {type: String, required:true},
@@ -74,6 +74,8 @@ var venueSchema = new db.Schema({
 	tags: [{type: String}],
 	
 	phone: {type: String},
+
+	demand: Number,
 
 	banners: Array,
 	age: Number,

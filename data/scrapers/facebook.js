@@ -62,11 +62,11 @@ module.exports.findVenues = function(opt){
 	var get = p.sync(function(pos){
 		
 		var q = {
-			q: 'venue',
+			q: 'Venues',
 			type: 'place',
 			center: pos[0]+','+pos[1],
 			distance: Math.floor(opt.radius/0.000621371) || Math.floor(50/0.000621371),
-			fields: 'id,name,picture,location,phone,about,events,category,mission,general_info,genre'
+			fields: 'id,name,picture,location,phone,about,events,category,mission,general_info,genre,photos,website,likes'
 		}
 
 
@@ -124,8 +124,14 @@ module.exports.getVenue = function(opt){
 
 
 
+function getVenueEvents(url){
+
+}
+
+
+
 module.exports.parseVenue = function(venue){
-	//console.log(venue);
+	console.log(venue);
 
 
 	var parsed = {
@@ -135,13 +141,20 @@ module.exports.parseVenue = function(venue){
 		}],
 		name: venue.name,
 		location: {
-			address: venue.location.street+' '+venue.location.city+' '+venue.location.country+' 'venue.location.zip,
+			address: venue.location.street+' '+venue.location.city+' '+venue.location.country+' '+venue.location.zip,
 			gps: [venue.location.latitude,venue.location.longitude]
 		},
+		phone: venue.phone,
+		about: venue.about,
+		demand: venue.likes,
+		tags: [venue.category],
+		links: [venue.website],
+		banners: venue.photos !=  null ? venue.photos.data != null : null,
+		events: venue.events != null ? venue.events.data : null,
 
 
 	};
 
-
-	return p.pipe(venue);
+	//console.log(parsed);
+	return p.pipe(parsed);
 }

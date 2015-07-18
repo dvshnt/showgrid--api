@@ -15,7 +15,7 @@ fb.getKey().then(function(fb_key){
 			zip: '37064',
 			country: 'US',
 			radius: 50,
-			query_size:1,
+			query_size:3,
 			sort: 'popularity'
 		},
 		platforms: {
