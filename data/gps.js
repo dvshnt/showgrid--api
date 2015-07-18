@@ -19,20 +19,44 @@ var fuzzy = require('fuzzyset.js')
 var default_radius = 50; 
 
 
-module.exports = p.sync(function(name,addr,loose){
+module.exports = p.sync(function(name,addr,zip){
+	var addr = addr || {};
+	if(zip != null) return geocode(zip);
 
 
-	var address = null;
-	if(addr.address != null) var address = addr.address.trim();
+	function geocode(zip){
+		if(zip != null){
+			var url = geo_api+ "?" +"address=" + zip + ""+'&sensor=false'
+		}else{
+			var url = geo_api+ "?" +"address=" + addr_strict + ""+'&sensor=false'
+		}
+		
+		return request({url:url,json:true})
+		.spread(p.sync(function(res,loc,err){
+			//console.log('GECODE FOR',name,addr,loc)
+			
+			if(loc.results == null || loc.results.length == 0) 
+				this.resolve(loc.status);
+			else{
+				var loc = loc.results[0];
+			//	console.log('GOT GEOCODE for ',name);
+				
+				addr.gps = [loc.geometry.location.lat,loc.geometry.location.lng];
+				
+
+				this.resolve({
+					address: loc.formatted_address,
+					gps: [loc.geometry.location.lat,loc.geometry.location.lng]
+				});
+			}
+			
+
+			return this.promise;
+		}));
+	};
+
+
 	
-	var addr_strict = (address || '') + ' '  + (addr.city||'') + ' ' + (addr.statecode||'') + ' '+ (addr.zip||'');
-	var addr_loose =  (addr.city||'') + ' ' + (addr.statecode||'') + ' '+ (addr.zip||'') + ' '+ (name||'');
-
-
-
-
-
-
 
 	var getplace = p.sync(function(status){
 
@@ -133,41 +157,18 @@ module.exports = p.sync(function(name,addr,loose){
 
 
 
-	var geocode = function(){
+
+
+	var address = null;
+	if(addr.address != null) var address = addr.address.trim();
 	
-		return request({url:geo_api+ "?" +"address=" + addr_strict + ""+'&sensor=false',json:true})
-		.spread(p.sync(function(res,loc,err){
-			//console.log('GECODE FOR',name,addr,loc)
-			
-			if(loc.results == null || loc.results.length == 0) 
-				this.resolve(loc.status);
-			else{
-				var loc = loc.results[0];
-			//	console.log('GOT GEOCODE for ',name);
-				
-				addr.gps = [loc.geometry.location.lat,loc.geometry.location.lng];
-				
+	var addr_strict = (address || '') + ' '  + (addr.city||'') + ' ' + (addr.statecode||'') + ' '+ (addr.zip||'');
+	var addr_loose =  (addr.city||'') + ' ' + (addr.statecode||'') + ' '+ (addr.zip||'') + ' '+ (name||'');
 
-				this.resolve({
-					address: loc.formatted_address,
-					gps: [loc.geometry.location.lat,loc.geometry.location.lng]
-				});
-			}
-			
-
-			return this.promise;
-		}));
-	};
-
-
-
-	if(addr.address != null && loose == true){
-		return geocode();
-	}
 
  
 	//use geo api to find approximate location and then use the gps to find the exact place location
-	else if(addr.address != null){
+	if(addr.address != null){
 		
 		geocode().then(getplace).then(function(loc){
 			this.resolve(loc)

@@ -15,7 +15,6 @@ var request = Promise.promisify(require('request').get);
 
 var colors = require('colors');
 var qs = require('querystring');
-var moment = require('moment');
 var _ = require('lodash');
 var url = require('url');
 var fuzzy = require('fuzzyset.js');
@@ -299,7 +298,7 @@ module.exports.parseEvent = function(nugget){
 	var event = {
 		is: 'event',
 		platforms: [{name:'reverbnation',id:event_id != null ? event_id.match(/\d+/)[0] : null}],
-		date: moment(new Date($('.shows_date_').text()+' '+new Date().getFullYear())).utc().format(),
+		date: new Date($('.shows_date_').text()+' '+new Date().getFullYear()).toISOString(),
 		artists : {headliners:[]},
 		tickets : [{
 			url: $($('.shows_buttons_container > a')[2]).attr('href')

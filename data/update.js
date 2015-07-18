@@ -116,11 +116,7 @@ function main(opt){
 						var obj_pipe = Promise.resolve(raw_obj);
 
 
-						if(plat_name == 'eventful'){
-							
-						}else{
-							obj_pipe = obj_pipe.delay(100*i)
-						}
+						if(plat_name == 'reverbnation') obj_pipe = obj_pipe.delay(100*i)
 						
 
 						//cycle through all the filters.

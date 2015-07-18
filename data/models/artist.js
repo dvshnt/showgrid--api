@@ -27,7 +27,7 @@ artistSchema.pre('save',function(next){
 });
 
 
-venueSchema.index({
+artistSchema.index({
 	name: 'text',
 });
 

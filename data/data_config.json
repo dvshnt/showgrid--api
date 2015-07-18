@@ -2,6 +2,12 @@
 	"dev_db":"mongodb://localhost/showgrid-dev1",
 	"live_db":"mongodb://localhost/showgrid-live1",
 	"apis" : {
+		"facebook" : {
+			"api": "https://graph.facebook.com",
+			"secret": "02801ae29d77605a491125911a47e4b8",
+			"id": "868089599911045",
+			"version": "2.4"
+		},
 		"eventful" : {
 			"api": "http://api.eventful.com/json",
 			"keys" : [

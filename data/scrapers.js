@@ -34,7 +34,8 @@ var parser_count = 3
 var jambase = require('./scrapers/jambase');
 var eventful = require('./scrapers/eventful');
 var reverbnation = require('./scrapers/reverbnation');
-
+var facebook = require('./scrapers/facebook');
+var ticketfly = require('./scrapers/ticketfly');
 
 
 //SCRAPER HOOKS
@@ -120,7 +121,17 @@ module.exports =  {
 		venue data such as events are labled with fb_
 	*/
 	'facebook' : {
-
+		'find': {
+			'venue' : facebook.findVenues,
+			'event' : facebook.findEvents,
+		},
+		'get' : {
+			//'venue' : facebook.getVenue,
+			//'event' : facebook.getEvent,
+		},
+		'filters' : {
+			'venue' : [facebook.parseVenue],
+		}	
 	},
 
 

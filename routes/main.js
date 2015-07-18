@@ -33,7 +33,7 @@ function findVenues(req,res,next,callback){
 	if(req.query.zip != null){
 
 		//FIND BY ZIP
-		gps(null,req.query.zip).then(function(loc){
+		gps(null,null,req.query.zip).then(function(loc){
 			if(_.isString(loc)) return res.status(500).send(loc)
 			res.locals.location = loc.gps;
 			return findVenues_GPS(req,res,next); 
@@ -139,7 +139,7 @@ var oneweek = 604800000;
 function findEvents(req,res,next){
 	if(req.query.zip != null){
 		//FIND BY ZIP
-		gps(null,req.query.zip).then(function(loc){
+		gps(null,null,req.query.zip).then(function(loc){
 			if(_.isString(loc)) return res.status(500).send(loc)
 			res.locals.location = loc.gps;
 			return findEvents_GPS(req,res,next); 
@@ -267,7 +267,7 @@ Performing in a specific time range
 function findArtists(req,res,next){
 	if(req.query.zip != null){
 		//FIND BY ZIP
-		gps(null,req.query.zip).then(function(loc){
+		gps(null,null,req.query.zip).then(function(loc){
 			if(_.isString(loc)) return res.status(500).send(loc)
 			res.locals.location = loc.gps;
 			return findEvents_GPS(req,res,next); 
