@@ -29,48 +29,12 @@ zipcode or lat and lon variables
 
 
 
-
-
-function findVenues(req,res,next,callback){
-	if(req.query.zip != null){
-
-		//FIND BY ZIP
-		gps(null,null,req.query.zip).then(function(loc){
-			if(_.isString(loc)) return res.status(500).send(loc)
-			res.locals.location = loc.gps;
-			return findVenues_GPS(req,res,next); 
-		}.bind(this))
-	}else if(req.query.lat != null && req.query.lon != null){
-		
-		//FIND BY GPS (a bit faster)
-		res.locals.location = [req.query.lat,req.query.lon];
-		return findVenues_GPS(req,res,next)
-	}else{
-		res.status(500).send('INVALID query');
-	}
-}
-
-
-function findVenues_GPS(req,res,next){
-
-	var db_q = {
-		location:{gps:{
-			$near : {
-				$geometry : {type: "Point", coordinates : res.locals.location},
-				$maxDistance : parseInt(req.query.radius) || 50
-			}
-		}}
-	}
-	if(req.query.active) db_q.events = {$exists: true, $not: {$size: 0}};
-
-
-	return db['venue']
-		.find(db_q).limit((req.query.limit != null && req.query.limit < 500) ? Math.floor(parseInt(req.query.limit)) : 100)
-		.then(function(docs,err){
-			if(err) return res.status(500).send('INTERNAL ERR');
-			if(docs == null) return res.status(404).send('NOTHING FOUND');
-			return res.status(200).json(docs);
-		}.bind(this));
+function findVenues(req,res,next){
+	getter.find['venue'](req.res).spread(dat,err){
+		if(err) dat.status(500).send(err);
+		else if(dat.length == 0) dat.status(404).send(dat); 
+		else res.status(200).json(dat);	
+	}	
 }
 
 

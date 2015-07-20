@@ -1,3 +1,5 @@
+
+
 //ticketfly ticketing
 var cfg = require('../data_config.json').apis.ticketfly;
 var Promise = require('bluebird');
@@ -9,6 +11,7 @@ var gps = require('../gps');
 var _ = require('lodash');
 var util = require('util');
 var db = require('../data');
+var getter = require('../getter');
 
 
 
@@ -19,10 +22,74 @@ var db = require('../data');
 
 
 
+module.exports.findEvents = function(opt){
+	getter.find['venue']({
+		zip: opt.zip,
+		radius: opt.radius,
+		limit: opt.query_size,
+	}).spread(function(docs,err){
+		if(err){
+			console.log('TICKEFLY FETCH EVENTS ERROR IN FIND VENUES');
+			return Promise.reject(err);
+		}else if(dat.length == 0){
+			console.log('NOTHING FOUND'.bgRed);
+			return p.pipe(docs);
+		}else return p.pipe(docs);
+	}).then(function(venues){
+		_.each(venues,function(venue){
+			module.exports.getEvents({
 
-module.exports.findEvents = function(){
-
+			});
+		})
+	});
 }
+
+
+
+
+//get 
+
+module.exports.getVenueEvents = function(opt){
+	var maxpages = opt.max || null;
+	var totalpages = 0;
+	var events = [];
+
+
+	function get(page){
+		request({
+			url: cfg.api+"/events/upcoming?pageNum="+page+"&maxResults=200&venueId="+opt.id,
+			json: true
+		}).spread(function(res,dat,err){
+			if(err) this.reject(err);
+			else if(dat != null){
+				console.log(dat.pageNum)
+				totalpages = dat.totalPages
+				events = events.concat(dat.events);
+				if(dat.pageNum >= (maxpages || totalpages)){
+					this.resolve(events);
+				}else{
+					get(dat.pageNum+=1);
+				}
+			}
+
+		}.bind(this));
+	}
+
+	get.bind(this)(1);
+	return this.promise;
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -62,6 +129,14 @@ module.exports.getVenues = p.async(function(){
 
 
 
+
+
+
+
+
+
+
+
 module.exports.parseEvent = function(event){
 
 	var parsed = {
@@ -72,6 +147,18 @@ module.exports.parseEvent = function(event){
 		}]
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 module.exports.parseVenue = function(venue){
 	//var nameParts = venue.name.split('"');

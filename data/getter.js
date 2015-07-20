@@ -48,12 +48,11 @@ var findEvents_GPS = p.sync(function(opt){
 
 	if(opt.active) db_q.events = {$exists: true, $not: {$size: 0}};
 
-	return 
-	db['venue'].find(db_q)
+	return db['venue'].find(db_q)
 		.select({events: 1})
 		.spread(function(docs,err){
-			if(err) [null,'INTERNAL ERR'];
-			if(docs == null) return [[],null];
+			if(err) this.resolve([null,'INTERNAL ERR']);
+			if(docs == null) this.resolve([[],null]);
 		
 
 			var events = _.takeRight(
@@ -67,13 +66,74 @@ var findEvents_GPS = p.sync(function(opt){
 
 
 			this.resolve([events,null]);
-		}.bind(this))
+		}.bind(this));
 });
 
 
 
 
-module.exports.find = {'event':findEvents,'venue':null};
+
+
+
+
+
+
+
+
+
+var findVenues = p.sync(function(opt){
+	if(opt.zip != null){
+
+		//FIND BY ZIP
+		gps(null,null,opt.zip).then(function(loc){
+			if(_.isString(loc)) return res.status(500).send(loc)
+			res.locals.location = loc.gps;
+			return findVenues_GPS(opt); 
+		}.bind(this))
+	}else if(opt.lat != null && opt.lon != null){
+		
+		//FIND BY GPS (a bit faster)
+		res.locals.location = [opt.lat,opt.lon];
+		return findVenues_GPS(opt)
+	}else{
+		this.resolve([null,'INVALID query']);
+	}
+});
+
+
+
+
+var findVenues_GPS = p.sync(function(opt){
+
+	var db_q = {
+		location:{gps:{
+			$near : {
+				$geometry : {type: "Point", coordinates : res.locals.location},
+				$maxDistance : parseInt(opt.radius) || 50
+			}
+		}}
+	}
+	if(opt.active) db_q.events = {$exists: true, $not: {$size: 0}};
+
+
+	return db['venue']
+		.find(db_q).limit((opt.limit != null && opt.limit < 500) ? Math.floor(parseInt(opt.limit)) : 100)
+		.then(function(docs,err){
+			if(err) return this.resolve([null,'INTERNAL ERR']);
+			if(docs == null) this.resolve([[],null]);
+			return this.resolve([docs,null]);
+		}.bind(this));
+});
+
+
+
+
+
+
+
+
+
+module.exports.find = {'event':findEvents,'venue':findVenues};
 module.exports.get = {'event':null,'venue':null};
 module.exports.push = {'event':null,'venue':null,'artist':null};
 module.exports.update = {'event':null,'venue':null,'artist':null};
