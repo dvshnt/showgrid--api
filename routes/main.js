@@ -8,6 +8,8 @@ var gps = require('../data/gps');
 var _ = require('lodash');
 
 
+var getters = require('../data/getter');
+
 /**
  * FIND VENUES
  * @constructor 
@@ -44,9 +46,10 @@ function findVenues(req,res,next,callback){
 		res.locals.location = [req.query.lat,req.query.lon];
 		return findVenues_GPS(req,res,next)
 	}else{
-		res.status(500).send('INVALID PARAMS');
+		res.status(500).send('INVALID query');
 	}
 }
+
 
 function findVenues_GPS(req,res,next){
 
@@ -69,7 +72,6 @@ function findVenues_GPS(req,res,next){
 			return res.status(200).json(docs);
 		}.bind(this));
 }
-
 
 
 /**
@@ -97,12 +99,12 @@ function getVenue(req,res,next){
 
 	var db_q = {};
 
-	if(req.params.id != null){
-		db_q._id = req.params.id;
-	}else if(req.params.platname != null && req.params.platid != null){
-		db_q.platformIds = req.params.platname+'/'+req.params.platid
+	if(req.query.id != null){
+		db_q._id = req.query.id;
+	}else if(req.query.platname != null && req.query.platid != null){
+		db_q.platformIds = req.query.platname+'/'+req.query.platid
 	}else{
-		return res.status(500).send('INVALID PARAMS')
+		return res.status(500).send('INVALID query')
 	}
 
 
@@ -133,63 +135,17 @@ function updateVenue(req,res,next){
  * @param {int} limit - max amount of entries;
  * @param {string} artists - only find events that have artists
  */
+function findEvents(req,res,next){
+	getter.find['event'](req.res).spread(dat,err){
+		if(err) dat.status(500).send(err);
+		else if(dat.length == 0) dat.status(404).send(dat); 
+		else res.status(200).json(dat);	
+	}
+}
+
+
 var oneweek = 604800000;
 
-
-function findEvents(req,res,next){
-	if(req.query.zip != null){
-		//FIND BY ZIP
-		gps(null,null,req.query.zip).then(function(loc){
-			if(_.isString(loc)) return res.status(500).send(loc)
-			res.locals.location = loc.gps;
-			return findEvents_GPS(req,res,next); 
-		}.bind(this))
-	
-	}else if(req.query.lat != null && req.query.lon != null){
-		//FIND BY GPS (a bit faster)
-		res.locals.location = [req.query.lat,req.query.lon];
-		return findEvents_GPS(req,res,next)
-	}else{
-		res.status(500).send('INVALID PARAMS');
-	}
-}
-
-function findEvents_GPS(req,res,next){
-
-	var db_q = {
-		location:{gps:{
-			$near : {
-				$geometry : {type: "Point", coordinates : res.locals.location},
-				$maxDistance : parseInt(req.query.radius) || 50
-			},
-		}},
-		events: {
-			date : {$gt: req.params.mindate || new Date(Date()).toISOString(), $lt: req.params.maxdate || new Date(Date.parse(Date())+oneweek).toISOString()},
-		},
-	}
-
-	if(req.query.active) db_q.events = {$exists: true, $not: {$size: 0}};
-
-	return db['venue'].find(db_q)
-		.select({events: 1})
-		.then(function(docs,err){
-			if(err) return res.status(500).send('INTERNAL ERR');
-			if(docs == null) return res.status(404).send('NOTHING FOUND');
-		
-
-			var events = _.takeRight(
-				_.sortBy(_.union(
-					_.map(docs,function(doc){
-						return doc.events
-					})
-				),function(event){
-					return Date.parse(event.date)
-				}),(req.query.limit != null && req.query.limit < 500) ? Math.floor(parseInt(req.query.limit)) : 100)
-
-
-			res.json(events);
-		})
-}
 
 
 
@@ -207,12 +163,12 @@ Searches for one event with an id or a specifc platform and platform id
 function getEvent(req,res,next){
 	var db_q = {};
 
-	if(req.params.id != null){
-		db_q.events._id = req.params.id;
-	}else if(req.params.platname != null && req.params.platid != null){
-		db_q.events.platformIds = req.params.platname+'/'+req.params.platid
+	if(req.query.id != null){
+		db_q.events._id = req.query.id;
+	}else if(req.query.platname != null && req.query.platid != null){
+		db_q.events.platformIds = req.query.platname+'/'+req.query.platid
 	}else{
-		return res.status(500).send('INVALID PARAMS')
+		return res.status(500).send('INVALID query')
 	}
 
 
@@ -278,7 +234,7 @@ function findArtists(req,res,next){
 		res.locals.location = [req.query.lat,req.query.lon];
 		return findArtists_GPS(req,res,next)
 	}else{
-		res.status(500).send('INVALID PARAMS');
+		res.status(500).send('INVALID query');
 	}
 }
 
@@ -294,7 +250,7 @@ function findArtists_GPS(req,res,next){
 			},
 		}},
 		events: {
-			date : {$gt: req.params.mindate || new Date(Date()).toISOString(), $lt: req.params.maxdate || new Date(Date.parse(Date())+oneweek).toISOString()},
+			date : {$gt: req.query.mindate || new Date(Date()).toISOString(), $lt: req.query.maxdate || new Date(Date.parse(Date())+oneweek).toISOString()},
 
 		},
 	}
@@ -340,12 +296,12 @@ Searches for one eartist with an id or a specifc platform and platform id
 function getArtist(req,res,next){
 	var db_q = {};
 
-	if(req.params.id != null){
-		db_q._id = req.params.id;
-	}else if(req.params.platname != null && req.params.platid != null){
-		db_q.platformIds = req.params.platname+'/'+req.params.platid
+	if(req.query.id != null){
+		db_q._id = req.query.id;
+	}else if(req.query.platname != null && req.query.platid != null){
+		db_q.platformIds = req.query.platname+'/'+req.query.platid
 	}else{
-		return res.status(500).send('INVALID PARAMS')
+		return res.status(500).send('INVALID query')
 	}
 
 
@@ -416,3 +372,4 @@ module.exports = function(){
 
 	return router
 }
+

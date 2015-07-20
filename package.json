@@ -14,7 +14,6 @@
     "debug": "*",
     "express": "*",
     "fuzzyset.js": "0.0.1",
-    "http-proxy": "^1.11.1",
     "lodash": "*",
     "moment": "*",
     "mongoose": "*",

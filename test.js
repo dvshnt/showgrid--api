@@ -15,7 +15,7 @@ fb.getKey().then(function(fb_key){
 			zip: '37064',
 			country: 'US',
 			radius: 50,
-			query_size:3,
+			query_size:1,
 			sort: 'popularity'
 		},
 		platforms: {
@@ -25,12 +25,15 @@ fb.getKey().then(function(fb_key){
 			// 	},
 			// 	endpoints : ['venue'],
 			// },
-			'facebook': {
+			'ticketfly': {
 				endpoints: ['venue'],
-				params: {
-					key: fb_key
-				}
-			}
+			},
+			// 'facebook': {
+			// 	endpoints: ['venue'],
+			// 	params: {
+			// 		key: fb_key
+			// 	}
+			// }
 			// 'reverbnation': {
 			// 	endpoints : ['venue'],
 			// },

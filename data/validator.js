@@ -65,7 +65,7 @@ var SplitbyType = function(dataset){
 
 	_.each(dataset,function(doc){
 		if(typeset[doc.is] == null){
-			console.log('split ERR:',doc.is,'is not a type of',types,doc.name);
+			console.log('parameter ["is"] ERR:'.bgRed.bold,doc.is,'is not a type of',types,doc.name);
 			return;
 		}
 
@@ -414,7 +414,7 @@ function sameGPS(coord1,coord2){
 
 
 
-var MergePriority = {'facebook':2.5,'eventful':1.5,'reverbnation':1,'jambase':1};
+var MergePriority = {'facebook':2.5,'eventful':1.5,'reverbnation':1,'jambase':1,'ticketfly':999};
 
 
 
@@ -1226,14 +1226,14 @@ module.exports = p.async(function(dataset,save){
 
 	validate(dataset) 	//validate data
 	.then(SplitbyType) //split raw data by into types for faster parsing
-	.then(flipEvents)  //flip events to their
-	.then(filterDuplicates) //merge any data
-	.then(fillGPS) //fill GPS data.
-	.then(extractArtists) // extract artists out of each event and link their platform ids to the venue events
-	.then(filterDuplicates) //filter and merge entries that may not have been found because of slightly different GPS addresses.
+	// .then(flipEvents)  //flip events to their
+	// .then(filterDuplicates) //merge any data
+	// .then(fillGPS) //fill GPS data.
+	// .then(extractArtists) // extract artists out of each event and link their platform ids to the venue events
+	// .then(filterDuplicates) //filter and merge entries that may not have been found because of slightly different GPS addresses.
 	
 	
-	.then(linkEventArtists)
+	// .then(linkEventArtists)
 	//.then(syncArtists) //sync all artists and upon save add the document id to the raw artist object to reference it later in syncVenues
 	//.then(syncVenues) // sync documents with database , when syncing event artists save it as a map of artist document ids
 

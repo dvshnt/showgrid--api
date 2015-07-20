@@ -23,7 +23,7 @@ function postVenue(json){
 
 //export our models to the controllers
 module.exports = {
-	venue: require('./models/venue'),
+	venue: require('./models/venue-event'),
 	user: require('./models/user'),
 	artist: require('./models/artist'),
 }

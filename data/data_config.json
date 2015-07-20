@@ -23,6 +23,9 @@
 		},
 		"reverbnation" : {
 			"api" : "https://www.reverbnation.com"
+		},
+		"ticketfly" : {
+			"api":"http://www.ticketfly.com/api"
 		}
 	}
 }

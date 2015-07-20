@@ -112,13 +112,12 @@ module.exports =  {
 	},
 
 
-	//TODO...
 	/*
-		facebook contains 99% of all shows artists and venues, validating data with facebook is guaranteed a complete and total scrape of 
-		all social media present venues shows and artists.
+		facebook has a very nice robust api for searching directly for events and venues.
 
-		in fact, from my research I could even argue that reverbnation actually pulls some of its venue data from facebook itself since some of the
-		venue data such as events are labled with fb_
+		searching for either events will link the event venues with the event
+		and searching for venues will find 100 most recent events for each venue.
+
 	*/
 	'facebook' : {
 		'find': {
@@ -131,12 +130,30 @@ module.exports =  {
 		},
 		'filters' : {
 			'venue' : [facebook.parseVenue],
+			'event' : [facebook.parseEvent]
 		}	
 	},
 
 
-	//get tickets for venue events.
-	'ticketfly' : {
+	/*
+		notice:
 
+		ticketfly has no search based on location, so in order to find events we have to make sure all venues are already in the database.
+
+		updating venues will update all 8000 venues.
+
+		searching for events will search venues like normal but through home database, and then use the ID
+		to get events for each in a specific zipcode or GPS location.
+
+	*/
+	'ticketfly' : {
+		'find': {
+			'venue' : ticketfly.getVenues,
+			'event' : ticketfly.findEvents
+		},
+		'filters' : {
+			'venue' : [ticketfly.parseVenue],
+			'event' : [ticketfly.parseEvent]
+		}
 	}
 }
