@@ -36,12 +36,22 @@ module.exports.findEvents = function(opt){
 			return p.pipe(docs);
 		}else return p.pipe(docs);
 	}).then(function(venues){
+		
+		var done = 0;
+		var total = venues.length;
+
+		//venues
 		_.each(venues,function(venue){
 			module.exports.getEvents({
+				id: venue.venueId;
+			}).then(function(events){
+				done++;
+				venue.events = events;
+				if(done >= total) this.resolve(venues);
+			}.bind(this));
+		}.bind(this));
 
-			});
-		})
-	});
+	}.bind(this));
 }
 
 
@@ -49,7 +59,7 @@ module.exports.findEvents = function(opt){
 
 //get 
 
-module.exports.getVenueEvents = function(opt){
+var getVenueEvents = p.sync(function(opt){
 	var maxpages = opt.max || null;
 	var totalpages = 0;
 	var events = [];
@@ -77,7 +87,7 @@ module.exports.getVenueEvents = function(opt){
 
 	get.bind(this)(1);
 	return this.promise;
-}
+});
 
 
 

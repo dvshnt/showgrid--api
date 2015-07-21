@@ -113,16 +113,19 @@ var findVenues_GPS = p.sync(function(opt){
 			}
 		}}
 	}
+	
 	if(opt.active) db_q.events = {$exists: true, $not: {$size: 0}};
 
+	var promise = db['venue'].find(db_q).limit((opt.limit != null && opt.limit < 500) ? Math.floor(parseInt(opt.limit)) : 100)
 
-	return db['venue']
-		.find(db_q).limit((opt.limit != null && opt.limit < 500) ? Math.floor(parseInt(opt.limit)) : 100)
-		.then(function(docs,err){
-			if(err) return this.resolve([null,'INTERNAL ERR']);
-			if(docs == null) this.resolve([[],null]);
-			return this.resolve([docs,null]);
-		}.bind(this));
+	if(opt.select != null) promise = promise.select(opt.select);
+	promise.then(function(docs,err){
+		if(err) return this.resolve([null,'INTERNAL ERR']);
+		if(docs == null) this.resolve([[],null]);
+		return this.resolve([docs,null]);
+	}.bind(this));
+
+	return this.promise;
 });
 
 
