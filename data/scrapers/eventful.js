@@ -5,7 +5,7 @@ EVENTFUL API
 */
 
 
-var cfg = require('../data_config.json').apis.eventful;
+var cfg = require('../config.json').apis.eventful;
 var request = require('request');
 //var cities = require('cities');
 var Promise = require('bluebird');

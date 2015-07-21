@@ -3,7 +3,7 @@ reliable venue and show scraper.
 https://www.reverbnation.com/main/search?city=&country=US&filter_type=venue&geo=Local&page=45&postal_code=37064&q=&sort=relevance&state=&use_postal_code=1&utf8=%E2%9C%93
 */
 
-var cfg = require('../data_config.json').apis.reverbnation;
+var cfg = require('../config.json').apis.reverbnation;
 
 //var cities = require('cities');
 var cheerio = require('cheerio');

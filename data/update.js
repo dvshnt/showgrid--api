@@ -3,9 +3,9 @@ var _ = require('lodash');
 
 var db = require('./data.js');
 //scraper endpoints
-var scrapers = require('./scrapers');
-var Promise = require('bluebird');
 
+var Promise = require('bluebird');
+var colors = require('colors');
 // //console.log(scrapers)
 //Async data scraping
 
@@ -13,12 +13,15 @@ var Promise = require('bluebird');
 
 var fuzzy = require('fuzzyset.js'); //fuzzy matching for finding models that are similar.
 
-var p = require('./pFactory.js'); //promise factory shortucts.
+var p = require('./pFactory'); //promise factory shortucts.
 
-var Validator = require('./validator.js');
+var Validator = require('./sync/sync');
+var scrapers = require('./scrapers');
 
 
 
+
+if(db.venue == null) return console.error('RECURSIVE MODULE REQUIRE ERROR')
 
 /*
 
@@ -70,12 +73,9 @@ function main(opt){
 
 	//core update function.
 	var update = function(plat,plat_name){
-		////console.log(plat,plat_name);
+
 		//check if platform exists.
-		if(scrapers[plat_name] == null){
-			//console.log('no scraper platform found: ',plat_name);
-			return
-		}
+		if(scrapers[plat_name] == null) return console.log('ERR: '.bgRed.bold,'no scraper platform found: ',plat_name);
 
 
 		//if a platform doesnt have any passed params, we create a new empty settings object.
@@ -89,19 +89,23 @@ function main(opt){
 			
 
 			//catch any scraper config errors.
-			if(scraper.find == null) return //console.error('SCRAPER ERR: '+plat_name+' does not have the method group "find" ');
-			if(scraper.find[endpoint] == null) return //console.error('SCRAPER ERR: '+plat_name+' does not have '+endpoint);
+			if(scraper.find == null) return console.error('SCRAPER ERR: '+plat_name+' does not have the method group "find" ');
+			if(scraper.find[endpoint] == null) return console.error('SCRAPER ERR: '+plat_name+' does not have '+endpoint);
 
 
 			//get the endpoint promise.
-			////console.log(plat.params);
+			console.log(plat.params);
 
 			//ENDPOINT PROMISE
 			var prom = scraper.find[endpoint](_.merge(plat.params,opt.params))
 			.then(function(data){
-				if(data.length == null) return //console.error('UPDATE ERR:',plat_name,endpoint,'data must be an ARRAY!');
+				if(data.length == null){
+					return console.error('UPDATE ERR:'.bgRed,plat_name,endpoint,'data must be an ARRAY!');					
+				}else{
+					console.log('GOT RAW DATA',plat_name.cyan+'/'+endpoint.cyan,':',data.length.toString().yellow.bold);
+				}
 
-				console.log('GOT RAW DATA',plat_name.cyan+'/'+endpoint.cyan,':',data.length.toString().yellow.bold);
+				
 			
 				return new Promise(function(exit_pipe,reject2){
 					var data_total = data.length;

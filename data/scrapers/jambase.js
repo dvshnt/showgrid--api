@@ -5,7 +5,7 @@ JAMBASE API
 */
 
 
-var cfg = require('../data_config.json').apis.jambase;
+var cfg = require('../config.json').apis.jambase;
 var request = require('request');
 //var cities = require('cities');
 var Promise = require('bluebird');

@@ -1,5 +1,5 @@
 //facebook api
-var cfg = require('../data_config.json').apis.facebook;
+var cfg = require('../config.json').apis.facebook;
 var Promise = require('bluebird');
 var request = Promise.promisify(require('request').get);
 var colors = require('colors');

@@ -1,16 +1,15 @@
 
-var debug = require('debug')('api');
-var api_cfg = require('./data/data_config').apis;
+var api_cfg = require('./data/config').apis;
 //var data = require('./data/data.js');
 
 var update = require('./data/update.js');
-var fb = require('./data/scrapers/facebook');
+//var fb = require('./data/scrapers/facebook');
 var Promise = require('bluebird');
 
 var fb_key = null;
 
-fb.getKey().then(function(fb_key){
-	return update({
+/*fb.getKey().then(function(fb_key){
+	return */update({
 		params: {
 			zip: '37064',
 			country: 'US',
@@ -46,6 +45,7 @@ fb.getKey().then(function(fb_key){
 		},
 		save: true
 	})
-}).then(function(data){
+/*}).then(function(data){
 
 });
+*/

@@ -1,5 +1,5 @@
 var router = require('express').Router();
-var db = require('../data/data');
+var data = require('../data/data');
 var update = require('../data/update');
 var cities = require('cities');
 var Promise = require('bluebird');
@@ -7,8 +7,6 @@ var p = require('../data/pFactory');
 var gps = require('../data/gps');
 var _ = require('lodash');
 
-
-var getters = require('../data/getter');
 
 /**
  * FIND VENUES
@@ -30,11 +28,13 @@ zipcode or lat and lon variables
 
 
 function findVenues(req,res,next){
-	getter.find['venue'](req.res).spread(dat,err){
+	data
+	.find['venue'](req.res)
+	.spread(function(dat,err){
 		if(err) dat.status(500).send(err);
 		else if(dat.length == 0) dat.status(404).send(dat); 
 		else res.status(200).json(dat);	
-	}	
+	});
 }
 
 
@@ -72,7 +72,7 @@ function getVenue(req,res,next){
 	}
 
 
-	db['venue'].findOne(db_q).then(function(doc,err){
+	data['venue'].findOne(db_q).then(function(doc,err){
 		if(err) return res.status(500).send('INTERNAL ERR');
 		if(doc == null) res.status(404).send('NOTHING FOUND');
 		res.json(doc);
@@ -100,11 +100,13 @@ function updateVenue(req,res,next){
  * @param {string} artists - only find events that have artists
  */
 function findEvents(req,res,next){
-	getter.find['event'](req.res).spread(dat,err){
+	data
+	.find['event'](req.res)
+	.spread(function(dat,err){
 		if(err) dat.status(500).send(err);
 		else if(dat.length == 0) dat.status(404).send(dat); 
 		else res.status(200).json(dat);	
-	}
+	})
 }
 
 
@@ -136,7 +138,7 @@ function getEvent(req,res,next){
 	}
 
 
-	db['venue'].findOne(db_q).then(function(doc,err){
+	data['venue'].findOne(db_q).then(function(doc,err){
 		if(err) return res.status(500).send('INTERNAL ERR');
 		if(doc == null) res.status(404).send('NOTHING FOUND');
 		res.json(doc);
@@ -221,7 +223,7 @@ function findArtists_GPS(req,res,next){
 
 	if(req.query.active) db_q.events = {$exists: true, $not: {$size: 0}};
 
-	return db['venue']
+	return data['venue']
 		.find(db_q)
 		.populate('events.artists.headliners','events.artists.openers')
 		.then(function(docs,err){
@@ -269,7 +271,7 @@ function getArtist(req,res,next){
 	}
 
 
-	db['artist'].findOne(db_q).then(function(doc,err){
+	data['artist'].findOne(db_q).then(function(doc,err){
 		if(err) return res.status(500).send('INTERNAL ERR');
 		if(doc == null) res.status(404).send('NOTHING FOUND');
 		res.json(doc);

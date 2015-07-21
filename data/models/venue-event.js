@@ -58,7 +58,7 @@ var venueSchema = new db.Schema({
 	platformIds:[{type:String,required: true}],
 	platforms: [{name:String,id:String,_id:false}],
 	
-	created: {type: Date, required: true},
+	created: {type: Date},
 
 	name: {type:String, required: true},
 	

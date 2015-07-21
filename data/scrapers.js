@@ -1,35 +1,4 @@
 
-var _ = require('lodash');
-var scrapers;
-var data = require('./data');
-var Promise = require('bluebird');
-
-
-/*
-API Scrapers/Strategies
-
-Remmember to add a parser when u add a new scraper module
-
-each strategy must have 3 parsers
-*/
-
-
-
-var getter_count = 3;
-var parser_count = 3
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 var jambase = require('./scrapers/jambase');
 var eventful = require('./scrapers/eventful');
@@ -49,7 +18,9 @@ Calling scrapers from this raw module can lead to unexpected results, make sure 
 
 */
 
-module.exports =  {
+
+
+var scrapers = {
 
 	'jambase' : {
 		'find': {
@@ -151,9 +122,18 @@ module.exports =  {
 			'venue' : ticketfly.getVenues,
 			'event' : ticketfly.findEvents
 		},
+		'get':{
+
+		},
 		'filters' : {
 			'venue' : [ticketfly.parseVenue],
-			'event' : [ticketfly.parseEvent]
+			'event' : [ticketfly.parseVenue]
 		}
 	}
 }
+
+
+
+
+module.exports = scrapers;
+
