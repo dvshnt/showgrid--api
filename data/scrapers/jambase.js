@@ -154,7 +154,9 @@ module.exports.parseEvent = p.sync(function(event){
 	var e = {
 		is: 'event',
 		platforms:[{name:'jambase',id:event.Id}],
-		date: moment(event.Date,moment.ISO_8601).utc().format(), //ISO 8601 +0.00 UTC DATE FORMAT ONLY!
+		date: {
+			start: new Date(event.Date).toISOString(),
+		},
 		name: event.Name,
 		age: null,
 		tickets: [{

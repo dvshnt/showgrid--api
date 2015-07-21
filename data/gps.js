@@ -19,13 +19,15 @@ var fuzzy = require('fuzzyset.js')
 var default_radius = 50; 
 
 
-module.exports = p.sync(function(name,addr,zip){
+module.exports = p.sync(function(name,addr,zip,gps){
 	var addr = addr || {};
 	if(zip != null) return geocode(zip);
 
 
 	function geocode(zip){
-		if(zip != null){
+		if(gps != null){
+			var url = geo_api+ "?" +"latlon=" + gps + ""+'&sensor=false'
+		}else if(zip != null){
 			var url = geo_api+ "?" +"address=" + zip + ""+'&sensor=false'
 		}else{
 			var url = geo_api+ "?" +"address=" + addr_strict + ""+'&sensor=false'
@@ -44,9 +46,28 @@ module.exports = p.sync(function(name,addr,zip){
 				addr.gps = [loc.geometry.location.lat,loc.geometry.location.lng];
 				
 
+				var city = null, state = null, country = null;
+
+
+				_.each(loc.address_components,function(comp){
+					_.each(comp.types,function(type){
+						if(type == 'administrative_area_level_1'){
+							state = comp.short_name;
+						}else if(type == 'locality'){
+							city = comp.short_name;
+						}else if(type == 'country'){
+							country = comp.short_name
+						}
+					});
+				});
+
+
 				this.resolve({
 					address: loc.formatted_address,
-					gps: [loc.geometry.location.lat,loc.geometry.location.lng]
+					gps: [loc.geometry.location.lat,loc.geometry.location.lng],
+					city: city,
+					state: ctate,
+					country: country
 				});
 			}
 			

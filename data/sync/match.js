@@ -45,7 +45,7 @@ function checkname(v1,v2){
 	var contains = t_name1.match(new RegExp(t_name2,'i')) || t_name2.match(new RegExp(t_name1,'i'));
 
 
-	if( (contains != null && Math.abs(t_name2.length-t_name1.length) < max_name_diff_count) || (n_match != null && n_match[0][0] > 0.9)) return true;
+	if( (contains != null && Math.abs(t_name2.length-t_name1.length) < max_name_diff_count && n_match != null && n_match[0][0] > 0.6) || (n_match != null && n_match[0][0] > 0.9)) return true;
 	return false;
 
 }
@@ -76,7 +76,7 @@ match.event = function(ev1,ev2){
 
 	checkname(ev1,ev2);
 	
-	if(ev1.date == ev2.date && v_match[0][0] > 0.9 && sameArtists(ev1.artists,ev2.artists) >= 0){
+	if(ev1.date.start == ev2.date.start && v_match[0][0] > 0.9 && sameArtists(ev1.artists,ev2.artists) >= 0){
 		return true
 	}
 

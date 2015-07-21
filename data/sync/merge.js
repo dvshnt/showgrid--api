@@ -59,7 +59,7 @@ merge.venue = function(e1,e2,priority){//priority boolean defaults to true
 		i2+= MergePriority[plat.name]
 	});
 
-
+	
 	//platforms ->
 	merged.platforms = _.uniq(_.union(e1.platforms,e2.platforms),'name','id');
 
@@ -89,40 +89,51 @@ merge.venue = function(e1,e2,priority){//priority boolean defaults to true
 	merged.links = _.uniq(e1.links,e2.links);
 
 	//->tags
-	merged.tags = _.uniq(e1.tags,e2.tags,function(tag){
-		if(_.isNumber(tag)) tag = tag.toString();
-		return tag.toLowerCase();
-	})
+	if(e1.tags == null || e2.tags == null){
+		merged.tags = e1.tags || e2.tags;
+	}else{
+		merged.tags = _.uniq(e1.tags,e2.tags,function(tag){
+			if(_.isNumber(tag)) tag = tag.toString();
+			return tag.toLowerCase();
+		})		
+	}
+
 
 	//phone ->
 	if(i1 >= i2 && e1.phone != null) merged.phone = e1.phone;
 	else merged.phone = e2.phone;
 
 	//banners ->
-	merged.banners = _.uniq(_.union(e1.banners,e2.banners));
+	if(e2.banners == null || e1.banners == null){
+		merged.banners = e2.banners || e1.banners;
+	}else{
+		merged.banners = _.uniq(_.union(e1.banners,e2.banners));
+	}
+	
 
 	//age ->
 	if(i1 >= i2 && e1.age != null) merged.age = e1.age;
 	else merged.age = e2.age;
 
 	//events ->
+	if(e2.events == null || e1.events == null){
+		merged.events = e2.events || e1.events;
+	}else{
+		_.each(_.union(e2.events,e1.events),function(event){
+			var good = true,
+				matched = 0;
+			_.each(merged.events,function(new_event,i){
+				if(_.match['event'](new_event,event)){
+					good = false;
+					matched = i;
+					return false;
+				}
+			});
+			if(!good) merged.events[matched] = merge['event'](merged.events[matched],event,null,i1,i2);
+			else merged.events.push(event);
+		});	
+	}
 
-	_.each(_.union(e2.events,e1.events),function(event){
-		var good = true,
-			matched = 0;
-		_.each(merged.events,function(new_event,i){
-			if(_.match['event'](new_event,event)){
-				good = false;
-				matched = i;
-				return false;
-			}
-		});
-		if(!good) merged.events[matched] = merge['event'](merged.events[matched],event,null,i1,i2);
-		else merged.events.push(event);
-	});
-
-
-	
 
 	return merged
 };
@@ -185,8 +196,11 @@ merge.event = function(e1,e2,priority,count1,count2){
 	else merged.name = e2.name
 
 	//date -> (required)
-	if(i1 >= i2) merged.date = e1.date
-	else merged.date = e2.date	
+	merged.date = {}
+	if(i1 >= i2) merged.date.start = e1.date.start
+	else merged.date.start = e2.date.start
+	if(i1 >= i2) merged.date.end = e1.date.end
+	else merged.date = e2.date.end
 
 	//tickets ->
 	merged.tickets = _.uniq(_.union(e1.tickets,e2.tickets),'url');

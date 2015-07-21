@@ -226,6 +226,9 @@ module.exports.parseEvent = function(event){
 		venue: event.place != null ? (function(place){
 			return module.exports.parseVenue(place);
 		})(event.place) : null,
+		date: {
+			start: new Date(event.start_time).toISOString()
+		}
 		tickets: [{
 			url: event.ticket_uri
 		}],

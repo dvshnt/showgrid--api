@@ -12,9 +12,6 @@ var util = require('util');
 var getter = require('../data');
 
 
-
-
-
 /*
 
 Get all ticketfly events in a sepcific radius.
@@ -26,82 +23,55 @@ max_query only applies to how many venues to search for.
 
 
 module.exports.findEvents = p.sync(function(opt){
-	console.log('asd');
-	getter.find['venue']({
-		zip: opt.zip,
-		radius: opt.radius,
-		limit: opt.query_size,
-	}).spread(function(docs,err){
-		if(err){
-			console.log('TICKEFLY FETCH EVENTS ERROR IN FIND VENUES');
-			return Promise.reject(err);
-		}else if(dat.length == 0){
-			console.log('NOTHING FOUND'.bgRed);
-			return p.pipe(docs);
-		}else return p.pipe(docs);
-	}).then(function(venues){
-		var done = 0;
-		var total = venues.length;
-		//venues
-		_.each(venues,function(venue){
-			module.exports.getEvents({
-				id: venue.venueId
-			}).then(function(events){
-				done++;
-				venue.events = events;
-				if(done >= total) this.resolve(venues);
-			}.bind(this));
-		}.bind(this));
-	}.bind(this));
-
-	return this.promise;
-});
+	
 
 
+	var limit = opt.query_size || 5000, radius = opt.radius || 50;
+	
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//get 
-var getVenueEvents = p.sync(function(opt){
 	var maxpages = opt.max || null;
 	var totalpages = 0;
 	var events = [];
 
 
-	function get(page){
-		request({
-			url: cfg.api+"/events/upcoming?pageNum="+page+"&maxResults=200&venueId="+opt.id,
-			json: true
-		}).spread(function(res,dat,err){
-			if(err) this.reject(err);
-			else if(dat != null){
-				console.log(dat.pageNum)
-				totalpages = dat.totalPages
-				events = events.concat(dat.events);
-				if(dat.pageNum >= (maxpages || totalpages)){
-					this.resolve(events);
-				}else{
-					get(dat.pageNum+=1);
-				}
-			}
+	function get(gps,limit,radius){
+		request(url: cfg.api+"/events/upcoming?pageNum="+page+"&maxResults=200&distance="+radius+"mi&location=geo:"+gps[0],gps[1]+opt.id,json: true)
+		.spread(function(docs,err){
+			if(err) return this.reject(err);
 
+
+
+			process.stdout.clearLine();
+			process.stdout.cursorTo(0);
+			process.stdout.write('tickfly getEvents: '+dat.pageNum.toString().yellow+'/'+totalpages.toString().cyan);
+			
+
+			events = events.concat(dat.events);
+
+			
+			if(dat.pageNum >= totalpages || events.length >= limit){
+				this.resolve(events);
+			}else{
+				get.bind(this)(dat.pageNum+=1);
+			}
 		}.bind(this));
 	}
 
-	get.bind(this)(1);
+
+
+	//if we gps is passed, do not fetch gps data from google.
+	if(opt.gps != null){
+		get(opt.gps,limit,radius).then(function(events){
+			this.resolve(events);
+		}.bind(this))
+
+	//otherwise fetch gps data from google.
+	}else if(opt.zip != null){
+		gps(null,null,opt.zip,null).then(function(addr){
+			return p.pipe(get(addr.gps,limit,radius))
+		});
+	}
+
 	return this.promise;
 });
 
@@ -113,42 +83,86 @@ var getVenueEvents = p.sync(function(opt){
 
 
 
+var getCityStateCountry = p.sync(function(loc){
+	
+	//get by GPS..
+	if(_.isArray(loc)){
+		gps(null,null,null,loc[0]+','+loc[1]).then(function(addr){
+			this.resolve(addr);
+		}.bind(this))
+	}
+
+
+	//get by zipcode
+	else if(_.isString(loc) || _.isNumber(loc)){
+		gps(null,null,loc).then(function(addr){
+			this.resolve(addr)
+		}.bind(this))
+	}
+});
 
 
 
 
 
 
-//fetch all venues from the api
-module.exports.getVenues = p.async(function(){
-	var totalpages = 0;
+
+
+
+//fetch all venues from city
+module.exports.getVenues = p.async(function(opt){
+
+	var loc = opt.zip || opt.gps;
+
+	var q;
+
+
+
+
+	var totalpages = 10;
 	var venues = [];
 
-	console.log('FETCH VENUES')
+	
 	function get(page){
 		request({
-			url: cfg.api+"/venues?pageNum="+page+"&maxResults=10",
+			url: cfg.api+"/venues?pageNum="+page+"&maxResults=200&"+q,
 			json: true
 		}).spread(function(res,dat,err){
 			if(err) this.reject(err);
 			else if(dat != null){
-				console.log(dat.pageNum)
-				totalpages = dat.totalPages
+				process.stdout.clearLine();
+				process.stdout.cursorTo(0);
+				process.stdout.write('tickfly getVenues: '+dat.pageNum.toString().yellow+'/'+totalpages.toString().cyan);
+				//totalpages = dat.totalPages
 
 				venues = venues.concat(dat.venues);
 
 				
-				if(dat.pageNum >= 1 /*totalpages*/){
+				if(dat.pageNum >= totalpages){
 					this.resolve(venues);
 				}else{
-					get(dat.pageNum+=1);
+					get.bind(this)(dat.pageNum+=1);
 				}
 			}
 
 		}.bind(this));
 	}
 
-	get.bind(this)(1);
+	getCityStateCountry(loc).then(function(location){
+		if(location == null){
+			q = ''
+		}else{
+			q = qs.stringify({
+				city: location.city,
+				stateProvince: location.state,
+				country: location.country
+			})
+		}
+		
+		return p.pipe(1)
+	}).then(get.bind(this));
+
+
 	return this.promise;
 });
 
@@ -165,14 +179,28 @@ module.exports.getVenues = p.async(function(){
 
 
 module.exports.parseEvent = function(event){
-	console.log(event);
+
+	console.log(event.headlinersName)
+
 	var parsed = {
 		is: 'event',
 		platforms: [{
 			name: 'ticketfly',
 			id: event.id
-		}]
+		}],
+		venue: module.exports.parseVenue(event.venue),
+		created: event.dateCreated,
+		artists: {
+			openers: [],
+			headliners: []
+		},
+		date: {
+			start: new Date(event.startDate).toISOString(),
+			end: new Date(event.endDate).toISOString()
+		},
+		
 	}
+
 
 	return parsed;
 }
@@ -214,8 +242,5 @@ module.exports.parseVenue = function(venue){
 
 	
 
-	return p.pipe(parsed);
+	return parsed;
 }
-
-
-

@@ -15,7 +15,10 @@ var eventSchema = new db.Schema({
 	
 
 	name: {type:String, required: true},
-	date: {type: Date, required: true},
+	date: {
+		start: {type: Date, required: true},
+		end: {type: Date}
+	},
 	tickets: [{
 		price: Number,
 		soldout: Boolean,

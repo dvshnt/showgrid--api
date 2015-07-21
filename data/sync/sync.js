@@ -22,11 +22,17 @@ var validate = function(dataset){
 
 	_.each(dataset,function(doc,i){
 		
+		//translate geocode to interger
+		if(doc.location != null && doc.location.gps != null && doc.location.gps.length != 0){
+			doc.location.gps[0] = parseInt(doc.location.gps[0])
+			doc.location.gps[1] = parseInt(doc.location.gps[1]);
+		}
+		
 
 		function removeSpecials(obj){
 			for (k in obj){
 				if(_.isObject(obj[k])) removeSpecials(obj[k]);
-				else if(_.isString(obj[k])) obj[k] = obj[k] = obj[k].replace(/\@|\$|\%|\^|\*|\(|\)|\_|\+|\-|\=|\[|\]|\{|\}|\;|\:|\"|\\|\||\<|\>|\/|\?|\]/g,'');
+				else if(_.isString(obj[k])) obj[k] = obj[k] = obj[k].replace(/\@|\$|\%|\^|\*|\(|\)|\_|\=|\[|\]|\{|\}|\;|\:|\"|\\|\||\<|\>|\/|\?|\]/g,'');
 			}
 		}
 
@@ -290,23 +296,36 @@ var util = require('util');
 FILTER OUT DUPLICATES BY MATCHING BY TYPE.
 
 */
+
+
+
+
+
 var filterDuplicates = function(typeset){
+
+	var max_dupl = 2;
+
+
+	typeset.filter()
+
+
+
 	_.each(typeset,function(dataset,type){
 
 		var l = dataset.length;
-		console.log(dataset.length)
 		//match and merge
 		for(var i = 0;i<l;i++){
 			if(dataset[i] == null) continue;
+		 	var dupl_count = 0;
 			for(var j = 0;j<l;j++){
 				if(dataset[j] == null || j == i) continue;
 				if(match[type](dataset[i],dataset[j])){
-					console.log(dataset[i],dataset[j])
 					console.log('MERGING...'.bgBlue,dataset[i].name.inverse,dataset[j].name);
 					dataset[i] = merge[type](dataset[i],dataset[j]);
 					dataset[j] = null;
 				}
 			}
+			//console.log('checked ',i,'/',j);
 		}
 
 
@@ -769,7 +788,9 @@ module.exports = p.async(function(dataset,save){
 	.then(filterDuplicates) //merge any data
 	.then(fillGPS)			//fill GPS data.
 	.then(extractArtists) 	//extract artists out of each event and link their platform ids to the venue events
+
 	.then(filterDuplicates) //filter and merge entries that may not have been found because of slightly different GPS addresses.
+
 	.then(linkEventArtists)
 	.then(syncArtists) 		//sync all artists and upon save add the document id to the raw artist object to reference it later in syncVenues
 	.then(syncVenues) 		// sync documents with database , when syncing event artists save it as a map of artist document ids

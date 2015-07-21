@@ -293,28 +293,22 @@ var getVenueEvents = p.sync(function(venueid){
 module.exports.parseEvent = function(nugget){
 	var $ = cheerio.load(nugget);
 
-
 	var event_id = $($('.shows_buttons_container > a')[0]).attr('href');
 	var event = {
 		is: 'event',
 		platforms: [{name:'reverbnation',id:event_id != null ? event_id.match(/\d+/)[0] : null}],
-		date: new Date($('.shows_date_').text()+' '+new Date().getFullYear()).toISOString(),
+		date: {
+			start: new Date($('.shows_date_').text()+' '+new Date().getFullYear()).toISOString()
+		},
 		artists : {headliners:[]},
 		tickets : [{
 			url: $($('.shows_buttons_container > a')[2]).attr('href')
 		}]
 	};
 
-
-
 	var event_performers = $('.shows_bands_container_ > li');
-
-
 	var total = event_performers.length;
-	
 	var count = 0;
-
-
 
 	return new Promise(function(res,rej){
 		_.each(event_performers,function(el){
@@ -331,8 +325,6 @@ module.exports.parseEvent = function(nugget){
 		//console.log(event);
 		res(event);
 	});
-	
-	
 }
 
 
