@@ -182,7 +182,36 @@ module.exports.getVenues = p.async(function(opt){
 
 
 module.exports.parseArtist = function(artist){
-	
+	parsed = {
+		is: 'artist',
+		platforms: [{
+			name: 'ticketfly',
+			id: artist.id
+		}],
+		name: artist.name,
+		description: artist.eventDescription,
+
+		links: _.filter([
+			artist.urlAudio,
+			artist.urlMyspace,
+			artist.urlPurchaseMusic,
+			artist.urlTwitter,
+			artist.urlFacebook,
+		],function(link){
+			return link != null && link != '';
+		}),
+
+		streams: _.flatten(_.filter([
+			artist.embedVideo,
+
+			_.map(artist.youtubeVideos,function(video){
+				return video.embedCodeIframe
+			}),
+			artist.embedAudio
+		]))
+	}
+
+	return parsed;
 }
 
 
@@ -193,17 +222,18 @@ module.exports.parseArtist = function(artist){
 
 module.exports.parseEvent = function(event){
 	
-	console.log(util.inspect(event, { showHidden: true, depth: null }));
 	
-
+	
 	var parsed = {
+
 		is: 'event',
+		
 		platforms: [{
 			name: 'ticketfly',
 			id: event.id
 		}],
-		
 
+		description: event.description,
 
 		name: event.name,
 
@@ -215,20 +245,28 @@ module.exports.parseEvent = function(event){
 			return img.path;
 		}),
 
-		
 		artists: {
-			openers: [],
-			headliners: []
+			openers: _.map(event.openers,function(artist){
+				return module.exports.parseArtist(artist);
+			}),
+			headliners: _.map(event.headliners,function(artist){
+				return module.exports.parseArtist(artist);
+			})
 		},
 		
-		tickets: {
+		tickets: _.union([{
+			price: event.ticketPrice,
 			sale: {
 				start: event.onSaleDate,
 				end: event.offSaleDate
 			},
-			url: ticketPurchaseUrl,
-
-		},
+			broker: 'ticketfly',
+			url: event.ticketPurchaseUrl,
+		}],_.map(externalTicketingUrls,function(url){
+			return {
+				url: url
+			}
+		})),
 
 		age: event.ageLimit,
 
@@ -236,13 +274,9 @@ module.exports.parseEvent = function(event){
 			start: new Date(event.startDate).toISOString(),
 			end: new Date(event.endDate).toISOString()
 		},
-
 	}
 
-
-	
-
-
+	console.log(util.inspect(event, { showHidden: true, depth: null }));
 	return parsed;
 }
 

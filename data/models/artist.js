@@ -4,17 +4,17 @@ var db = Promise.promisifyAll(require('mongoose'));
 var scrapers = require('../scrapers.js')
 var artistSchema = new db.Schema({
 
-	//identification
 	platformIds:[{type:String}],
 	platforms: [{name:String,id:String,_id:false}],
-
-
+	description: String,
 	isGroup: {type: Boolean,default: false}, //artist Schema can be a band/group and an artist at the same time.
 	name: {type:String, required: true},
 	demand: Number, //how much demand for this artist?
 	created: {required: true, type:Date},
 	links: [{type:String}],
 	banners: [{type:String}],
+	streams: [{type:String}],
+
 	members: [{type:db.Schema.Types.ObjectId, ref: 'Artist'}],
 },{autoIndex: false}); 
 

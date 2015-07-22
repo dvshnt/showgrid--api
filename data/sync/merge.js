@@ -378,6 +378,14 @@ merge.artist = function(e1,e2,priority){
 	//isGroup ->
 	merged.isGroup = merged.members.length > 0 ? true : false;
 
+
+	//streams
+	merged.streams = _.uniq(_.union(e1.streams,e2.streams));
+
+	//description
+	if(i1 >= i2 && e1.created != null) merged.description = e1.description
+	else merged.description = e2.description
+
 }
 
 
