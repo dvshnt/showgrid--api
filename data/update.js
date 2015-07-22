@@ -125,7 +125,15 @@ function main(opt){
 
 						//cycle through all the filters.
 						_.each(scraper.filters[endpoint],function(filter){
-							obj_pipe = obj_pipe.then(filter);
+
+							//check if promise
+							if(filter.then != null && _.isFunction(filter.then)){
+								obj_pipe = obj_pipe.then(filter);
+							}else{
+								obj_pipe = obj_pipe.then(function(obj){
+									return p.pipe(filter(obj));
+								})
+							}
 						});
 
 						

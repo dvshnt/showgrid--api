@@ -25,7 +25,7 @@ var fb_key = null;
 			// 	endpoints : ['venue'],
 			// },
 			'ticketfly': {
-				endpoints: ['venue'],
+				endpoints: ['event'],
 			},
 			// 'facebook': {
 			// 	endpoints: ['venue'],

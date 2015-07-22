@@ -216,6 +216,12 @@ module.exports.parseVenue = function(venue){
 }
 
 
+
+
+
+
+
+
 module.exports.parseEvent = function(event){
 	var parsed = {
 		platforms:[{
@@ -228,7 +234,7 @@ module.exports.parseEvent = function(event){
 		})(event.place) : null,
 		date: {
 			start: new Date(event.start_time).toISOString()
-		}
+		},
 		tickets: [{
 			url: event.ticket_uri
 		}],

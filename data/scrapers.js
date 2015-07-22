@@ -127,7 +127,7 @@ var scrapers = {
 		},
 		'filters' : {
 			'venue' : [ticketfly.parseVenue],
-			'event' : [ticketfly.parseVenue]
+			'event' : [ticketfly.parseEvent]
 		}
 	}
 }

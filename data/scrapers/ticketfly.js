@@ -23,21 +23,28 @@ max_query only applies to how many venues to search for.
 
 
 module.exports.findEvents = p.sync(function(opt){
-	
-
-
 	var limit = opt.query_size || 5000, radius = opt.radius || 50;
-	
-
 	var maxpages = opt.max || null;
 	var totalpages = 0;
+	var coords = [];
 	var events = [];
 
 
-	function get(gps,limit,radius){
-		request(url: cfg.api+"/events/upcoming?pageNum="+page+"&maxResults=200&distance="+radius+"mi&location=geo:"+gps[0],gps[1]+opt.id,json: true)
-		.spread(function(docs,err){
-			if(err) return this.reject(err);
+	function get(page){
+		//console.log(coords);
+		request({
+			url: cfg.api+"/events/list?orgId=1&pageNum="+page+"&maxResults=5&distance="+radius+"mi&location=geo:"+coords[0]+","+coords[1],
+			json: true
+		})
+
+
+		.spread(function(res,dat,err){
+
+
+			if(err != null){
+				console.log('TICKETFLY GET ERR',err);
+				return this.reject();
+			}
 
 
 
@@ -47,9 +54,9 @@ module.exports.findEvents = p.sync(function(opt){
 			
 
 			events = events.concat(dat.events);
-
+			console.log('TEST2')
 			
-			if(dat.pageNum >= totalpages || events.length >= limit){
+			if(dat.pageNum >= 1/*totalpages*/ || events.length >= limit){
 				this.resolve(events);
 			}else{
 				get.bind(this)(dat.pageNum+=1);
@@ -61,15 +68,17 @@ module.exports.findEvents = p.sync(function(opt){
 
 	//if we gps is passed, do not fetch gps data from google.
 	if(opt.gps != null){
-		get(opt.gps,limit,radius).then(function(events){
+		coords = opt.gps;
+		get.bind(this)(1).then(function(events){
 			this.resolve(events);
 		}.bind(this))
 
 	//otherwise fetch gps data from google.
 	}else if(opt.zip != null){
 		gps(null,null,opt.zip,null).then(function(addr){
-			return p.pipe(get(addr.gps,limit,radius))
-		});
+			coords = addr.gps;
+			get.bind(this)(1);
+		}.bind(this));
 	}
 
 	return this.promise;
@@ -172,6 +181,10 @@ module.exports.getVenues = p.async(function(opt){
 
 
 
+module.exports.parseArtist = function(artist){
+	
+}
+
 
 
 
@@ -179,8 +192,9 @@ module.exports.getVenues = p.async(function(opt){
 
 
 module.exports.parseEvent = function(event){
-
-	console.log(event.headlinersName)
+	
+	console.log(util.inspect(event, { showHidden: true, depth: null }));
+	
 
 	var parsed = {
 		is: 'event',
@@ -188,22 +202,56 @@ module.exports.parseEvent = function(event){
 			name: 'ticketfly',
 			id: event.id
 		}],
+		
+
+
+		name: event.name,
+
 		venue: module.exports.parseVenue(event.venue),
+		
 		created: event.dateCreated,
+
+		banners: _.map(event.image,function(img,key){
+			return img.path;
+		}),
+
+		
 		artists: {
 			openers: [],
 			headliners: []
 		},
+		
+		tickets: {
+			sale: {
+				start: event.onSaleDate,
+				end: event.offSaleDate
+			},
+			url: ticketPurchaseUrl,
+
+		},
+
+		age: event.ageLimit,
+
 		date: {
 			start: new Date(event.startDate).toISOString(),
 			end: new Date(event.endDate).toISOString()
 		},
-		
+
 	}
+
+
+	
 
 
 	return parsed;
 }
+
+
+
+
+
+
+
 
 
 
@@ -233,6 +281,9 @@ module.exports.parseVenue = function(venue){
 			name: 'ticketfly',
 			id: venue.id
 		}],
+		banners: [
+
+		],
 		name: venue.name,
 		location: {
 			address: venue.address1 + ' ' + venue.address2 + ' '+venue.city+ ' '+venue.stateProvince+' '+venue.postalCode,
@@ -240,7 +291,9 @@ module.exports.parseVenue = function(venue){
 		},
 	}
 
-	
-
 	return parsed;
 }
+
+
+
+

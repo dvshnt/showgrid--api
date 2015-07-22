@@ -24,7 +24,7 @@ var validate = function(dataset){
 		
 		//translate geocode to interger
 		if(doc.location != null && doc.location.gps != null && doc.location.gps.length != 0){
-			doc.location.gps[0] = parseInt(doc.location.gps[0])
+			doc.location.gps[0] = parseInt(doc.location.gps[0]);
 			doc.location.gps[1] = parseInt(doc.location.gps[1]);
 		}
 		
@@ -306,7 +306,7 @@ var filterDuplicates = function(typeset){
 	var max_dupl = 2;
 
 
-	typeset.filter()
+
 
 
 

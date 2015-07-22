@@ -26,11 +26,11 @@ module.exports = p.sync(function(name,addr,zip,gps){
 
 	function geocode(zip){
 		if(gps != null){
-			var url = geo_api+ "?" +"latlon=" + gps + ""+'&sensor=false'
+			var url = geo_api+ "?" +"location=" + gps + '&sensor=false'
 		}else if(zip != null){
-			var url = geo_api+ "?" +"address=" + zip + ""+'&sensor=false'
-		}else{
-			var url = geo_api+ "?" +"address=" + addr_strict + ""+'&sensor=false'
+			var url = geo_api+ "?" +"address=" + zip + '&sensor=false'
+		}else{	
+			var url = geo_api+ "?" +"address=" + addr_strict + '&sensor=false'
 		}
 		
 		return request({url:url,json:true})
@@ -66,7 +66,7 @@ module.exports = p.sync(function(name,addr,zip,gps){
 					address: loc.formatted_address,
 					gps: [loc.geometry.location.lat,loc.geometry.location.lng],
 					city: city,
-					state: ctate,
+					state: state,
 					country: country
 				});
 			}
