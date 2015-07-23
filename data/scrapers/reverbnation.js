@@ -596,4 +596,6 @@ module.exports.parseVenueFindItem = p.sync(function(venue){
 	}.bind(this));
 
 	return this.promise
-})
+});
+
+

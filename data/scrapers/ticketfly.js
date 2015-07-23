@@ -270,7 +270,7 @@ module.exports.parseEvent = function(event){
 				end: event.offSaleDate != null ? moment(event.offSaleDate).tz(event.venue.timeZone).utc().format() : null,
 			},
 			broker: 'ticketfly',
-			url: event.ticketPurchaseUrl,
+			url: 'http://www.shareasale.com/r.cfm?B=02&U=1118395&M=01&urllink='+event.ticketPurchaseUrl,
 		}], _.isArray(event.externalTicketingUrls) ? _.map(event.externalTicketingUrls,function(url){
 			return {
 				url: url
