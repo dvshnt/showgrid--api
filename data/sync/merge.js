@@ -3,7 +3,7 @@ var Promise = require('bluebird');
 var fuzzy = require('fuzzyset.js'); //fuzzy matching for finding models that are similar.
 var p = require('../pFactory.js'); //promise factory shortucts.
 var colors = require('colors');
-
+var match = require('./match');
 
 
 /*
@@ -116,22 +116,36 @@ merge.venue = function(e1,e2,priority){//priority boolean defaults to true
 	else merged.age = e2.age;
 
 	//events ->
-	if(e2.events == null || e1.events == null){
+	if( !_.isArray(e2.events) || !_.isArray(e1.events) ){
 		merged.events = e2.events || e1.events;
 	}else{
-		_.each(_.union(e2.events,e1.events),function(event){
-			var good = true,
-				matched = 0;
-			_.each(merged.events,function(new_event,i){
-				if(_.match['event'](new_event,event)){
-					good = false;
-					matched = i;
-					return false;
+
+		var un = _.union(e2.events,e1.events);
+
+	
+		for(var i = 0;i<un.length;i++){
+			
+			var matched = null;
+			for(var j = 0;j<merged.events.length;j++){
+				
+				
+				if(match.event(un[i],merged.events[j])){
+					matched = j;
+					break;
 				}
-			});
-			if(!good) merged.events[matched] = merge['event'](merged.events[matched],event,null,i1,i2);
-			else merged.events.push(event);
-		});	
+			}
+			if(j<merged.events.length){
+				//console.log('MERGING',merged.events[j].name,un[i].name,j,matched);
+				//console.log('\n\n')
+				merged.events[j] = merge['event'](merged.events[j],un[i],null,i1,i2);
+				//if(merged.events[j] == null){
+				//	console.log("STOP")
+				//}
+			} 
+			else merged.events.push(un[i]);
+		}
+
+		
 	}
 
 
@@ -200,7 +214,7 @@ merge.event = function(e1,e2,priority,count1,count2){
 	if(i1 >= i2) merged.date.start = e1.date.start
 	else merged.date.start = e2.date.start
 	if(i1 >= i2) merged.date.end = e1.date.end
-	else merged.date = e2.date.end
+	else merged.date.end = e2.date.end
 
 	//tickets ->
 	merged.tickets = _.uniq(_.union(e1.tickets,e2.tickets),'url');
@@ -234,7 +248,7 @@ merge.event = function(e1,e2,priority,count1,count2){
 
 			var good = true, matched = 0;
 			_.each(merged.artists.headliners,function(new_artist,i){
-				if(_.match['artist'](new_artist,artist)){
+				if(match['artist'](new_artist,artist)){
 					good = false;
 					matched = i;
 					return false;
@@ -248,7 +262,7 @@ merge.event = function(e1,e2,priority,count1,count2){
 		_.each(_.union(e2.artists.openers,e1.artists.openers),function(artist){
 			var good = true, matched = 0;
 			_.each(merged.artists.openers,function(new_artist,i){
-				if(_.match['artist'](new_artist,artist)){
+				if(match['artist'](new_artist,artist)){
 					good = false;
 					matched = i;
 					return false;
@@ -257,6 +271,8 @@ merge.event = function(e1,e2,priority,count1,count2){
 			if(!good) merged.artists.openers[matched] = merge['artist'](merged.artists.openers[matched],artist);
 			else merged.artists.openers.push(artist);
 		});
+
+	return merged;
 }
 
 
@@ -320,6 +336,10 @@ function artistWeight(e1,e2){
 
 
 merge.artist = function(e1,e2,priority){
+	if(e1.constructor.name == 'ObjectID' || e2.constructor.name == 'ObjectID'){
+		return e1;
+	}
+
 	if(e1 == null || e2 == null) return e1 || e2 || null;
 	
 	if(_.isString(e1) && _.isString(e2)){
@@ -386,6 +406,7 @@ merge.artist = function(e1,e2,priority){
 	if(i1 >= i2 && e1.created != null) merged.description = e1.description
 	else merged.description = e2.description
 
+	return merged
 }
 
 

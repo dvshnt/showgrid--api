@@ -16,6 +16,7 @@
     "fuzzyset.js": "0.0.1",
     "lodash": "*",
     "moment": "*",
+    "moment-timezone": "^0.4.0",
     "mongoose": "*",
     "parse-address": "0.0.4",
     "passport": "*",

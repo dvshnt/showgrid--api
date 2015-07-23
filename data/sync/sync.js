@@ -32,7 +32,7 @@ var validate = function(dataset){
 		function removeSpecials(obj){
 			for (k in obj){
 				if(_.isObject(obj[k])) removeSpecials(obj[k]);
-				else if(_.isString(obj[k])) obj[k] = obj[k] = obj[k].replace(/\@|\$|\%|\^|\*|\(|\)|\_|\=|\[|\]|\{|\}|\;|\:|\"|\\|\||\<|\>|\/|\?|\]/g,'');
+				else if(_.isString(obj[k])) obj[k] = obj[k] = obj[k].replace(/\$|\%|\^|\*|\(|\)|\_|\=|\[|\]|\{|\}|\;|\'|\"|\\|\<|\>|\]/g,'');
 			}
 		}
 
@@ -142,6 +142,7 @@ var flipEvents = function(typeset){
 			venue.name = e.name;
 		}
 		venue.events = [e];
+		delete e.venue;
 		return venue;
 	});
 
@@ -436,26 +437,33 @@ function checkPlat(doc1,doc2){
 }
 
 
+
+
 function linkEventArtists(typeset){
 	_.each(typeset['venue'],function(venue){
-		_.each(venue.event,function(e){
+		_.each(venue.events,function(e){
+
+
 			e.artists.headliners = _.map(e.artists.headliners,function(a){
-				var comp = _.findWhere(typeset['artists'],{name:a.name},'_id');
-				if(_.isString(comp)) return comp
+				var id = _.findIndex(typeset['artist'],{'name':a.name});
+				if(id != null) return typeset['artist'][id]._id;
 				return null;
-			});
+			});				
+
+
 
 			e.artists.openers = _.map(e.artists.openers,function(a){
-				var comp = _.findWhere(typeset['artists'],{name:a.name},'_id');
-				if(_.isString(comp)) return comp
+				var id = _.findIndex(typeset['artist'],{'name':a.name});
+				if(id != null) return typeset['artist'][id]._id;
 				return null;
 			});
+			
 
-			console.log('LINK E.A'.bgRed,e.artists.headliners,e.artists.openers);
+			// console.log('LINK E.A'.bgBlue,e.artists.headliners,e.artists.openers);
 		});
 	});
-
-	console.log('DONE LINK ARTISTS')
+	
+	console.log('DONE LINK ARTISTS');
 	return p.pipe(typeset);
 }
 
@@ -538,7 +546,7 @@ var syncVenues = p.async(function(typeset){
 				//Higher precision name check
 				var found = null;
 				_.each(venues,function(v,i){
-					if(checkname(venue.name,v.name) == true){
+					if(match.checkname(venue.name,v.name) == true){
 						found = v;
 						return false
 					}
@@ -578,7 +586,7 @@ var syncVenues = p.async(function(typeset){
 				//Higher precision name check
 				var found = null;
 				_.each(venues,function(v,i){
-					if(checkname(venue.name,v.name) == true){
+					if(match.checkname(venue.name,v.name) == true){
 						found = v;
 						return false
 					}
@@ -604,34 +612,43 @@ var syncVenues = p.async(function(typeset){
 			
 			if(err) return this.reject(err);
 			if(doc == null) return this.resolve(null);
-
-			return db['venue'].populate(doc,{
-				path: 'events.artists'
-			})
+			//console.log(doc.events);
+			return doc;
 		}))
 
-		.then(function(doc,err){
+		.then(p.sync(function(doc,err){
+		
 			if(err) return this.reject(err);
 			if(doc == null){
-				//console.log('creating new venue in database',venue.name);
+				console.log('creating new venue in database',venue.name);
 				var new_venue = new db['venue'](venue);
 				
+
 			
-				return new_venue.save();
+				new_venue.save(function(err){
+					if(err) return this.reject(err);
+					this.resolve(new_venue);
+				}.bind(this));
+
+				return this.promise;
 			}
 
+			console.log('FOUND DB.VENUE & MERGING'.bgBlue,venue.name,doc.name);
 			//this is the complete full new document;
 			var new_doc = merge['venue'](doc,venue);
 			doc = _.merge(doc,new_doc);
-			console.log('FOUND DB.VENUE & MERGING...',venue.name,doc.name);
-			return doc.save();	
-		})
+			
 
-		.then(function(v,err){
+			doc.save(function(err){
+				if(err) return this.reject(err);
+				this.resolve(doc);
+			}.bind(this));
+			
+			return this.promise;
+		}))
 
-
+		.then(function(v){
 			venue[i] = v;
-
 			console.log('successfully saved venue :',v.name);
 			this.checkAsync();
 		}.bind(this))
@@ -678,7 +695,7 @@ var syncArtists = p.async(function(data){
 			if(err) return this.reject(err);
 			if(doc != null) return this.resolve(doc); 
 			
-			this.promise = findByName(venue); //try and find artist (or group) by name
+			return this.resolve(findByName(artist)); //try and find artist (or group) by name
 		}.bind(this))
 
 		return this.promise;
@@ -698,7 +715,7 @@ var syncArtists = p.async(function(data){
 			//Higher precision name check
 			var found = null;
 			_.each(artistlist,function(a,i){
-				if(checkname(artist.name,a.name) == true){
+				if(match.checkname(artist.name,a.name,1)){
 					found = a;
 					return false
 				}
@@ -710,6 +727,9 @@ var syncArtists = p.async(function(data){
 
 		return this.promise;
 	})
+
+
+
 
 
 
@@ -727,27 +747,31 @@ var syncArtists = p.async(function(data){
 
 			if(err) return this.reject(err);
 
-			if(!_.isOject(doc)){
+			if(!_.isObject(doc)){
 				console.log('creating new artist in database',artist.name);
-				var new_artist = new db['venue'](venue);
+				var new_artist = new db['artist'](artist);
 				new_artist.validate(function(err){
 					if(err) console.log('DB.ARTIST VALIDATION ERR:'.bold.bgRed,err);
 				});
 				return new_artist.save();
 			}
 
-			console.log('FOUND DB.ARTIST & MERGING...',artist.name,doc.name);
+			console.log('FOUND DB.ARTIST & MERGING'.bgBlue,artist.name,doc.name);
 			doc = _.merge(doc,merge['artist'](doc,artist))
 			return doc.save();
+
+			
+
+
 		}.bind(this))
 		.then(function(v,err){
+			data['artist'][i]._id = v._id;
+			
 
-			artist[i] = v;
-
-			console.log('successfully saved artist :',v.name);
+			console.log('successfully saved artist :',v.name,v._id);
 			this.checkAsync();
 		}.bind(this))
-	});
+	}.bind(this));
 
 	return this.promise;
 });
@@ -755,15 +779,19 @@ var syncArtists = p.async(function(data){
 
 
 
+
+
+
+
 var extractArtists = function(types){
 	_.each(types['venue'],function(venue){
+		//console.log(venue.events);
 		_.each(venue.events,function(event){
-			_.each(_.union(event.artist.headliners,event.artist.openers),function(artist){
+			_.each(_.union(event.artists.headliners,event.artists.openers),function(artist){
 				types['artist'].push(artist);
 			});
 		});
 	});
-
 	return p.pipe(types);
 };
 
@@ -791,11 +819,14 @@ module.exports = p.async(function(dataset,save){
 
 	.then(filterDuplicates) //filter and merge entries that may not have been found because of slightly different GPS addresses.
 
-	.then(linkEventArtists)
+
 	.then(syncArtists) 		//sync all artists and upon save add the document id to the raw artist object to reference it later in syncVenues
+	.then(linkEventArtists)
 	.then(syncVenues) 		// sync documents with database , when syncing event artists save it as a map of artist document ids
 
 	
 
 	return this.promise;
 });
+
+

@@ -293,8 +293,8 @@ module.exports.parseEvent = function(event){
 		platforms:[{name:'eventful',id:event.id}],
 		description: event.description,
 		date: {
-			start: new Date(event.start_time).toISOString(),
-			end: event.end_time != null ? new Date(event.end_time).toISOString() : null
+			start: event.start_time != null ? moment(event.start_time).utc().format() : null,
+			end: event.end_time != null ? moment(event.end_time).utc().format() : null
 		},
 		venue: event.venue,
 		created: event.created,

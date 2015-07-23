@@ -18,7 +18,7 @@ var qs = require('querystring');
 var _ = require('lodash');
 var url = require('url');
 var fuzzy = require('fuzzyset.js');
-
+var moment = require('moment');
 
 var pagination_count = 10;
 
@@ -298,7 +298,7 @@ module.exports.parseEvent = function(nugget){
 		is: 'event',
 		platforms: [{name:'reverbnation',id:event_id != null ? event_id.match(/\d+/)[0] : null}],
 		date: {
-			start: new Date($('.shows_date_').text()+' '+new Date().getFullYear()).toISOString()
+			start: moment($('.shows_date_').text()+' '+new Date().getFullYear()).utc().format(),
 		},
 		artists : {headliners:[]},
 		tickets : [{

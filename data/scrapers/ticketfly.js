@@ -10,7 +10,8 @@ var _ = require('lodash');
 var util = require('util');
 
 var getter = require('../data');
-
+var moment = require('moment');
+require('moment-timezone')
 
 /*
 
@@ -23,7 +24,7 @@ max_query only applies to how many venues to search for.
 
 
 module.exports.findEvents = p.sync(function(opt){
-	var limit = opt.query_size || 5000, radius = opt.radius || 50;
+	var limit = opt.query_size || 1000, radius = opt.radius || 50;
 	var maxpages = opt.max || null;
 	var totalpages = 0;
 	var coords = [];
@@ -35,17 +36,13 @@ module.exports.findEvents = p.sync(function(opt){
 		request({
 			url: cfg.api+"/events/list?orgId=1&pageNum="+page+"&maxResults=5&distance="+radius+"mi&location=geo:"+coords[0]+","+coords[1],
 			json: true
-		})
-
-
-		.spread(function(res,dat,err){
-
-
+		}).spread(function(res,dat,err){
 			if(err != null){
 				console.log('TICKETFLY GET ERR',err);
 				return this.reject();
 			}
 
+			totalpages = dat.totalPages;
 
 
 			process.stdout.clearLine();
@@ -56,7 +53,7 @@ module.exports.findEvents = p.sync(function(opt){
 			events = events.concat(dat.events);
 			console.log('TEST2')
 			
-			if(dat.pageNum >= 1/*totalpages*/ || events.length >= limit){
+			if(dat.pageNum >= totalpages || events.length >= limit){
 				this.resolve(events);
 			}else{
 				get.bind(this)(dat.pageNum+=1);
@@ -121,6 +118,7 @@ var getCityStateCountry = p.sync(function(loc){
 //fetch all venues from city
 module.exports.getVenues = p.async(function(opt){
 
+	var limit = opt.limit || 1000;
 	var loc = opt.zip || opt.gps;
 
 	var q;
@@ -128,7 +126,7 @@ module.exports.getVenues = p.async(function(opt){
 
 
 
-	var totalpages = 10;
+	var totalpages = 0;
 	var venues = [];
 
 	
@@ -144,10 +142,11 @@ module.exports.getVenues = p.async(function(opt){
 				process.stdout.write('tickfly getVenues: '+dat.pageNum.toString().yellow+'/'+totalpages.toString().cyan);
 				//totalpages = dat.totalPages
 
+				totalpages = dat.totalPages
 				venues = venues.concat(dat.venues);
 
 				
-				if(dat.pageNum >= totalpages){
+				if(dat.pageNum >= totalpages || venues.length >= limit){
 					this.resolve(venues);
 				}else{
 					get.bind(this)(dat.pageNum+=1);
@@ -182,6 +181,7 @@ module.exports.getVenues = p.async(function(opt){
 
 
 module.exports.parseArtist = function(artist){
+
 	parsed = {
 		is: 'artist',
 		platforms: [{
@@ -201,14 +201,19 @@ module.exports.parseArtist = function(artist){
 			return link != null && link != '';
 		}),
 
-		streams: _.flatten(_.filter([
+		streams: _.filter(_.flatten(_.filter([
 			artist.embedVideo,
-
 			_.map(artist.youtubeVideos,function(video){
 				return video.embedCodeIframe
 			}),
 			artist.embedAudio
-		]))
+		])),function(link){
+			return link != null && link != ''
+		}),
+
+		banners: _.isArray(artist.image) ? _.map(artist.image,function(img,key){
+			return img.path;
+		}) : null,
 	}
 
 	return parsed;
@@ -217,13 +222,14 @@ module.exports.parseArtist = function(artist){
 
 
 
-
+Promise.longStackTraces();
 
 
 module.exports.parseEvent = function(event){
-	
-	
-	
+
+
+
+
 	var parsed = {
 
 		is: 'event',
@@ -241,53 +247,52 @@ module.exports.parseEvent = function(event){
 		
 		created: event.dateCreated,
 
-		banners: _.map(event.image,function(img,key){
+		banners: _.isArray(event.image) ? _.map(event.image,function(img,key){
 			return img.path;
-		}),
+		}) : null,
+
 
 		artists: {
-			openers: _.map(event.openers,function(artist){
+			openers: _.isArray(event.openers) ? _.map(event.openers,function(artist){
 				return module.exports.parseArtist(artist);
-			}),
-			headliners: _.map(event.headliners,function(artist){
+			}) : null,
+			headliners: _.isArray(event.headliners) ? _.map(event.headliners,function(artist){
 				return module.exports.parseArtist(artist);
-			})
+			}) : null
 		},
+
+		tags: [event.showType],
 		
 		tickets: _.union([{
 			price: event.ticketPrice,
 			sale: {
-				start: event.onSaleDate,
-				end: event.offSaleDate
+				start: event.onSaleDate != null ? moment(event.onSaleDate).tz(event.venue.timeZone).utc().format() : null,
+				end: event.offSaleDate != null ? moment(event.offSaleDate).tz(event.venue.timeZone).utc().format() : null,
 			},
 			broker: 'ticketfly',
 			url: event.ticketPurchaseUrl,
-		}],_.map(externalTicketingUrls,function(url){
+		}], _.isArray(event.externalTicketingUrls) ? _.map(event.externalTicketingUrls,function(url){
 			return {
 				url: url
 			}
-		})),
+		}) : []),
 
-		age: event.ageLimit,
-
-		date: {
-			start: new Date(event.startDate).toISOString(),
-			end: new Date(event.endDate).toISOString()
-		},
+		age: (_.isString(event.ageLimit) && event.ageLimit.match(/\d+/g) != null ) ? event.ageLimit.match(/\d+/g)[0] : null,
 	}
 
-	console.log(util.inspect(event, { showHidden: true, depth: null }));
+
+	parsed.date = {
+		start: event.startDate != null ? moment(event.startDate).tz(event.venue.timeZone).utc().format() : null,
+		end: event.endDate != null ? moment(event.endDate).tz(event.venue.timeZone).utc().format() : null
+	}
+
+
+
+	console.log(parsed.date);
+//	console.log(util.inspect(parsed.date, { showHidden: true, depth: null }));
 	return parsed;
+
 }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -327,7 +332,5 @@ module.exports.parseVenue = function(venue){
 
 	return parsed;
 }
-
-
 
 

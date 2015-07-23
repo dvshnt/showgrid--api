@@ -155,7 +155,7 @@ module.exports.parseEvent = p.sync(function(event){
 		is: 'event',
 		platforms:[{name:'jambase',id:event.Id}],
 		date: {
-			start: new Date(event.Date).toISOString(),
+			start: moment(event.Date).utc().format(),
 		},
 		name: event.Name,
 		age: null,

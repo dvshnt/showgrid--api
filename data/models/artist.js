@@ -1,6 +1,6 @@
 var Promise = require('bluebird');
 var db = Promise.promisifyAll(require('mongoose'));
-
+var _ = require('lodash');
 var scrapers = require('../scrapers.js')
 var artistSchema = new db.Schema({
 
@@ -10,7 +10,7 @@ var artistSchema = new db.Schema({
 	isGroup: {type: Boolean,default: false}, //artist Schema can be a band/group and an artist at the same time.
 	name: {type:String, required: true},
 	demand: Number, //how much demand for this artist?
-	created: {required: true, type:Date},
+	created: {type:Date},
 	links: [{type:String}],
 	banners: [{type:String}],
 	streams: [{type:String}],

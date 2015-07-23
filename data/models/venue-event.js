@@ -19,7 +19,7 @@ var eventSchema = new db.Schema({
 		end: {type: Date}
 	},
 	tickets: [{
-		price: Number,
+		price: String,
 		soldout: Boolean,
 		url: String,
 		broker: String,

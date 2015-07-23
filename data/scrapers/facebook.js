@@ -8,7 +8,7 @@ var p = require('../pFactory');
 var gps = require('../gps');
 var _ = require('lodash');
 var util = require('util');
-
+var moment = require('moment');
 
 var key_string = '';
 
@@ -233,7 +233,7 @@ module.exports.parseEvent = function(event){
 			return module.exports.parseVenue(place);
 		})(event.place) : null,
 		date: {
-			start: new Date(event.start_time).toISOString()
+			start: moment(event.start_time).utc().fromat()
 		},
 		tickets: [{
 			url: event.ticket_uri
