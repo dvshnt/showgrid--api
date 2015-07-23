@@ -13,8 +13,8 @@ var fb_key = null;
 		params: {
 			zip: '37064',
 			country: 'US',
-			radius: 50,
-			query_size:1,
+			radius: 200,
+			query_size:500,
 			sort: 'popularity'
 		},
 		platforms: {

@@ -34,7 +34,7 @@ module.exports.findEvents = p.sync(function(opt){
 	function get(page){
 		//console.log(coords);
 		request({
-			url: cfg.api+"/events/list?orgId=1&pageNum="+page+"&maxResults=5&distance="+radius+"mi&location=geo:"+coords[0]+","+coords[1],
+			url: cfg.api+"/events/list?orgId=1&pageNum="+page+"&maxResults=200&distance="+radius+"mi&location=geo:"+coords[0]+","+coords[1],
 			json: true
 		}).spread(function(res,dat,err){
 			if(err != null){
@@ -51,7 +51,7 @@ module.exports.findEvents = p.sync(function(opt){
 			
 
 			events = events.concat(dat.events);
-			console.log('TEST2')
+
 			
 			if(dat.pageNum >= totalpages || events.length >= limit){
 				this.resolve(events);
@@ -289,9 +289,7 @@ module.exports.parseEvent = function(event){
 
 
 	console.log(parsed.date);
-//	console.log(util.inspect(parsed.date, { showHidden: true, depth: null }));
 	return parsed;
-
 }
 
 

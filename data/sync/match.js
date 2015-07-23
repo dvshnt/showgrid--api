@@ -39,27 +39,31 @@ var max_name_diff_count = 20; //string length variation leeway for matching name
 
 
 function checkname(v1,v2,strength,strength2){
-
-	var t_name1 = v1.replace(/\sand\s|\s&\s/,' ');
-	var t_name2 = v2.replace(/\sand\s|\s&\s/,' ');
-
-	var n_match = fuzzy([t_name1]).get(t_name2);
-	var contains = t_name1.match(new RegExp(t_name2,'i')) || t_name2.match(new RegExp(t_name1,'i'));
-
-	if(n_match != null && n_match[0][0] == 1){
-		return true;
-	}
+	if(Math.abs(v1.name.length-v2.name.length) >= max_name_diff_count) return
 
 
+	var n1 = v1._name || (v1._name = v1.name.replace(/\sand\s|\s&\s/,' '));
+	var n2 = v2._name || (v2._name = v2.name.replace(/\sand\s|\s&\s/,' '));
 
-	if( (contains != null && Math.abs(t_name2.length-t_name1.length) < max_name_diff_count && n_match != null && n_match[0][0] >= (strength2 || strength || 0.6)) || (n_match != null && n_match[0][0] >= (strength || 0.9))) return true;
+	var reg1 = v1._reg || (v1._reg = new RegExp(n1,'i'));
+	var reg2 = v2._reg || (v2._reg = new RegExp(n2,'i'));
+	
+	var contains = n1.match(reg2) || n2.match(reg1);
+
+	var n_match = fuzzy([n1]).get(n2);
+	
+	if(n_match == null) return;
+
+	if(n_match[0][0] >= (strength || strength2)) return true;
+	
+
 	return false;
 }
 
 
 
 
-module.exports.checkname = checkname;
+
 
 
 
@@ -80,20 +84,6 @@ function sameArtists(art1,art2){
 	return count;
 };
 
-
-match.event = function(ev1,ev2){
-	//console.log(ev1,ev2)
-
-	if(checkID(ev1,ev2)) return true;
-
-	console.log('check events..',ev1.name,ev2.name);
-	if(checkname(ev1.name,ev2.name)){
-		console.log("CHECK TRUE")
-		return true
-	} 
-	return false
-};
-
 function checkID(v1,v2){
 	var match = false
 	_.each(v1.platforms,function(plat1){
@@ -106,14 +96,29 @@ function checkID(v1,v2){
 	return match;
 }
 
+
+
+
+
+
+
+
+match.event = function(ev1,ev2){
+	//console.log(ev1,ev2)
+
+	if(checkID(ev1,ev2)) return true;
+
+	//console.log('check events..',ev1.name,ev2.name);
+	if(checkname(ev1,ev2)){
+		//console.log("CHECK TRUE")
+		return true
+	} 
+	return false
+};
+
+
 match.venue = function(v1,v2){
 
-
-	
-
-	if(v1.location == null || v2.location == null){
-		console.log(v1,v2)
-	}
 
 	
 
@@ -140,7 +145,7 @@ match.venue = function(v1,v2){
 			else return false
 		}else{
 			//console.log("CHECK NAME")
-			if (checkname(v1.name,v2.name)){
+			if (checkname(v1,v2)){
 				console.log('matched Names'.bold.green,v1.name.inverse,v2.name)
 				return true
 			} 
@@ -151,7 +156,7 @@ match.venue = function(v1,v2){
 	//small chance this will happen and and its not guaranteed to work. 
 	}else{
 		//console.log("CHECK NAME 2")
-		if (checkname(v1.name,v2.name)){
+		if (checkname(v1,v2)){
 			console.log('matched Names'.bold.green,v1.name.inverse,v2.name)
 			return true
 		} 
@@ -172,7 +177,7 @@ match.artist = function(a1,a2){
 	}
 
 	//Checkname Scenario
-	if(checkname(a1.name,a2.name)){
+	if(checkname(a1,a2)){
 		
 		return true;
 	}
@@ -180,7 +185,7 @@ match.artist = function(a1,a2){
 
 
 
-
+module.exports.checkname = checkname;
 
 module.exports = match;
 

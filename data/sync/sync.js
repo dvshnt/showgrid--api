@@ -312,8 +312,14 @@ var filterDuplicates = function(typeset){
 
 
 	_.each(typeset,function(dataset,type){
+	
 
+		var type = type;
 		var l = dataset.length;
+
+		console.log(type);
+
+
 		//match and merge
 		for(var i = 0;i<l;i++){
 			if(dataset[i] == null) continue;
@@ -322,11 +328,12 @@ var filterDuplicates = function(typeset){
 				if(dataset[j] == null || j == i) continue;
 				if(match[type](dataset[i],dataset[j])){
 					console.log('MERGING...'.bgBlue,dataset[i].name.inverse,dataset[j].name);
+					console.log(Math.random());
 					dataset[i] = merge[type](dataset[i],dataset[j]);
 					dataset[j] = null;
 				}
 			}
-			//console.log('checked ',i,'/',j);
+			console.log('checked ',i,'/',j);
 		}
 
 
@@ -546,7 +553,7 @@ var syncVenues = p.async(function(typeset){
 				//Higher precision name check
 				var found = null;
 				_.each(venues,function(v,i){
-					if(match.checkname(venue.name,v.name) == true){
+					if(match.checkname(venue,v) == true){
 						found = v;
 						return false
 					}
@@ -586,7 +593,7 @@ var syncVenues = p.async(function(typeset){
 				//Higher precision name check
 				var found = null;
 				_.each(venues,function(v,i){
-					if(match.checkname(venue.name,v.name) == true){
+					if(match.checkname(venue,v) == true){
 						found = v;
 						return false
 					}
@@ -715,7 +722,7 @@ var syncArtists = p.async(function(data){
 			//Higher precision name check
 			var found = null;
 			_.each(artistlist,function(a,i){
-				if(match.checkname(artist.name,a.name,1)){
+				if(match.checkname(artist,a,1)){
 					found = a;
 					return false
 				}
@@ -814,19 +821,17 @@ module.exports = p.async(function(dataset,save){
 	.then(splitByType) 		//split raw data by into types for faster parsing
 	.then(flipEvents)  		//flip events to their
 	.then(filterDuplicates) //merge any data
-	.then(fillGPS)			//fill GPS data.
-	.then(extractArtists) 	//extract artists out of each event and link their platform ids to the venue events
+	// .then(fillGPS)			//fill GPS data.
+	// .then(extractArtists) 	//extract artists out of each event and link their platform ids to the venue events
 
-	.then(filterDuplicates) //filter and merge entries that may not have been found because of slightly different GPS addresses.
+	// //.then(filterDuplicates) //filter and merge entries that may not have been found because of slightly different GPS addresses.
 
 
-	.then(syncArtists) 		//sync all artists and upon save add the document id to the raw artist object to reference it later in syncVenues
-	.then(linkEventArtists)
-	.then(syncVenues) 		// sync documents with database , when syncing event artists save it as a map of artist document ids
+	// .then(syncArtists) 		//sync all artists and upon save add the document id to the raw artist object to reference it later in syncVenues
+	// .then(linkEventArtists)
+	// .then(syncVenues) 		// sync documents with database , when syncing event artists save it as a map of artist document ids
 
 	
 
 	return this.promise;
 });
-
-
