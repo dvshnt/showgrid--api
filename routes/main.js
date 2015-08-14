@@ -29,11 +29,12 @@ zipcode or lat and lon variables
 
 function findVenues(req,res,next){
 	data
-	.find['venue'](req.res)
-	.spread(function(dat,err){
-		if(err) dat.status(500).send(err);
-		else if(dat.length == 0) dat.status(404).send(dat); 
-		else res.status(200).json(dat);	
+	.find['venue'](req.query)
+	.then(function(dat){
+		//if(err) res.status(500).send(err);
+		console.log(dat,res)
+		else if(dat == null || dat.length == 0) res.status(404).send({error:'NO_MATCH'}); 
+		else res.status(200).send(dat);	
 	});
 }
 

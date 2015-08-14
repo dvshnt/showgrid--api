@@ -21,7 +21,8 @@ var addressGPS = require('../gps');
 var validate = function(dataset){
 
 	_.each(dataset,function(doc,i){
-		
+
+
 		//translate geocode to interger
 		if(doc.location != null && doc.location.gps != null && doc.location.gps.length != 0){
 			doc.location.gps[0] = parseInt(doc.location.gps[0]);
@@ -48,6 +49,14 @@ var validate = function(dataset){
 		}
 
 
+		_.each(doc.banners,function(banner){
+			if(!_.isString(banner)){
+				console.error('validate ERR'.bold.bgRed,'banners not string',doc.platforms)
+				banner = null;
+			} 
+		});
+
+
 		if(doc.platforms == null){
 			console.error('validate ERR'.bold.bgRed,'no platform for '.red,doc.name);
 			dataset[i] = null;
@@ -56,8 +65,13 @@ var validate = function(dataset){
 
 		if(doc.is == 'event'){
 			if(doc.venue == null){
-				console.error('validate ERR'.bold.bgRed,'event found without venue!'.red);
+				console.error('validate ERR'.bold.bgRed,'event w/o venue'.red);
 				dataset[i] = null;
+			}
+
+			if(doc.name == null){
+				console.error('validate ERR'.bold.bgRed,'event w/o name'.red);
+				dataset[i] = null;				
 			}
 		}
 
@@ -71,7 +85,7 @@ var validate = function(dataset){
 
 
 			if(doc.name == null){
-				console.error('validate ERR'.bold.redBg, 'venue w/o name...we dont like those, ignore'.red,doc.platforms);
+				console.error('validate ERR'.bold.redBg, 'venue w/o name'.red,doc.platforms);
 				dataset[i] = null;
 			}
 
@@ -142,6 +156,7 @@ var flipEvents = function(typeset){
 			venue.name = e.name;
 		}
 		venue.events = [e];
+		delete venue.is;
 		delete e.venue;
 		return venue;
 	});
@@ -219,7 +234,7 @@ var getGPS = p.sync(function(obj){
 
 var fillGPS = p.sync(function(datatype){
 
-	var delay = 250;
+	var delay = 300;
 	
 	//get GPS for venues.
 	var has_address = 0;
@@ -317,21 +332,22 @@ var filterDuplicates = function(typeset){
 		var type = type;
 		var l = dataset.length;
 
-		console.log(type);
+
 
 
 		//match and merge
 		for(var i = 0;i<l;i++){
+			if(j == i) continue;
 			if(dataset[i] == null) continue;
 		 	var dupl_count = 0;
 			for(var j = 0;j<l;j++){
 				if(dataset[j] == null || j == i) continue;
 				if(match[type](dataset[i],dataset[j])){
-					console.log('MERGING...'.bgBlue,dataset[i].name.inverse,dataset[j].name);
-					console.log(Math.random());
+					console.log('FILTER MERGE:'.bgBlue,dataset[i].name.inverse,dataset[j].name);
 					dataset[i] = merge[type](dataset[i],dataset[j]);
 					dataset[j] = null;
 				}
+			//	console.log(j+' / '+l);
 			}
 			console.log('checked ',i,'/',j);
 		}
@@ -348,12 +364,11 @@ var filterDuplicates = function(typeset){
 		//LOG
 		console.log(('FILTER '+type+' : ').bgBlue,('-'+(l-typeset[type].length)).yellow.bold,(typeset.length+'/'+l).cyan.bold);
 
-		console.log(util.inspect(_.map(typeset[type],function(dat){
-			return dat.name;
-		}).sort(), {showHidden: false, depth: null}));		
+		// console.log(util.inspect(_.map(typeset[type],function(dat){
+		// 	return [dat.name,dat.platforms,dat.location];
+		// }).sort(), {showHidden: false, depth: null}));		
 	});
 
-	console.log('DONE FILTER')
 	return p.pipe(typeset);
 };
 
@@ -367,64 +382,6 @@ var filterDuplicates = function(typeset){
 
 
 
-
-
-
-var syncArtists = p.async(function(typeset){
-	
-
-	this.total = typeset['artist'].length;
-	this.data = typeset;
-
-
-	if(this.total == 0) this.resolve(typeset);
-
-
-	//find artists in database by name
-	var findByName = p.sync(function(artist){
-		console.log('Artist Sync: failed to find artist by platform id, trying to find by name....')
-		db['artist'].find({$text: {$search: artist.name}}).limit(5)
-		then(function(err,docs){
-			if(docs != null && docs.length){
-				console.log('found documents for artist #',artist.name,' : ',docs);
-				console.log('TODO');
-				this.resolve(null);
-			}else{
-				console.log('Created a new artist in database.'); 
-				var a = new db['artist'](artist);
-				a.save().then(function(){
-					this.resolve();
-				}.bind(this));
-			}
-			this.resolve();
-		}.bind(this))
-		return this.promise;
-	});
-
-
-	_.each(typeset['artist'],function(artist){
-		
-		//try and do a text search for artist
-		db['artist'].find({
-			platforms: {$in : artist.platforms}
-		}).
-
-		//if we find an artist, merge
-		then(p.sync(function(err,docs){
-			if(docs != null && docs.length > 0){
-				console.log('found artists for',artist.name,'in data base for',artists);
-			}else return findByName(artist);
-		})).
-
-		//incremement count
-		then(function(){
-			this.count++;
-			this.checkAsync();
-		}.bind(this))
-	});
-
-	return this.promise;
-});
 
 
 
@@ -546,7 +503,7 @@ var syncVenues = p.async(function(typeset){
 		}).
 
 		//if GPS Matches fuzzy compare the names, otherwise return with a findByName Query (brute force)
-		then(function(venues,err){
+		then(function(venues){
 			
 			if(venues != null && venues.length > 0){
 
@@ -560,9 +517,12 @@ var syncVenues = p.async(function(typeset){
 				}.bind(this));
 
 
-				if(found) this.resolve(found);
+				if(found){
+					console.log('FIND BY GPS');
+					this.resolve(found);
+				} 
+				
 				else this.resolve(findByName(venue));
-
 
 			}else this.resolve(findByName(venue));
 		}.bind(this));
@@ -580,14 +540,14 @@ var syncVenues = p.async(function(typeset){
 		
 		//search by name
 		db['venue'].find(
-			{$text: {$search: venue.name }},
-			{score: {$meta: "textScore"}}
-		)
-		.sort({score: {$meta: "textScore"}})
-		.limit(5)
-		.then(function(venues,err){
-	
-			if(err) return this.reject(err);
+			{ $text : { $search : venue.name } }, 
+        	{ score : { $meta: "textScore" } }
+        )
+        .limit(5)
+        .sort({ score: { $meta: "textScore" } })
+
+		.then(function(venues){
+			//console.log('FIND BY NAME')
 			if(venues != null && venues.length > 0){
 
 				//Higher precision name check
@@ -599,6 +559,8 @@ var syncVenues = p.async(function(typeset){
 					}
 				}.bind(this));
 
+
+				//console.log('FIND BY NAME',found)
 				this.resolve(found);
 				
 
@@ -615,48 +577,37 @@ var syncVenues = p.async(function(typeset){
 	_.each(typeset['venue'],function(venue,i){
 		findById(venue)
 
-		.then(p.sync(function(doc,err){
-			
-			if(err) return this.reject(err);
-			if(doc == null) return this.resolve(null);
-			//console.log(doc.events);
-			return doc;
-		}))
 
-		.then(p.sync(function(doc,err){
-		
-			if(err) return this.reject(err);
+		.then(p.sync(function(doc){
+			//if(err) return this.reject(err);
 			if(doc == null){
-				console.log('creating new venue in database',venue.name);
+				console.log('SYNC NEW:'.magenta,venue.name.inverse);
 				var new_venue = new db['venue'](venue);
-				
-
-			
+							
 				new_venue.save(function(err){
 					if(err) return this.reject(err);
 					this.resolve(new_venue);
 				}.bind(this));
 
-				return this.promise;
+			}else{
+
+				console.log('SYNC MERGE:'.bgBlue,venue.name,doc.name.inverse);
+				//this is the complete full new document;
+				var new_doc = merge['venue'](doc,venue);
+				doc = _.merge(doc,new_doc);
+				
+				doc.save(function(err){
+					if(err) return this.reject(err);
+					this.resolve(doc);
+				}.bind(this));
 			}
 
-			console.log('FOUND DB.VENUE & MERGING'.bgBlue,venue.name,doc.name);
-			//this is the complete full new document;
-			var new_doc = merge['venue'](doc,venue);
-			doc = _.merge(doc,new_doc);
-			
-
-			doc.save(function(err){
-				if(err) return this.reject(err);
-				this.resolve(doc);
-			}.bind(this));
-			
 			return this.promise;
 		}))
 
 		.then(function(v){
 			venue[i] = v;
-			console.log('successfully saved venue :',v.name);
+			console.log('SYNC DONE:'.bgBlue,v.name.green);
 			this.checkAsync();
 		}.bind(this))
 
@@ -664,17 +615,6 @@ var syncVenues = p.async(function(typeset){
 
 	return this.promise;
 });
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -692,42 +632,49 @@ var syncVenues = p.async(function(typeset){
 var syncArtists = p.async(function(data){
 
 
-
 	var findById = p.sync(function(artist){
 		db['artist'].findOne({
 			platformIds: {$in : _.map(artist.platforms,function(plat){
 				return plat.name+'/'+plat.id
 			})}
-		}).then(function(doc,err){
-			if(err) return this.reject(err);
+		}).then(function(doc){
+			//if(err) return this.reject(err);
 			if(doc != null) return this.resolve(doc); 
 			
-			return this.resolve(findByName(artist)); //try and find artist (or group) by name
+			this.resolve(findByName(artist));
 		}.bind(this))
 
 		return this.promise;
 	})
 
+
 	var findByName = p.sync(function(artist){
 		//search by name
+
 		db['artist'].find(
-			{$text: {$search: artist.name }},
-			{score: {$meta: "textScore"}}
-		)
-		.sort({score: {$meta: "textScore"}})
-		.limit(5)
-		.then(function(artistlist,err){
-			if(err) return this.reject(err);
-				
+			{ $text : { $search : artist.name } }, 
+        	{ score : { $meta: "textScore" } }
+        ).limit(5).sort({ score: { $meta: "textScore" } })
+
+		.then(function(artistlist){
+			//console.log(err,artistlist.length);
+
+			//if(err) return this.reject(err);
+			
+			if(artistlist == null) return this.resolve(null)
+
+
+
 			//Higher precision name check
 			var found = null;
 			_.each(artistlist,function(a,i){
-				if(match.checkname(artist,a,1)){
+				//console.log(artist,a);
+				if(match.checkname(artist,a,1) == true){
 					found = a;
 					return false
 				}
 			}.bind(this));
-			
+			console.log(found)
 			return this.resolve(found);
 
 		}.bind(this))
@@ -736,52 +683,63 @@ var syncArtists = p.async(function(data){
 	})
 
 
-
-
-
-
-
 	this.data = data;
 	this.total = data['artist'].length;
+	
 
 	if(this.total == 0) this.resolve(data);
 
-	_.each(data['artist'],function(artist,i){
-		
+
+	_.each(data['artist'],function(artist,index){
 		findById(artist)
 		
-		.then(function(doc,err){
-
-			if(err) return this.reject(err);
-
-			if(!_.isObject(doc)){
+		.then(p.sync(function(doc){
+			//console.log(doc.length,err);
+			if(doc == null){
 				console.log('creating new artist in database',artist.name);
 				var new_artist = new db['artist'](artist);
+				
 				new_artist.validate(function(err){
 					if(err) console.log('DB.ARTIST VALIDATION ERR:'.bold.bgRed,err);
 				});
-				return new_artist.save();
+
+				new_artist.save(function(err){
+					if(err) return this.reject(err);
+					this.resolve(new_artist);
+				}.bind(this));
+
+			}else{
+				console.log('FOUND DB.ARTIST & MERGING'.bgBlue,artist.name,doc.name);
+				doc = _.merge(doc,merge['artist'](doc,artist));
+
+				doc.save(function(err){
+					if(err) return this.reject(err);
+					this.resolve(doc);
+				}.bind(this));
 			}
 
-			console.log('FOUND DB.ARTIST & MERGING'.bgBlue,artist.name,doc.name);
-			doc = _.merge(doc,merge['artist'](doc,artist))
-			return doc.save();
 
-			
+			return this.promise;
+		}))
 
+		.then(function(v){
 
-		}.bind(this))
-		.then(function(v,err){
-			data['artist'][i]._id = v._id;
-			
-
+			data['artist'][index]._id = v._id;
 			console.log('successfully saved artist :',v.name,v._id);
 			this.checkAsync();
 		}.bind(this))
+
 	}.bind(this));
 
 	return this.promise;
 });
+
+
+
+
+
+
+
 
 
 
@@ -805,6 +763,78 @@ var extractArtists = function(types){
 
 
 
+
+
+
+
+//Try and do a simple sync to find the documents in the database by their ID
+var simpleVenueSync = p.async(function(typeset){
+
+
+	var sync = p.sync(function(doc,type){
+		
+		db[type].findOne({
+			platformIds: {$in : _.map(doc.platforms,function(plat){
+				return plat.name+'/'+plat.id
+			})}
+		}).then(p.sync(function(found){
+			
+			if(found == null) return this.resolve(null)
+
+			var updated = merge[type](found,doc);
+
+			found = _.merge(found,updated);
+
+			found.save(function(err){
+				if(err) return this.reject();
+				this.resolve(found);
+			}.bind(this))
+		}.bind(this)));
+
+		return this.promise;
+	})
+
+	this.data = typeset;
+
+	this.cb = function(){
+		console.log('DONE S_SYNC'.bg)
+		_.each(typeset,function(dataset,type){
+			typeset[type] = _.filter(dataset, function(n) {
+		  		return n != null;
+			});
+		});
+	}
+
+	
+	this.total = typeset['venue'].length
+	_.each(typeset['venue'],function(doc,i){
+		sync(doc,'venue').then(function(found){
+			if(found){
+				typeset['venue'][i] = null;
+				console.log('S_SYNC DONE:'.bgGreen,found.name.yellow)
+			} 
+			this.checkAsync();
+		}.bind(this));
+	}.bind(this));
+
+
+
+	return this.promise;
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
 
 Syncroniously filter through all fetched data, merge any duplicates and re-arrange data then sync it with the database.
@@ -820,18 +850,29 @@ module.exports = p.async(function(dataset,save){
 	validate(dataset) 		//validate data
 	.then(splitByType) 		//split raw data by into types for faster parsing
 	.then(flipEvents)  		//flip events to their
+	
 	.then(filterDuplicates) //merge any data
-	// .then(fillGPS)			//fill GPS data.
-	// .then(extractArtists) 	//extract artists out of each event and link their platform ids to the venue events
+	.then(extractArtists) 	//extract artists out of each event and link their platform ids to the venue events
+	.then(syncArtists) 		//sync all artists and upon save add the document id to the raw artist object to reference it later in syncVenues
+	.then(linkEventArtists)
+	.then(simpleVenueSync)
+	.then(fillGPS)			//fill GPS data.
 
-	// //.then(filterDuplicates) //filter and merge entries that may not have been found because of slightly different GPS addresses.
+	.then(filterDuplicates) //filter and merge entries that may not have been found because of slightly different GPS addresses.
 
 
-	// .then(syncArtists) 		//sync all artists and upon save add the document id to the raw artist object to reference it later in syncVenues
-	// .then(linkEventArtists)
-	// .then(syncVenues) 		// sync documents with database , when syncing event artists save it as a map of artist document ids
+	
 
+	.then(syncVenues) 		// sync documents with database , when syncing event artists save it as a map of artist document ids
+	.then(function(data){
+		this.resolve(data)
+	}.bind(this))
 	
 
 	return this.promise;
 });
+
+
+
+
+

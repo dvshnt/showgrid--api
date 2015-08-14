@@ -1,23 +1,12 @@
-
-var _ = require('lodash');
-
-var db = require('./data.js');
-//scraper endpoints
-
 var Promise = require('bluebird');
+var _ = require('lodash');
+var db = require('./data.js');
 var colors = require('colors');
-// //console.log(scrapers)
-//Async data scraping
-
-////console.log(db);
-
 var fuzzy = require('fuzzyset.js'); //fuzzy matching for finding models that are similar.
-
 var p = require('./pFactory'); //promise factory shortucts.
-
-var Validator = require('./sync/sync');
+var sync = require('./sync/sync');
 var scrapers = require('./scrapers');
-
+var util = require('util');
 
 
 
@@ -40,7 +29,6 @@ var linkFiller = function(model_list,log){
 	return new Promise(function(res,rej){
 		res(model_list);
 	});
-
 }
 
 
@@ -48,148 +36,108 @@ var linkFiller = function(model_list,log){
 Promise.longStackTraces();
 
 
-function main(opt){
-	var filter_timeout = (opt.timeout || 20)*1000;
-	var total = 0;
-	var done = 0;
+var main = p.async(function(opt){
 	opt.params = opt.params || {};
-	var response;
-	var reject;
 
-
-	var new_data = []; //list of new data models added to the database gets promised back when all endpoints of each platform are updated and saved.
-	var updated_data = [];
-
-
-	var stepcheck = function(){
-		done++;
-		if(done >= total){
-			response({new_data:new_data,updated_data:updated_data});
-		}
-	}
-
-	var start_time = new Date().getTime();
-
-
-	//core update function.
-	var update = function(plat,plat_name){
+	//update a platform
+	var up_plat = p.async(function(plat,plat_name){
+		console.log('UPDATE'.bgCyan,plat_name.inverse);
 
 		//check if platform exists.
-		if(scrapers[plat_name] == null) return console.log('ERR: '.bgRed.bold,'no scraper platform found: ',plat_name);
+		if(scrapers[plat_name] == null) return console.log('UPDATE PLATFORM ERR: '.bgRed.bold,'no scraper platform found: ',plat_name);
+
+		var plat_name = plat_name;
+		var scraper = scrapers[plat_name]; //scraper name
+		
+		if(scraper.find == null) return console.error('UPDATE PLATFORM ERR: '.bgRed.bold+plat_name+' does not have the method group "find" ');
+		
 
 
-		//if a platform doesnt have any passed params, we create a new empty settings object.
-		plat.params = plat.params || {};
+		//update endpoint
+		var up_end = function(params,endpoint){
+			//check if endpoint exists
+			if(scraper.find[endpoint] == null) return console.error('UPDATE ENDPOINT ERR: '.bgRed.bold+plat_name+' does not have '+endpoint);
 
+			//check if filter exists.
+			if(scraper.filters[endpoint] == null) return console.log('UPDATE ENDPOINT ERR: '.bgRed.bold,'missing filter for',plat_name,endpoint);
+		
+			return scraper
+			.find[endpoint](params)
+			.then(p.async(function(docs){
 
-		var data = [];
-		var scraper = scrapers[plat_name];
-		var opt_endpoints = plat.endpoints;
-		return opt_endpoints.map(function(endpoint,i){
-			
-
-			//catch any scraper config errors.
-			if(scraper.find == null) return console.error('SCRAPER ERR: '+plat_name+' does not have the method group "find" ');
-			if(scraper.find[endpoint] == null) return console.error('SCRAPER ERR: '+plat_name+' does not have '+endpoint);
-
-
-			//get the endpoint promise.
-			console.log(plat.params);
-
-			//ENDPOINT PROMISE
-			var prom = scraper.find[endpoint](_.merge(plat.params,opt.params))
-			.then(function(data){
-				if(data.length == null){
-					return console.error('UPDATE ERR:'.bgRed,plat_name,endpoint,'data must be an ARRAY!');					
-				}else{
-					console.log('GOT RAW DATA',plat_name.cyan+'/'+endpoint.cyan,':',data.length.toString().yellow.bold);
-				}
-
+				this.total = docs.length;
+				this.data = docs;
+				this.cb = function(self){
+					if(params.query_size != null){
+						self.data = _.takeRight(self.data,params.query_size)
+					}
+				}.bind(this)
 				
-			
-				return new Promise(function(exit_pipe,reject2){
-					var data_total = data.length;
-					var data_count = 0;
-					var data_error = 0;
-					var pipes = [];
-					
-					_.each(data,function(raw_obj,i){
-						
-						var retries = 0;
-						//create a transform pipe for each object in the data array
-						var obj_pipe = Promise.resolve(raw_obj);
-
-
-						if(plat_name == 'reverbnation') obj_pipe = obj_pipe.delay(100*i)
-						
-
-						//cycle through all the filters.
-						_.each(scraper.filters[endpoint],function(filter){
-
-							//check if promise
-							if(filter.then != null && _.isFunction(filter.then)){
-								obj_pipe = obj_pipe.then(filter);
-							}else{
-								obj_pipe = obj_pipe.then(function(obj){
-									return p.pipe(filter(obj));
-								})
-							}
-						});
-
-						
-						//when object has gone through all filters, replace with origional object.
-						obj_pipe = obj_pipe.then(function(parsed_obj){
-							if(parsed_obj == null){
-								data.splice(i,1);
-								console.error('FAILED PARSE',data_count);
-								return;
-							}else{
-								process.stdout.clearLine();
-								process.stdout.cursorTo(0);
-								process.stdout.write('PARSED '.green+plat_name.cyan+'/'+endpoint.cyan+ ' '+(data_count+1).toString().yellow.bold+' / '+ (data.length).toString().cyan.bold+' '+(parsed_obj.name != null ? parsed_obj.name.gray : ''));
-							}
-							data[i] = parsed_obj;
-							data_count ++;
-							//console.log(plat_name,endpoint,data_count);
-						})
-
-						
-
-						pipes.push(obj_pipe);
-					
-						//TIMEOUT (if filters did not respond within 10 seconds) EXIT ANYWAY....
-
+				_.each(docs,function(doc,i){
+					var prom = p.pipe(doc)
+					//filter delay.
+					.delay(params.filter_delay != null ? params.filter_delay*i : 0)
+					//filter pipe wrapper
+					.then(function(){
+						return p.pipe(scraper.filters[endpoint](doc))
+					})
+					//check async
+					.then(function(parsed_doc){
+						this.data[i] = parsed_doc;
+						this.checkAsync();
 					}.bind(this));
 
-
-					Promise.settle(pipes).then(function(results){
-						process.stdout.write('\n')
-						console.log('DONE PARSING '.green,plat_name.cyan+'/'+endpoint.green);
-						exit_pipe(data);
-					});
-				});
-			})
-						
-			return prom;
-		}.bind(this));
-	}.bind(this)
+				}.bind(this));
+				
+				return this.promise;
+			}));
+		};
 
 
-	//return update promise
-	return new Promise(function(resolve,reject){
+		this.data = [];
+
+		var main_params = _.clone(opt.params);
+		var plat_params = _.clone(plat.params);
 
 
-		//all platform enpoint pipes
-		var all_pipes = _.flatten(_.map(opt.platforms,update));
-		
-		Promise.settle(all_pipes).then(function(results){
-			return _.flatten(_.map(results,function(r){if(r.isFulfilled()) return r.value()}))
-		}).then(Validator).then(function(data){
-			resolve(data);
-		});
+		var params = _.merge(main_params,plat_params);
 
-	}.bind(this))
-}
+		_.each(plat.endpoints,function(end_params,endpoint){
+			var end_params = _.clone(end_params);
+			var params2 = _.clone(params);
+			this.total++
+			up_end(_.merge(params2,end_params),endpoint)
+			.then(function(filtered_docs){
+				this.data = this.data.concat(filtered_docs);
+				this.checkAsync();
+			}.bind(this))
+		}.bind(this))
+
+		return this.promise;
+	});
+	
+
+	
+	_.each(opt.platforms,function(plat,plat_name){
+		this.total++;
+
+		up_plat(plat,plat_name)
+		.then(function(docs){
+			this.data = this.data.concat(docs);
+			this.checkAsync();
+		}.bind(this))
+
+	}.bind(this));
 
 
-module.exports = main;
+	return this.promise
+});
+
+
+
+
+
+
+module.exports = function(opt){
+	return main(opt).then(sync);
+};

@@ -38,9 +38,11 @@ var merge = {};
 merge.venue = function(e1,e2,priority){//priority boolean defaults to true
 	if(e1 == null || e2 == null) return e1 || e2 || null;
 	
+	
 
-	var merged = {platforms:[],events:[]};
+	var merged = {platforms:[]};
 
+	//console.log('MERGE STEP 1')
 	//prioritize based on how many external links
 	var weight = defaultWeight(e1,e2);
 	var i1 = weight[0], i2 = weight[1];
@@ -49,7 +51,7 @@ merge.venue = function(e1,e2,priority){//priority boolean defaults to true
 	
 
 	if(priority != null && priority == false) i2 = 1337;
-
+	
 	
 	//priority dicision making.
 	_.each(e1.platforms,function(plat){
@@ -59,10 +61,11 @@ merge.venue = function(e1,e2,priority){//priority boolean defaults to true
 		i2+= MergePriority[plat.name]
 	});
 
-	
+	//console.log('MERGE STEP 2')
 	//platforms ->
+	//console.log(e1.platforms.length,e2.platforms.length);
 	merged.platforms = _.uniq(_.union(e1.platforms,e2.platforms),'name','id');
-
+	//console.log('MERGE STEP 3')
 
 	//names ->
 	if(i1 >= i2) merged.name = e1.name
@@ -98,6 +101,7 @@ merge.venue = function(e1,e2,priority){//priority boolean defaults to true
 		})		
 	}
 
+	//console.log('MERGE STEP 4')
 
 	//phone ->
 	if(i1 >= i2 && e1.phone != null) merged.phone = e1.phone;
@@ -115,39 +119,43 @@ merge.venue = function(e1,e2,priority){//priority boolean defaults to true
 	if(i1 >= i2 && e1.age != null) merged.age = e1.age;
 	else merged.age = e2.age;
 
+
+
+//	console.log('MERGE STEP 5')
 	//events ->
+
 	if( !_.isArray(e2.events) || !_.isArray(e1.events) ){
-		merged.events = e2.events || e1.events;
+		merged.events = _.clone(e2.events || e1.events);
 	}else{
 
-		var un = _.union(e2.events,e1.events);
+		
 
-	
-		for(var i = 0;i<un.length;i++){
-			
-			var matched = null;
-			for(var j = 0;j<merged.events.length;j++){
-				
-				
-				if(match.event(un[i],merged.events[j])){
-					matched = j;
+
+		var e1_l = e1.events.length;
+		var e2_l = e2.events.length;
+
+		merged.events = [];
+
+		for(var j = 0;j<e2_l;j++){
+			var matched = false;
+			for(var i = 0;i<e1_l;i++){
+				if(e1.events[i] == null) continue;
+				if(match.event(e1.events[i],e2.events[j])){
+					matched = true;
+					e1.events[i] = merge.event(e1.events[i],e2.events[j],null,i1,i2);
+					e2.events[j] = null;
 					break;
 				}
 			}
-			if(j<merged.events.length){
-				//console.log('MERGING',merged.events[j].name,un[i].name,j,matched);
-				//console.log('\n\n')
-				merged.events[j] = merge['event'](merged.events[j],un[i],null,i1,i2);
-				//if(merged.events[j] == null){
-				//	console.log("STOP")
-				//}
-			} 
-			else merged.events.push(un[i]);
+			if(!matched) e1.events.push(e2.events[j]);
 		}
 
-		
+		merged.events = e1.events;
 	}
 
+
+	e1 = null;
+	e2 = null;
 
 	return merged
 };
@@ -236,7 +244,11 @@ merge.event = function(e1,e2,priority,count1,count2){
 	else merged.description = e2.pdescription
 
 	//banners ->
-	merged.banners = _.uniq(_.union(e1.banners,e2.banners));
+	if(e2.banners == null || e1.banners == null){
+		merged.banners = e2.banners || e1.banners;
+	}else{
+		merged.banners = _.uniq(_.union(e1.banners,e2.banners));
+	}
 
 	//location ->
 	if(i1 >= i2 && e1.location != null) merged.location = e1.location

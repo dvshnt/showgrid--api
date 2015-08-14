@@ -38,11 +38,15 @@ module.exports.async = function(func){
 		ObamaDelivers.checkAsync= function(){
 			this.count++;
 			if(this.count >= this.total){
+				if(this.cb != null) this.cb(this);
 				this.resolve(this.data);
 			}
 		}.bind(ObamaDelivers);
 
 		ObamaDelivers.promise = new Promise(function(gaymarriage,tradepolicy){
+			this.total = 0;
+			this.count = 0;
+			this.data = [];
 			this.resolve = gaymarriage;
 			this.reject = tradepolicy;
 			if(this.timeout > 0){

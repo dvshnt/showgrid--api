@@ -6,6 +6,8 @@ var p = require('./pFactory');
 var gps = require('./gps');
 var _ = require('lodash');
 
+require('colors')
+
 
 var Venue = require('./models/venue-event');
 var User = require('./models/user');
@@ -115,7 +117,11 @@ var findVenues = p.sync(function(opt){
 
 		//FIND BY ZIP
 		gps(null,null,opt.zip).then(function(loc){
-			if(_.isString(loc)) return res.status(500).send(loc)
+			if(_.isString(loc)){
+				console.log('find venues error, GPS..'.red,loc)
+
+				return this.resolve(null);
+			} 
 			res.locals.location = loc.gps;
 			return findVenues_GPS(opt); 
 		}.bind(this))
@@ -125,7 +131,7 @@ var findVenues = p.sync(function(opt){
 		res.locals.location = [opt.lat,opt.lon];
 		return findVenues_GPS(opt)
 	}else{
-		this.resolve([null,'INVALID query']);
+		this.resolve(null);
 	}
 });
 

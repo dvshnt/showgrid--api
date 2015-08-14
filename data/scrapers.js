@@ -34,9 +34,9 @@ var scrapers = {
 			*/
 		},
 		'filters': {
-			'venue' : [jambase.parseVenue],
-			'event' : [jambase.parseEvent],
-			'artist' : [jambase.parseArtist]
+			'venue' : jambase.parseVenue,
+			'event' : jambase.parseEvent,
+			'artist' : jambase.parseArtist
 		}
 	},
 
@@ -58,9 +58,9 @@ var scrapers = {
 			'artist' : eventful.getArtist
 		},
 		'filters' : {
-			'event' : [eventful.parseEvent],
-			'venue' : [eventful.parseVenue],
-			'artist' : [eventful.parseArtist] 
+			'event' : eventful.parseEvent,
+			'venue' : eventful.parseVenue,
+			'artist' : eventful.parseArtist 
 		}
 	},
 
@@ -78,7 +78,7 @@ var scrapers = {
 			'venue' : reverbnation.getVenue,
 		},
 		'filters' : {
-			'venue' : [reverbnation.parseVenueFindItem],
+			'venue' : reverbnation.parseVenueFindItem,
 		}		
 	},
 
@@ -100,8 +100,8 @@ var scrapers = {
 			//'event' : facebook.getEvent,
 		},
 		'filters' : {
-			'venue' : [facebook.parseVenue],
-			'event' : [facebook.parseEvent]
+			'venue' : facebook.parseVenue,
+			'event' : facebook.parseEvent
 		}	
 	},
 
@@ -126,8 +126,8 @@ var scrapers = {
 
 		},
 		'filters' : {
-			'venue' : [ticketfly.parseVenue],
-			'event' : [ticketfly.parseEvent]
+			'venue' : ticketfly.parseVenue,
+			'event' : ticketfly.parseEvent
 		}
 	}
 }

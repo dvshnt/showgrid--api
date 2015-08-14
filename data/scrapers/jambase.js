@@ -175,6 +175,7 @@ module.exports.parseEvent = p.sync(function(event){
 
 	module.exports.parseVenue(event.Venue).then(function(v){
 		e.venue = v;
+		if(e.name == null) e.name = e.venue.name + ' Event'
 		this.resolve(e);
 	}.bind(this));
 

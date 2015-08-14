@@ -591,7 +591,7 @@ module.exports.parseVenueFindItem = p.sync(function(venue){
 
 
 	module.exports.getVenue(parsed.platforms[0].id).then(parse).then(function(parsed){
-
+		console.log('DONE PARSE REVERB VENUE')
 		this.resolve(parsed);
 	}.bind(this));
 

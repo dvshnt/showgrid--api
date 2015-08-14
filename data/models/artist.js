@@ -16,7 +16,7 @@ var artistSchema = new db.Schema({
 	streams: [{type:String}],
 
 	members: [{type:db.Schema.Types.ObjectId, ref: 'Artist'}],
-},{autoIndex: false}); 
+}); 
 
 artistSchema.pre('save',function(next){
 	if(this.members.length > 1) this.isGroup = true;
@@ -33,6 +33,8 @@ artistSchema.index({
 
 
 var artist = db.model('Artist',artistSchema);
+
+
 
 artistSchema.pre('save',function(next){
 	this.platformIds = _.map(this.platforms,function(plat){

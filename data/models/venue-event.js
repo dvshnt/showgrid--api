@@ -1,7 +1,8 @@
+
+
 var _ = require('lodash');
 var Promise = require('bluebird');
 var db = Promise.promisifyAll(require('mongoose'));
-
 var Artist = require('./artist');
 
 
@@ -54,7 +55,6 @@ var eventSchema = new db.Schema({
 
 
 var venueSchema = new db.Schema({
-	
 	//identification
 	platformIds:[{type:String,required: true}],
 	platforms: [{name:String,id:String,_id:false}],
@@ -62,7 +62,8 @@ var venueSchema = new db.Schema({
 	name: {type:String, required: true},
 	location: {
 		address: {type: String, required:true},
-		gps: [{type:Number, index: '2dsphere'}]
+		gps: [{type:Number, index: '2dsphere'}],
+		confirmed: {type: Boolean,default: false},
 	},
 	links: [{type:String}],
 	tags: [{type: String}],

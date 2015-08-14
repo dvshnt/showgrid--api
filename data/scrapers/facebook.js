@@ -57,17 +57,19 @@ var venue_fields = [
 	"mission",
 	"general_info",
 	"genre",
-	"photos{link}.lmit(100)",
+	"photos.limit(100){link}",
 	"website",
 	"likes"
 ]
 
 //nested event in venue query string
-venue_event = ",events{"+event_fields.join(',')+"}.limit(100)",
+venue_event = ",events.limit(100){"+event_fields.join(',')+"}",
 
 //nested venue in event query string
 event_venue = ",place{"+venue_fields.join(',')+"}"
 
+
+Promise.longStackTraces();
 
 
 
@@ -110,6 +112,9 @@ var Getter = function(type,opt){
 			distance: Math.floor(opt.radius/0.000621371) || Math.floor(50/0.000621371),
 			fields: type == 'venue' ? venue_fields.join(',')+venue_event : event_fields.join(',')+event_venue
 		}
+
+
+		console.log(cfg.api + '/search?' + qs.stringify(q)+'&'+key_string)
 
 
 		getOne(cfg.api + '/search?' + qs.stringify(q)+'&'+key_string);
@@ -177,7 +182,7 @@ module.exports.findEvents = function(opt){
 
 
 module.exports.parseVenue = function(venue){
-	console.log(venue);
+	//console.log(venue.events.data);
 
 	var parsed = {
 		is: 'venue',
@@ -195,24 +200,18 @@ module.exports.parseVenue = function(venue){
 		demand: venue.likes,
 		tags: [venue.category],
 		links: [venue.website],
-		banners: venue.photos !=  null ? (function(data){
-			return _.map(data,function(photo){
-				return photo.link
-			})
-		})(venue.photos.data) : null,
-		events: venue.events != null ? (function(events){
-			return _.map(events,function(event){
-				return module.exports.parseEvent(event);
-			})
-		})(venue.events.data) : null,
-
-
+		banners: (venue.photos != null && venue.photos.data !=  null) ? _.map(venue.photos.data,function(photo){
+			return photo.link
+		}) : null,
+		events: (venue.events != null && venue.events.data != null) ? _.map(venue.events.data,function(event){
+			return module.exports.parseEvent(event);
+		}): null,
 	};
-	console.log('------------------')
-	console.log(util.inspect(parsed, { showHidden: true, depth: null }));
+	// console.log('------------------')
+	// console.log(util.inspect(parsed, { showHidden: true, depth: null }));
 
 	//console.log(parsed);
-	return p.pipe(parsed);
+	return parsed;
 }
 
 
@@ -229,18 +228,24 @@ module.exports.parseEvent = function(event){
 			id: event.id
 		}],
 		name: event.name,
-		venue: event.place != null ? (function(place){
-			return module.exports.parseVenue(place);
-		})(event.place) : null,
+		venue: event.place != null ? module.exports.parseVenue(event.place) : null,
+
 		date: {
-			start: moment(event.start_time).utc().fromat()
+			start: event.start_time != null ? moment(event.start_time).utc().format() : null,
+			end: event.end_time != null ? moment(event.end_time).utc().format() : null
 		},
 		tickets: [{
 			url: event.ticket_uri
+		}],
+		artists: [{
+			headliners: null,
+			openers: null
 		}],
 		description: event.description,
 
 	}
 
-	return p.pipe(parsed)
+	//console.log('END PARSE s')
+
+	return parsed;
 }

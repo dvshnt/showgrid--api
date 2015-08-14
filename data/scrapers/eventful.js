@@ -255,7 +255,10 @@ module.exports.parseArtist = function(artist){
 		platforms:[{name:'eventful',id:artist.id}],
 		demand: artist.demand_count,
 		banners : event.images != null && _.isArray(artist.images.image) ? _.map(artist.images.image,function(img){
-			return img.large || img.medium || img.small
+			
+			var img = img.large || img.medium || img.small
+			if(img == null) return null
+			return img.url;
 		}) : null,
 
 		links : event.links != null && _.isArray(artist.links.link) ? _.map(artist.links.link,function(link){
@@ -319,7 +322,9 @@ module.exports.parseEvent = function(event){
 		},
 
 		banners : event.images != null && _.isArray(event.images.image) ? _.map(event.images.image,function(img){
-			return img.large || img.medium || img.small
+			var img = img.large || img.medium || img.small
+			if( img == null) return null
+			return img.url;
 		}) : null,
 
 		links : event.links != null && _.isArray(event.links.link) ? _.map(event.links.link,function(link){
@@ -380,12 +385,17 @@ module.exports.parseVenue = function(venue){
 	//console.log(lol++)
 	//get banners
 	if(venue.images != null && _.isArray(venue.images.image))
+	{
 		n_venue.banners = _.map(venue.images.image,function(img){
-			return (img.large || img.medium || img.small);
+			var img = img.large || img.medium || img.small;
+			if(img == null) return null
+			return img.url;
 		});
+	}
+
 	else if(venue.images != null && venue.images.image != null)
 		var img = venue.images.image.large || venue.images.image.medium || venue.images.image.small
-		n_venue.banners = [img]
+		if(img != null) n_venue.banners = [img.url]
 
 	//console.log(lol++)
 

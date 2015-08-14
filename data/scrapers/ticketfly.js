@@ -1,3 +1,5 @@
+
+
 //ticketfly ticketing
 var cfg = require('../config.json').apis.ticketfly;
 var Promise = require('bluebird');
@@ -23,16 +25,16 @@ max_query only applies to how many venues to search for.
 
 
 
-module.exports.findEvents = p.sync(function(opt){
-	var limit = opt.query_size || 1000, radius = opt.radius || 50;
+module.exports.findEvents = p.async(function(opt){
+	var limit = opt.query_size || 1000, radius = opt.radius != null ? opt.radius : 50;
 	var maxpages = opt.max || null;
 	var totalpages = 0;
 	var coords = [];
-	var events = [];
-
+	this.data = []
+	var totalpages = Math.floor(limit/200);
 
 	function get(page){
-		//console.log(coords);
+		console.log(cfg.api+"/events/list?orgId=1&pageNum="+page+"&maxResults=200&distance="+radius+"mi&location=geo:"+coords[0]+","+coords[1]);
 		request({
 			url: cfg.api+"/events/list?orgId=1&pageNum="+page+"&maxResults=200&distance="+radius+"mi&location=geo:"+coords[0]+","+coords[1],
 			json: true
@@ -42,39 +44,36 @@ module.exports.findEvents = p.sync(function(opt){
 				return this.reject();
 			}
 
-			totalpages = dat.totalPages;
 
-
-			process.stdout.clearLine();
-			process.stdout.cursorTo(0);
-			process.stdout.write('tickfly getEvents: '+dat.pageNum.toString().yellow+'/'+totalpages.toString().cyan);
-			
-
-			events = events.concat(dat.events);
-
-			
-			if(dat.pageNum >= totalpages || events.length >= limit){
-				this.resolve(events);
-			}else{
-				get.bind(this)(dat.pageNum+=1);
+			//async paginations
+			if(page == 1){
+				totalpages = (dat.totalPages < totalpages) ? dat.totalPages : totalpages;
+				this.total = totalpages;
+				for(var p = 2;p<=totalpages;p++){
+					get.bind(this)(p);
+				}
 			}
+	
+			console.log('tickfly getEvents: '+dat.pageNum.toString().yellow+'/'+totalpages.toString().cyan);
+	
+
+			this.data = _.takeRight(this.data.concat(dat.events),limit);
+			this.checkAsync();
+
 		}.bind(this));
 	}
-
 
 
 	//if we gps is passed, do not fetch gps data from google.
 	if(opt.gps != null){
 		coords = opt.gps;
-		get.bind(this)(1).then(function(events){
-			this.resolve(events);
-		}.bind(this))
+		get.bind(this)(1);
 
 	//otherwise fetch gps data from google.
 	}else if(opt.zip != null){
 		gps(null,null,opt.zip,null).then(function(addr){
 			coords = addr.gps;
-			get.bind(this)(1);
+			get.bind(this)(1);	
 		}.bind(this));
 	}
 
@@ -105,6 +104,8 @@ var getCityStateCountry = p.sync(function(loc){
 			this.resolve(addr)
 		}.bind(this))
 	}
+
+	return this.promise;
 });
 
 
@@ -112,67 +113,101 @@ var getCityStateCountry = p.sync(function(loc){
 
 
 
+
+/*
+
+DISTANCE PARAM DOES NOT WORK HERE.
+
+TO FETCH ALL, SET DISTANCE = -1;
+
+TO FETCH STATE,  SET DISTANCE = 0;
+
+*/
 
 
 
 //fetch all venues from city
 module.exports.getVenues = p.async(function(opt){
-
-	var limit = opt.limit || 1000;
+	var limit = opt.query_size || 1000,radius = opt.radius != null ? opt.radius : 0;
 	var loc = opt.zip || opt.gps;
-
 	var q;
+	var totalpages = Math.floor(limit/200);
+	this.data = [];
 
+	if(radius <= 0){
+		totalpages = 999;
+	}
 
-
-
-	var totalpages = 0;
-	var venues = [];
 
 	
 	function get(page){
+		console.log(cfg.api+"/venues?pageNum="+page+"&maxResults=200&distance="+radius+"mi&"+q)
 		request({
-			url: cfg.api+"/venues?pageNum="+page+"&maxResults=200&"+q,
+			url: cfg.api+"/venues?pageNum="+page+"&maxResults=200&distance="+radius+"mi&"+q,
 			json: true
 		}).spread(function(res,dat,err){
-			if(err) this.reject(err);
-			else if(dat != null){
-				process.stdout.clearLine();
-				process.stdout.cursorTo(0);
-				process.stdout.write('tickfly getVenues: '+dat.pageNum.toString().yellow+'/'+totalpages.toString().cyan);
-				//totalpages = dat.totalPages
+			if(err) return this.reject(err);
+			if(dat == null) this.reject('no data');
 
-				totalpages = dat.totalPages
-				venues = venues.concat(dat.venues);
-
-				
-				if(dat.pageNum >= totalpages || venues.length >= limit){
-					this.resolve(venues);
-				}else{
-					get.bind(this)(dat.pageNum+=1);
+			//async pagination
+			if(page == 1){
+				console.log(dat.totalPages)
+				totalpages = (dat.totalPages < totalpages) ? dat.totalPages : totalpages;
+				this.total = totalpages;
+				for(var p = 2;p<=this.total;p++){
+					get.bind(this)(p);
 				}
 			}
 
+			console.log('tickfly getVenues: '+dat.pageNum.toString().yellow+'/'+this.total.toString().cyan);
+			
+			this.data = this.data.concat(dat.venues);
+			this.checkAsync();
 		}.bind(this));
 	}
 
+
+
+
 	getCityStateCountry(loc).then(function(location){
+		
 		if(location == null){
 			q = ''
 		}else{
-			q = qs.stringify({
-				city: location.city,
-				stateProvince: location.state,
-				country: location.country
-			})
+			q = {country: location.country}
+			if(radius == -1){
+				
+			}else if(radius == 0){
+				q.stateProvince = location.state
+
+			}else{
+				q.stateProvince = location.state
+				q.city = location.city
+			}
+			q = qs.stringify(q);	
 		}
 		
-		return p.pipe(1)
-	}).then(get.bind(this));
+		return get.bind(this)(1)	
+	}.bind(this));
+
 
 
 	return this.promise;
 });
+
+
+
+
+
+
+
+
+/*
+
+PARSE FUNCTIONS
+
+*/
+
 
 
 
@@ -226,9 +261,6 @@ Promise.longStackTraces();
 
 
 module.exports.parseEvent = function(event){
-
-
-
 
 	var parsed = {
 
@@ -288,7 +320,7 @@ module.exports.parseEvent = function(event){
 
 
 
-	console.log(parsed.date);
+	//console.log(parsed.date);
 	return parsed;
 }
 
@@ -303,11 +335,7 @@ module.exports.parseEvent = function(event){
 
 
 module.exports.parseVenue = function(venue){
-	//var nameParts = venue.name.split('"');
-	//if(nameParts.length == 3) venue.name = nameParts[1];
 
-
-	//parse any nested events.
 	_.each(venue.events,function(event,i){
 		venues.events[i] = module.exports.parseEvent(event);
 	});
@@ -330,5 +358,3 @@ module.exports.parseVenue = function(venue){
 
 	return parsed;
 }
-
-
