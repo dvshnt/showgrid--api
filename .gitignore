@@ -2,3 +2,4 @@
 .idea
 /proxy-balancer/node_modules
 npm-debug.log
+.DS_Store

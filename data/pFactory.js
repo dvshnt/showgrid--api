@@ -8,6 +8,17 @@ var Promise = require('bluebird');
 var _ = require('lodash');
 
 
+
+
+module.exports.make = function(data){
+	return Promise.promisifyAll(data);
+}
+
+
+module.exports.make1 = function(data){
+	return Promise.promisify(data);
+}
+
 /*
 
 Promise pipe creator.
@@ -15,6 +26,9 @@ Promise pipe creator.
 */
 module.exports.pipe = function(data){
 	return Promise.resolve(data);
+}
+module.exports.stop = function(err){
+	return Promise.reject(err);
 }
 
 
@@ -36,6 +50,7 @@ module.exports.async = function(func){
 		ObamaDelivers.resolve = null,ObamaDelivers.reject = null;
 		ObamaDelivers.timeout = 0;
 		ObamaDelivers.checkAsync= function(){
+			//if(this.total == 0) return this.resolve(this.data);
 			this.count++;
 			if(this.count >= this.total){
 				if(this.cb != null) this.cb(this);
@@ -50,8 +65,7 @@ module.exports.async = function(func){
 			this.resolve = gaymarriage;
 			this.reject = tradepolicy;
 			if(this.timeout > 0){
-				setTimeout(function() {
-					
+				setTimeout(function(){
 					this.resolve(this.data);
 				}.bind(this), this.timeout);
 			}

@@ -1,7 +1,12 @@
 {
-	"dev_db":"mongodb://localhost/showgrid-dev1",
-	"live_db":"mongodb://localhost/showgrid-live1",
+	"dev_db":"mongodb://localhost/eve",
+	"live_db":"mongodb://localhost/showgrid",
 	"apis" : {
+		"aws": {
+			"bucket": "showgrid",
+			"key": "AKIAJI56EKSRTGG2IGFQ",
+			"secret" : "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"
+		},
 		"facebook" : {
 			"api": "https://graph.facebook.com",
 			"secret": "02801ae29d77605a491125911a47e4b8",
@@ -18,7 +23,9 @@
 			"api" : "http://api.jambase.com",
 			"keys" : [
 				"aaddmdrur2am379yvxfkgdxs",
-				"qrq3a7xhf9wx8vh72bd45eud"
+				"qrq3a7xhf9wx8vh72bd45eud",
+				"s3347mh6zxec8hs72rfcy462",
+				"d69hxhz259h4k79bts5s6h53"
 			]
 		},
 		"reverbnation" : {

@@ -6,6 +6,101 @@ var Promise = require('bluebird');
 var p = require('../data/pFactory');
 var gps = require('../data/gps');
 var _ = require('lodash');
+var util = require('../data/util');
+
+
+//min / max query amount.
+var limits = [10,500];
+
+
+//error handling
+function err(res,type,status,msg){
+	if(status == 500){
+		return res.status(status).json({error:msg||type.toUpperCase()+'_SERVER_FAULT'})
+	}else if(status == 404){
+		return res.status(status).json({error:msg||type.toUpperCase()+'_NOT_FOUND'})
+	}else return res.status(500).json({error:msg||type.toUpperCase()+'_OTHER'});
+}
+
+
+
+//optional cursor parameter or feaults ot beginning.
+function pageinate(type,opt){
+	opt.limit = util.clamp(opt.limit||100,limits[0],limits[1]);
+	return data
+	.find[type](opt)
+	.spread(function(count,dat){
+		var r = {
+			total: count,
+			type: type,
+			data: dat || [],
+		}
+		if(dat.length >= opt.limit){
+			r.next = dat[dat.length-1]._id
+		}
+	
+		return p.pipe(r)
+	});
+}
+
+
+
+
+
+/*
+MANUAL VENUE MERGE
+
+@param from {ObjectId}
+@param to {ObjectId}
+@param overwrite {boolean}
+
+*/
+
+
+function mergeVenues(req,res,next){
+	if(req.query.from == null)return err(res,'venue',500,'BAD_PARAMS');
+	if(req.query.to == null)return err(res,'venue',500,'BAD_PARAMS');
+
+	var overwrite = req.query.overwrite || false;
+
+	function merge(from,to){
+		
+		if(overwrite){
+			to.merge(from,{
+				virtuals: true
+			});
+		}else{
+			to.merge(merge['venue'](from,to),{
+				virtuals: true
+			})
+		}
+
+		to.save(function(e){
+			if(e){
+				console.log(e);
+				err(res,'venue','505','SAVE_FAILED');
+			}else return res.json(to.toJSON())
+		})
+	}
+
+	db['venue'].findById(req.query.from)
+	.then(function(doc1){
+		if(doc1 == null) 
+			err(res,'venue',404,'FROM_NOT_FOUND')
+		else 
+			db['venue'].findById(req.query.to)
+			.then(function(doc2){
+				if(doc2 == null) err(res,'venue',404,'TO_NOT_FOUND')
+				else return merge(doc1,doc2)
+			}.bind(this))
+	}.bind(this))
+	.catch(function(e){
+		console.log('MERGE_VENUES_ERR'.bold.bgRed,e);
+	})
+}
+
+
+
 
 
 /**
@@ -24,18 +119,13 @@ zipcode or lat and lon variables
  * @param {int} limit - max amount of entries;
  * @param {string} active - only find venues that have active events.
  */
-
-
-
 function findVenues(req,res,next){
-	data
-	.find['venue'](req.query)
+	//QUERY PARAMETER
+	pageinate('venue',req.query)
 	.then(function(dat){
-		//if(err) res.status(500).send(err);
-		console.log(dat,res)
-		else if(dat == null || dat.length == 0) res.status(404).send({error:'NO_MATCH'}); 
-		else res.status(200).send(dat);	
-	});
+		if(dat == null) return err(res,'find_venues',404);
+		else res.json(dat);	
+	})
 }
 
 
@@ -45,7 +135,7 @@ function findVenues(req,res,next){
 
  */
 function createVenue(req,res,next){
-	res.status(500).send('TODO');
+	return err(res,'venue',500,'TODO'); 
 }
 
 
@@ -60,29 +150,55 @@ Searches for one venue with an id or a specifc platform and platform id
  * @param {string} platname - platform name
  * @param {string} platid - platform id
  */
+
 function getVenue(req,res,next){
 
-	var db_q = {};
+	//FIELD SELECTION [START]
+	var selects = {
+		__v: 0,
+		platformIds: 0,
+		'events.__v': 0,
+		'events.platformIds': 0
+	};
 
-	if(req.query.id != null){
-		db_q._id = req.query.id;
-	}else if(req.query.platname != null && req.query.platid != null){
-		db_q.platformIds = req.query.platname+'/'+req.query.platid
-	}else{
-		return res.status(500).send('INVALID query')
-	}
+	if(req.query.select != null){
+		_.each(req.query.select.split(','),function(field){
+			selects[field] = 0
+		});
+	};
+	//FIELD SELECTION [END]
 
 
-	data['venue'].findOne(db_q).then(function(doc,err){
-		if(err) return res.status(500).send('INTERNAL ERR');
-		if(doc == null) res.status(404).send('NOTHING FOUND');
-		res.json(doc);
+	//FIND BY ID
+	data['venue'].findById(req.params.id,selects).exec(function(e,doc){
+
+
+		//ERROR HANDLER
+		if(e){
+			console.log(e)
+			return err(res,'venue',500); 
+		}
+
+
+		//POPULATION
+		if(req.query.full){
+			data['venue'].populateAsync(doc,[{ path: 'events.artists.headliners'},{ path: 'events.artists.openers'}])
+			.then(function(doc){
+				res.json(data.sortEvents(doc,req.query));
+			});
+		}else{
+			res.json(data.sortEvents(doc,req.query));
+		} 
 	});
 }
 
 
 function updateVenue(req,res,next){
 	res.status(500).send('TODO');
+}
+
+function deleteVenue(req,res,next){
+
 }
 
 
@@ -101,12 +217,14 @@ function updateVenue(req,res,next){
  * @param {string} artists - only find events that have artists
  */
 function findEvents(req,res,next){
-	data
-	.find['event'](req.res)
-	.spread(function(dat,err){
-		if(err) dat.status(500).send(err);
-		else if(dat.length == 0) dat.status(404).send(dat); 
+	pageinate('event',req.query)
+	.then(function(dat){
+		if(dat == null) err(res,'venue',404,'Invalid Query'); 
 		else res.status(200).json(dat);	
+	})
+	.catch(function(e){
+		console.log('FIND_EVENTS_ERR'.bgRed,e);
+		err(res,'venue',500)
 	})
 }
 
@@ -135,32 +253,34 @@ function getEvent(req,res,next){
 	}else if(req.query.platname != null && req.query.platid != null){
 		db_q.events.platformIds = req.query.platname+'/'+req.query.platid
 	}else{
-		return res.status(500).send('INVALID query')
+		return res.status(500).send(err('event','500'))
 	}
 
 
 	data['venue'].findOne(db_q).then(function(doc,err){
-		if(err) return res.status(500).send('INTERNAL ERR');
-		if(doc == null) res.status(404).send('NOTHING FOUND');
+		if(err) return res.status(500).send(err('event','505'));
+		if(doc == null) res.status(404).send(err('event','404'));
 		res.json(doc);
 	});
 }
 
+// function createEvent(req,res,next){
+// 	res.status(500).send('TODO');
+// }
+
+// function updateEvent(req,res,next){
+// 	res.status(500).send('TODO');
+// }
+
+// function deleteEvent(req,res,next){
+
+// }
 
 
-function createEvent(req,res,next){
-	res.status(500).send('TODO');
-}
-
-function updateEvent(req,res,next){
-	res.status(500).send('TODO');
-}
 
 
 
-
-
-/**
+/*
  * FIND ARTISTS
  * @constructor 
 
@@ -187,66 +307,12 @@ Performing in a specific time range
 
  * @param {int} limit - max amount of entries; (optional, default: 500)
  */
+
 function findArtists(req,res,next){
-	if(req.query.zip != null){
-		//FIND BY ZIP
-		gps(null,null,req.query.zip).then(function(loc){
-			if(_.isString(loc)) return res.status(500).send(loc)
-			res.locals.location = loc.gps;
-			return findEvents_GPS(req,res,next); 
-		}.bind(this))
-	
-	}else if(req.query.lat != null && req.query.lon != null){
-		//FIND BY GPS (a bit faster)
-		res.locals.location = [req.query.lat,req.query.lon];
-		return findArtists_GPS(req,res,next)
-	}else{
-		res.status(500).send('INVALID query');
-	}
+
 }
 
 
-
-function findArtists_GPS(req,res,next){
-
-	var db_q = {
-		location:{gps:{
-			$near : {
-				$geometry : {type: "Point", coordinates : res.locals.location},
-				$maxDistance : parseInt(req.query.radius) || 50
-			},
-		}},
-		events: {
-			date : {$gt: req.query.mindate || new Date(Date()).toISOString(), $lt: req.query.maxdate || new Date(Date.parse(Date())+oneweek).toISOString()},
-
-		},
-	}
-
-	if(req.query.active) db_q.events = {$exists: true, $not: {$size: 0}};
-
-	return data['venue']
-		.find(db_q)
-		.populate('events.artists.headliners','events.artists.openers')
-		.then(function(docs,err){
-			if(err) return res.status(500).send('INTERNAL ERR');
-			if(docs == null) return res.status(404).send('NOTHING FOUND');
-			
-			var artists = [];
-
-			_.each(docs,function(venue){
-				_.each(venue.events,function(event){
-					artists = artists.concat(_.union(event.artists.headliners,event.artists.openers));
-				});
-			});
-
-
-			var artists = _.sortBy(_.takeRight(artists,(req.query.limit != null && req.query.limit < 500) ? Math.floor(parseInt(req.query.limit)) : 100),function(a){
-				return a.demand || 0
-			});
-
-			res.json(artists);
-		})
-}
 
 
 /**
@@ -261,21 +327,10 @@ Searches for one eartist with an id or a specifc platform and platform id
  * @param {string} platid - platform id
  */
 function getArtist(req,res,next){
-	var db_q = {};
-
-	if(req.query.id != null){
-		db_q._id = req.query.id;
-	}else if(req.query.platname != null && req.query.platid != null){
-		db_q.platformIds = req.query.platname+'/'+req.query.platid
-	}else{
-		return res.status(500).send('INVALID query')
-	}
-
-
-	data['artist'].findOne(db_q).then(function(doc,err){
-		if(err) return res.status(500).send('INTERNAL ERR');
-		if(doc == null) res.status(404).send('NOTHING FOUND');
-		res.json(doc);
+	pageinate('artist',req.query)
+	.then(function(dat){
+		if(dat == null) res.status(404).json({error:"ARTIST_NO_MATCH"}); 
+		else res.status(200).json(dat);	
 	});
 }
 
@@ -283,7 +338,9 @@ function getArtist(req,res,next){
 
 
 
-
+function updateAll(req,res,next){
+	res.send('TODO')
+}
 
 
 
@@ -301,42 +358,48 @@ function updateArtist(req,res,next){
 
 
 
+router.get('/',function(req,res,next){
+	res.json({api_version:'0.0.1'})
+})
+
+//VENUE ROUTES
+router.route('/venue')
+	.get(findVenues)
+	//.post(createVenue)
+router.route('/venue/:id')
+	.get(getVenue)
+	//.put(updateVenue)
+
+//router.put('/venue/merge',mergeVenues)
 
 
+//EVENT ROUTES
+router.route('/event')
+	.get(findEvents)
+	//.post(createEvent)
+router.route('/event/:id')
+	.get(getEvent)
+	//.put(updateEvent)
 
 
+//ARTIST ROUTES
+router.route('/artist')
+	.get(findArtists)
+	//.post(createArtist)
+router.route('/artist/:id')
+	.get(getArtist)
+	//.put(updateArtist)
+
+//UPDATE ROUTES
+router.route('/update')
+	.get(updateAll)
 
 
-module.exports = function(){
+module.exports = router;
 
-	// VENUE ROUTES
-	router.route('/venue')
-		.get(findVenues)
-		.post(createVenue)
-	router.route('/venue/:id')
-		.get(getVenue)
-		.put(updateVenue)
-
-	//EVENT ROUTES
-	router.route('/event')
-		.get(findEvents)
-		.post(createEvent)
-	router.route('/event/:id')
-		.get(getEvent)
-		.put(updateEvent)
 	
-	//ARTIST ROUTES
-	router.route('/artist')
-		.get(findArtists)
-		.post(createArtist)
-	router.route('/artist/:id')
-		.get(getArtist)
-		.put(updateArtist)
+	// // VENUE ROUTES
 
-	//UPDATE ROUTES
-	router.route('/update')
-		.get(updateAll)
 
-	return router
-}
+
 

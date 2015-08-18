@@ -1,163 +1,21 @@
-var _ = require('lodash');
-var Promise = require('bluebird');
-var fuzzy = require('fuzzyset.js'); //fuzzy matching for finding models that are similar.
-var p = require('../pFactory.js'); //promise factory shortucts.
-var colors = require('colors');
-var match = require('./match');
 
+//settings
+var MergeDemandPriority = {
+	'facebook':1,
+	'eventful':1,
+	'reverbnation':1,
+	'jambase':1,
+	'ticketfly':1,
+	'spotify':1
+};
 
-/*
-
-SMART MERGING
-
-*/
-
-
-
-var MergePriority = {'facebook':2.5,'eventful':1.5,'reverbnation':1,'jambase':1,'ticketfly':999};
-
-
-
-
-
-/*
-Merge Venue:
- 	platforms ->
- 	name ->
-	location ->
-	links ->
-	tags ->
-	phone ->
-	banners ->
-	age ->
-	events ->
-*/
-
-var merge = {};
-
-merge.venue = function(e1,e2,priority){//priority boolean defaults to true
-	if(e1 == null || e2 == null) return e1 || e2 || null;
-	
-	
-
-	var merged = {platforms:[]};
-
-	//console.log('MERGE STEP 1')
-	//prioritize based on how many external links
-	var weight = defaultWeight(e1,e2);
-	var i1 = weight[0], i2 = weight[1];
-
-	//prioritize based on creation date
-	
-
-	if(priority != null && priority == false) i2 = 1337;
-	
-	
-	//priority dicision making.
-	_.each(e1.platforms,function(plat){
-		i1+= MergePriority[plat.name]
-	});
-	_.each(e2.platforms,function(plat){
-		i2+= MergePriority[plat.name]
-	});
-
-	//console.log('MERGE STEP 2')
-	//platforms ->
-	//console.log(e1.platforms.length,e2.platforms.length);
-	merged.platforms = _.uniq(_.union(e1.platforms,e2.platforms),'name','id');
-	//console.log('MERGE STEP 3')
-
-	//names ->
-	if(i1 >= i2) merged.name = e1.name
-	else merged.name = e2.name
-
-
-	//location ->
-	var loc = null;
-	if(e2.location.confirmed && e1.location.confirmed){
-		if(i2 >= i1) loc = e2.location;
-		else loc = e1.location;
-	}
-	else if(e2.location && e2.location.confirmed) loc = e2.location;
-	else if(e1.location && e1.location.confirmed) loc = e1.location;
-	else if( i2 >= i1){
-		loc = e2.location
-	}else{
-		loc = e1.location
-	}
-
-	merged.location = loc;
-
-	//links ->
-	merged.links = _.uniq(e1.links,e2.links);
-
-	//->tags
-	if(e1.tags == null || e2.tags == null){
-		merged.tags = e1.tags || e2.tags;
-	}else{
-		merged.tags = _.uniq(e1.tags,e2.tags,function(tag){
-			if(_.isNumber(tag)) tag = tag.toString();
-			return tag.toLowerCase();
-		})		
-	}
-
-	//console.log('MERGE STEP 4')
-
-	//phone ->
-	if(i1 >= i2 && e1.phone != null) merged.phone = e1.phone;
-	else merged.phone = e2.phone;
-
-	//banners ->
-	if(e2.banners == null || e1.banners == null){
-		merged.banners = e2.banners || e1.banners;
-	}else{
-		merged.banners = _.uniq(_.union(e1.banners,e2.banners));
-	}
-	
-
-	//age ->
-	if(i1 >= i2 && e1.age != null) merged.age = e1.age;
-	else merged.age = e2.age;
-
-
-
-//	console.log('MERGE STEP 5')
-	//events ->
-
-	if( !_.isArray(e2.events) || !_.isArray(e1.events) ){
-		merged.events = _.clone(e2.events || e1.events);
-	}else{
-
-		
-
-
-		var e1_l = e1.events.length;
-		var e2_l = e2.events.length;
-
-		merged.events = [];
-
-		for(var j = 0;j<e2_l;j++){
-			var matched = false;
-			for(var i = 0;i<e1_l;i++){
-				if(e1.events[i] == null) continue;
-				if(match.event(e1.events[i],e2.events[j])){
-					matched = true;
-					e1.events[i] = merge.event(e1.events[i],e2.events[j],null,i1,i2);
-					e2.events[j] = null;
-					break;
-				}
-			}
-			if(!matched) e1.events.push(e2.events[j]);
-		}
-
-		merged.events = e1.events;
-	}
-
-
-	e1 = null;
-	e2 = null;
-
-	return merged
+var MergePriority = {
+	'facebook':1,
+	'eventful':3.5,
+	'reverbnation':1,
+	'jambase':1,
+	'ticketfly':2,
+	'spotify':5
 };
 
 
@@ -166,142 +24,620 @@ merge.venue = function(e1,e2,priority){//priority boolean defaults to true
 
 
 
+
+
+
+var _ = require('lodash')
+,Promise = require('bluebird')
+,fuzzy = require('fuzzyset.js') // fuzzy matching
+,p = require('../pFactory.js')
+,colors = require('colors')
+,match = require('./match')
+,util = require('../util')
+,readline = require('readline')
+Promise.longStackTraces();
+var rl = require('readline-sync');
+
+
+
 /*
-MERGE EVENTS: 
+confirm
+
+displays old, new and merged objects and asks if you reall want to merge if double check returned true.
+
+*/
+function confirm(type,merged_v,old_v,new_v,check){
+	//console.log(old_1.name.bgRed,old_2.name.bgRed)
+	if(check == false){
+		console.log((type == 'venue' ? type.bold.cyan : type.bold.yellow),'auto-merge'.green,old_v.name.yellow,' + ',new_v.name.cyan);
+		return merged_v;
+	}
+	var o_string = JSON.stringify(old_v,null,4);
+	var n_string = JSON.stringify(new_v,null,4);
+	var m_string = JSON.stringify(merged_v,null,4);
+
+	console.log('\nOLD\n---------\n'.green,o_string.green);
+	console.log('\nNEW\n---------\n'.cyan,n_string.cyan);
+	console.log('\nMERGED\n---------\n');
+
+	_.each(m_string.split('\n'),function(str){
+		var n_matched = n_string.indexOf(str);
+		
+		var o_matched = o_string.indexOf(str);
 
 
-	platforms:-> 
-	name: -> 
-	date: -> 
-	tickets: [{
-		price: Number,
-		soldout: Boolean,
-		url: String,
-		broker: String,
-		sale: {
-			start: Date,
-			end: Date,
-		},
-	}],
-	private: ->
-	featured: ->
-	age: ->
-	description: ->
-	banners: ->
-	location: ->
+		if(n_matched != -1 && o_matched != -1) return console.log(str.yellow);
+		if(n_matched != -1) return console.log(str.cyan);
+		if(o_matched != -1) return console.log(str.green);
+		
 
-	artists: {
-		headliners:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}],
-		openers:[{type:db.Schema.Types.ObjectId, ref: 'Artist'}]
-	},
+		console.log(str.yellow);
+	});
+
+	function ask(){
+		if(old_v.location != null){
+			console.log(JSON.stringify(old_v.location, null, 4).green,'\n',JSON.stringify(new_v.location,null,4).cyan)
+		}
+		console.log('do you want to merge \n',old_v.name.green,' + ',new_v.name.cyan,'(new) \n='.gray,'\n',merged_v.name.yellow);
+		var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
+		if(answer === 'no' || answer === 'n'){
+			console.log("NO".red,' will create new entry');
+			return(false)
+		}else{
+			console.log("YES".green,' the new model is', merged_v.name.yellow);
+
+			
+			
+			return(merged_v)
+		}
+	}
+
+	return ask()	
+};
+
+
+
+
+
+
+var check = {};
+var merge = {};
+
+//venue double check after merge (NOT A MATCHER)
+check.venue = function(e1,e2){
+	if(e1.name == e2.name) return false;
+	var name_match = fuzzy([e1.name]).get(e2.name);
+	if(name_match[0][0] > 0.9) return false;
+
+	if(e1.location.address == e2.location.address && name_match[0][0] > 0.6) return false;
+
+	if((e1.location.status == 2 && e1.location.status == 2) && (e1.location.address != e2.location.address)) return true
+	return true
+}
+
+//event double check after merge (NOT A MATCHER)
+check.event = function(e1,e2,check_val){
+	if(match.checkID(e1.platforms,e2.platforms)) return false;
+
+	if(e1.date.start == e2.date.start){
+		console.log('MATCHED EVENTS BY DATE'.bold.yellow,e1.name,e2.name.inverse);
+		return false;
+	}
+
+	return false;
+}
+
+//artist double check after merge (NOT A MATCHER)
+check.artist = function(e1,e2){
+	if(e1.name == e2.name) return false;
+	var name_match = fuzzy([e1.name]).get(e2.name);
+	if(name_match[0][0] > 0.9) return false;
+	
+	console.log('fuzzy match:',name_match)
+
+	return true;
+}
+
+
+
+
+/*
+
+Merge Venues
+
+- priority boolean defaults to true (if set to false, will ignore priority weights and overwrite)
 
 */
 
-//search for event duplicates in venue event list and merge them if neccesary.
-merge.event = function(e1,e2,priority,count1,count2){
+merge.venue = function(e1,e2,priority,check_val){
+	var merged,weight;
+
+
+	merged = {};
+	merged.platforms = [];
+	//null exception
 	if(e1 == null || e2 == null) return e1 || e2 || null;
 	
-
-	var weight = defaultWeight(e1,e2);
-	var i1 = weight[0], i2 = weight[1];
 	
-	var merged = {artists:{headliners:[],openers:[]}};
-		
-	if(priority != null && priority == false) i2 = 1337;
+
+	//priority overwrite or decide
+	if(priority != null && priority == false){
+		i2 = 9999;
+		i1 = 0;
+	}else{
+		_.each(e1.platforms,function(plat){
+			i1+= MergePriority[plat.name]
+		});
+		_.each(e2.platforms,function(plat){
+			i2+= MergePriority[plat.name]
+		});	
+		weight = defaultWeight(e1,e2);
+		var i1 = weight[0], i2 = weight[1];	
+		if(i1 == i2) i2++;
+	}
+
+	//platforms 1
+	merged.platforms = _.uniq(_.union(e1.platforms,e2.platforms),function(obj){
+		return obj.name+'/'+obj.id
+	});
 
 
-	//platforms ->
-	merged.platforms = _.uniq(_.union(e1.platforms,e2.platforms),'name','id');
-
-	//name -> (required)
-	if(i1 >= i2) merged.name = e1.name
+	
+	//time 2
+	merged.time = {}
+	if(match.checkID(e1.platforms,e2.platforms)){
+		merged.time.created = e1.time.created || e2.time.created;
+	}
+	
+	
+	//names 3
+	if(e1.location.status == 2) merged.name = e1.name;
+	else if(e1.location.status == 2) merged.name = e2.name;
+	else if(i1 >= i2) merged.name = e1.name
 	else merged.name = e2.name
 
-	//date -> (required)
-	merged.date = {}
-	if(i1 >= i2) merged.date.start = e1.date.start
-	else merged.date.start = e2.date.start
-	if(i1 >= i2) merged.date.end = e1.date.end
-	else merged.date.end = e2.date.end
 
-	//tickets ->
-	merged.tickets = _.uniq(_.union(e1.tickets,e2.tickets),'url');
+	//location 4
+	var loc = null;
+	if(e2.location != null && e2.location.status > e1.location.status) loc = e2.location;
+	else if(e1.location != null && e1.location.status > e2.location.status) loc = e1.location;
+	else if(e2.location.gps == null || e1.location.gps == null){
+		loc = e2.location || e1.location
+	}
+	else loc = e2.location
+	
 
-	//private ->
-	if(i1 >= i2 && e1.private != null) merged.private = e1.private
-	else merged.private = e2.private
+	merged.location = loc;
 
-	//featured ->
-	if(i1 >= i2 && e1.private != null) merged.private = e1.private
-	else merged.private = e2.private
+	//links 5
+	merged.links = _.uniq(_.union(e1.links,e2.links),'url');
 
-	//age ->
-	if(i1 >= i2 && e1.private != null) merged.private = e1.private
-	else merged.private = e2.private
+	//tags 6
+	if(e1.tags == null || e2.tags == null){
+		merged.tags = e1.tags || e2.tags;
+	}else{
+		merged.tags =_.uniq(util.null_filter(_.union(e1.tags,e2.tags)),function(tag){		
+			if(_.isString(tag)) return tag.toLowerCase();
+			return tag;
+		})
+	}
 
-	//description ->
-	if(i1 >= i2 && e1.description != null) merged.description = e1.description
-	else merged.description = e2.pdescription
 
-	//banners ->
+	//phone 7
+	if(i1 >= i2 && e1.phone != null) merged.phone = e1.phone;
+	else merged.phone = e2.phone;
+
+	//banners 8
 	if(e2.banners == null || e1.banners == null){
 		merged.banners = e2.banners || e1.banners;
 	}else{
-		merged.banners = _.uniq(_.union(e1.banners,e2.banners));
+		merged.banners = _.uniq(_.union(e1.banners,e2.banners),'url');
+	}
+	
+
+	//age 9
+	if(i1 >= i2 && e1.age != null) merged.age = e1.age;
+	else merged.age = e2.age;
+
+
+
+
+	//events 10
+	if(!_.isArray(e2.events) || !_.isArray(e1.events)){
+
+		merged.events = _.clone(e2.events || e1.events);
+	
+	}else{
+		merged.events = [];
+		var events = _.union(e2.events,e1.events);
+		
+		//console.log(events);
+		var l = events.length;
+		console.log('merge venue events','total:',l,'e1:',e1.events.length,'e2:',e2.events.length);
+		for(var i = 0;i<l;i++){
+			if(events[i] == null) continue;
+			for(var j = 0;j<l;j++){
+				if(j == i || events[j] == null || events[i] == null) continue;
+				if(match['event'](events[i],events[j])){
+					var new_e = merge['event'](events[i],events[j]);
+					if(new_e != false){
+						events[i] = new_e;
+						events[j] = undefined;
+					}
+				}
+			}
+		}
+
+		merged.events = util.null_filter(events);
 	}
 
-	//location ->
+	//colors 11
+	if(i1 >= i2 && e1.phone != null) merged.colors = e1.colors;
+	else merged.phone = e2.colors;
+
+	//users 12
+	merged.users = _.uniq(_.union(e1.users,e2.users),'_id');	
+
+
+	//demand 13
+	merged.demand =  mergeDemand(e1,e2) || 0;
+
+
+	//double check to make sure everything is okay before we merge!	
+	if(check_val !== false) check_val = check.venue(e1,e2);
+	return confirm('venue',merged,e1,e2,check_val);
+};
+
+
+
+
+/*
+
+Merge Events
+
+- priority boolean defaults to true (if set to false, will ignore priority weights and overwrite)
+
+*/
+
+merge.event = function(e1,e2,priority,check_val){
+	var merged = {},weight;
+	//null exception
+	if(e1 == null || e2 == null) return e1 || e2 || null;
+
+
+
+	if(priority != null && priority == false){
+		i2 = 9999;
+		i1 = 0;
+	}else{
+		_.each(e1.platforms,function(plat){
+			i1+= MergePriority[plat.name]
+		});
+		_.each(e2.platforms,function(plat){
+			i2+= MergePriority[plat.name]
+		});	
+		weight = defaultWeight(e1,e2);
+		var i1 = weight[0], i2 = weight[1];	
+		if(i1 == i2) i2++;
+	}
+
+
+
+	//id 0
+	
+	merged._id = e1._id || e2._id;
+	
+
+
+	//platforms 1
+	merged.platforms = _.uniq(_.union(e1.platforms,e2.platforms),function(obj){
+		return obj.name+'/'+obj.id
+	});
+
+	//name 2
+
+
+	
+	//if names are completly different, combine them with a ,
+	if(!match.checkname(e1,e2,0.75,0.75)){
+	
+		
+		if(e1.name.indexOf(e2.name) != -1){
+			merged.name = e2.name.replace(e1.name, "");
+		}else if(e2.name.indexOf(e1.name) != -1){
+			merged.name = e1.name.replace(e2.name, "");
+		}else{
+			merged.name = e1.name +' , '+e2.name;
+		}
+
+	}
+	//else if e2 is part of e1 or e1 is more important
+	else if(i1 >= i2 || e1.name.indexOf(e2.name) != -1) merged.name = e1.name;
+	else merged.name = e2.name;	
+	
+
+
+
+	//date 3
+	merged.date = {}
+	if(e1.date.start < e2.date.start) merged.date.start = e1.date.start;
+	else merged.date.start = e2.date.start;
+	
+
+
+	//timestamp 4
+	merged.time = {}
+	if(match.checkID(e1.platforms,e2.platforms)){
+		if(e1.time.created < e2.time.created){
+			merged.time.created = e1.time.created;
+		}else{
+			merged.time.created = e2.time.created;
+		}
+		
+	}
+
+	//tickets 5
+	merged.tickets = _.uniq(_.union(e1.tickets,e2.tickets),'url');
+
+
+	//private 6
+	if(i1 >= i2 && e1.private != null) merged.private = e1.private
+	else merged.private = e2.private
+
+	//featured 7
+	if(i1 >= i2 && e1.private != null) merged.private = e1.private
+	else merged.private = e2.private
+
+	//age 8
+	if(i1 >= i2 && e1.private != null) merged.private = e1.private
+	else merged.private = e2.private
+
+	//description 9
+	if(i1 >= i2 && e1.description != null) merged.description = e1.description
+	else merged.description = e2.pdescription
+
+	//banners 10
+	if(e2.banners == null || e1.banners == null){
+		merged.banners = e2.banners || e1.banners;
+	}else{
+		merged.banners = _.uniq(_.union(e1.banners,e2.banners),'url');
+	}
+
+	//location 11
 	if(i1 >= i2 && e1.location != null) merged.location = e1.location
 	else merged.location = e2.location
 
-	//artists ->
-		//headliners
-		_.each(_.union(e2.artists.headliners,e1.artists.headliners),function(artist){
 
-			var good = true, matched = 0;
-			_.each(merged.artists.headliners,function(new_artist,i){
-				if(match['artist'](new_artist,artist)){
-					good = false;
-					matched = i;
-					return false;
+	merged.artists = {}
+	//artists 12
+	var headliners = _.union(e2.artists.headliners,e1.artists.headliners);
+	var l = headliners.length;
+
+	for(var i = 0;i<l;i++){
+		if(headliners[i] == null) continue;
+		for(var j = 0;j<l;j++){
+			if(j == i || headliners[j] == null || headliners[i] == null) continue;
+			if(match['artist'](headliners[i],headliners[j])){
+				var n_a =  merge.artist(headliners[i],headliners[j])
+				if(n_a != false){
+					headliners[j] = null;
+					headliners[i] = n_a
 				}
-			});
-			if(!good) merged.artists.headliners[matched] = merge['artist'](merged.artists.headliners[matched],artist);
-			else merged.artists.headliners.push(artist);
-		});
+			}
+		}
+	}
 
-		//openers
-		_.each(_.union(e2.artists.openers,e1.artists.openers),function(artist){
-			var good = true, matched = 0;
-			_.each(merged.artists.openers,function(new_artist,i){
-				if(match['artist'](new_artist,artist)){
-					good = false;
-					matched = i;
-					return false;
+	merged.artists.headliners = util.null_filter(headliners);
+
+
+
+	var openers = _.union(e2.artists.openers,e1.artists.openers);
+	//console.log(openers);
+	var l = openers.length;
+
+	for(var i = 0;i<l;i++){
+		if(openers[i] == null) continue;
+		for(var j = 0;j<l;j++){
+			if(j == i || openers[j] == null || openers[i] == null) continue;
+			if(match['artist'](openers[i],openers[j])){
+				var n_a =  merge.artist(openers[i],openers[j])
+				if(n_a != false){
+					openers[j] = null;
+					openers[i] = n_a
 				}
-			});
-			if(!good) merged.artists.openers[matched] = merge['artist'](merged.artists.openers[matched],artist);
-			else merged.artists.openers.push(artist);
-		});
+			}
+		}
+	}
+	
+	merged.artists.openers = util.null_filter(openers);
 
-	return merged;
+
+	//users 13
+	merged.users = _.uniq(_.union(e1.users,e2.users),'_id');	
+
+
+	//demand 14
+	merged.demand =  mergeDemand(e1,e2) || 0;
+
+
+	//tags 15
+	if(e1.tags == null || e2.tags == null){
+		merged.tags = e1.tags || e2.tags;
+	}else{
+		merged.tags =_.uniq(util.null_filter(_.union(e1.tags,e2.tags)),function(tag){		
+			if(_.isString(tag)) return tag.toLowerCase();
+			return tag;
+		})
+	}
+
+
+	try{
+		if(check_val !== false) check_val = check.event(e1,e2);
+		return confirm('event',merged,e1,e2,check_val);
+	}catch(e){
+		console.log('BAD EVENT'.bgRed)
+		console.log(e1.name)
+		console.log(e2.name);
+		console.log(e);
+	}
+	
 }
 
 
 
 
 
-//SMART DEMAND MERGING BASED ON PLATFORM WEIGHT.
+
+
+
+
+
+
+//MERGE ARTIST
+merge.artist = function(e1,e2,priority,check_val){
+	if(e1 == null || e2 == null) return e1 || e2 || null;
+	
+	//either are object ids
+	if(e1.constructor.name == 'ObjectID' || e2.constructor.name == 'ObjectID'){
+		return e1;
+	}
+
+	//either null case
+	if(e1 == null || e2 == null) return e1 || e2 || null;
+	
+
+	
+	var i1 = 0,i2 = 0;
+	var merged = {};
+
+	
+
+	if(priority != null && priority == false){
+		i2 = 9999;
+		i1 = 0;
+	}else{
+		_.each(e1.platforms,function(plat){
+			i1+= MergePriority[plat.name]
+		});
+		_.each(e2.platforms,function(plat){
+			i2+= MergePriority[plat.name]
+		});	
+		weight = defaultWeight(e1,e2);
+		var i1 = weight[0], i2 = weight[1];	
+		if(i1 == i2) i2++;
+	}
+
+
+	//platforms 1
+	merged.platforms = _.uniq(_.union(e1.platforms,e2.platforms),function(obj){
+		return obj.name+'/'+obj.id
+	});
+
+
+	//name 2
+	if(i1 >= i2 || e1.status == 1) merged.name = e1.name
+	else merged.name = e2.name 
+
+	//private 3
+	if(i1 >= i2 && e1.private != null) merged.private = e1.private
+	else merged.private = e2.private
+	
+
+	//demand 4
+	merged.demand =  mergeDemand(e1,e2) || 0;
+	
+	//links 5
+	merged.links = _.uniq(_.union(e1.links,e2.links),'url');
+
+	//banners 6
+	merged.banners = _.uniq(_.union(e1.banners,e2.banners),'url');
+
+	//members 7
+	merged.members = [];
+
+	_.each(_.union(e1.members,e2.members),function(membr){
+		var duplicate = null;
+		_.each(merged.members,function(new_membr,i){
+			if(match['artist'](membr,new_membr)){
+				duplicate = i;
+				return false;	
+			}
+		})
+		if(duplicate != null) merged.members[duplicate] = merge['artist'](merged.members[duplicate],membr);
+		else merged.members.push(membr);
+	});
+
+
+
+	//isGroup 8
+	merged.isGroup = merged.members.length > 0 ? true : false;
+
+
+	//samples 9
+	merged.samples = _.uniq(_.union(e1.samples,e2.samples));
+
+	//description 10
+	if(i1 >= i2 && e1.created != null) merged.description = e1.description
+	else merged.description = e2.description
+
+
+	//tags
+	if(e1.tags == null || e2.tags == null){
+		merged.tags = e1.tags || e2.tags;
+	}else{
+		merged.tags =_.uniq(util.null_filter(_.union(e1.tags,e2.tags)),function(tag){		
+			if(_.isString(tag)) return tag.toLowerCase();
+			return tag;
+		})
+	}
+
+
+	if(check_val !== false) check_val = check.artist(e1,e2);
+	return confirm('artist',merged,e1,e2,check_val);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+very dumb demand merging
+
+demand wieght is equal to merge priority of each platform
+
+*/
 function mergeDemand(doc1,doc2){
-	if(doc1 == null || ddoc2 == null) return doc1 || doc2 || null;
-	
-	var weight =  deafaultWeight(doc1,doc2);
-	var i1 = weight[0],i2 = weight[1];
-	
 
+
+	var i1 = _.reduce(doc1.platforms,function(total,plat){return total+MergeDemandPriority[plat.name]});
+	var i2 = _.reduce(doc2.platforms,function(total,plat){return total+MergeDemandPriority[plat.name]});
+	
+	if(doc1.demand == null || doc1.demand == 0) return doc2.demand;
+	else if(doc2.demand == null || doc2.demand == 0) return doc1.demand;
 	//documents get weighted by platfoms
-	return (doc1.demand*i1 + doc2.demand*i2)/(i1+i2);
+	else return (doc1.demand*i1 + doc2.demand*i2)/(i1+i2);
 }
+
+
+
+
+
+
+
+
+
+
 
 
 function defaultWeight(e1,e2){
@@ -312,17 +648,15 @@ function defaultWeight(e1,e2){
 	return [i1,i2]
 }
 
-/*
-merge Artists
-platforms ->
-name    ->
-demand  ->
-created ->
-links   ->
-banners ->
-members ->
-isGroup ->
-*/
+
+
+
+
+
+
+
+
+
 
 
 
@@ -345,81 +679,6 @@ function artistWeight(e1,e2){
 	return [i1,i2]
 }
 
-
-
-merge.artist = function(e1,e2,priority){
-	if(e1.constructor.name == 'ObjectID' || e2.constructor.name == 'ObjectID'){
-		return e1;
-	}
-
-	if(e1 == null || e2 == null) return e1 || e2 || null;
-	
-	if(_.isString(e1) && _.isString(e2)){
-		return e1;
-	}
-	
-	var i1 = 0,i2 = 0;
-	var merged = {};
-	if(priority != null && priority == false) i2 = 1337;
-
-	var weight = artistWeight(e1,e2);
-	var i1 = weight[0], i2 = weight[1];
-
-
-
-	//platforms ->
-	merged.platforms = _.uniq(_.union(e1.platforms,e2.platforms),'name','id');
-
-	if(i1 >= i2 && e1.name != null) merged.name = e1.name
-	else merged.name = e2.name 
-
-	//private ->
-	if(i1 >= i2 && e1.private != null) merged.private = e1.private
-	else merged.private = e2.private
-	
-
-	//demand ->
-	merged.demand =  mergeDemand(e1.demand,e2.demand);
-
-
-	//created->
-	if(i1 >= i2 && e1.created != null) merged.created = e1.created
-	else merged.created = e2.created
-
-	//links ->
-	merged.links = _.uniq(_.union(e1.links,e2.links));
-
-	//banners ->
-	merged.banners = _.uniq(_.union(e1.banners,e2.banners));
-
-	//members ->
-	merged.members = [];
-
-	_.each(_.union(e1.members,e2.members),function(membr){
-		var duplicate = null;
-		_.each(merged.members,function(new_membr,i){
-			if(match['artist'](membr,new_membr)){
-				duplicate = i;
-				return false;	
-			}
-		})
-		if(duplicate != null) merged.members[duplicate] = merge['artist'](merged.members[duplicate],membr);
-		else merged.members.push(membr);
-	});
-
-	//isGroup ->
-	merged.isGroup = merged.members.length > 0 ? true : false;
-
-
-	//streams
-	merged.streams = _.uniq(_.union(e1.streams,e2.streams));
-
-	//description
-	if(i1 >= i2 && e1.created != null) merged.description = e1.description
-	else merged.description = e2.description
-
-	return merged
-}
 
 
 

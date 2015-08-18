@@ -1,131 +1,99 @@
-var _ = require('lodash');
-var db = require('../data');
-var Promise = require('bluebird');
-var fuzzy = require('fuzzyset.js'); //fuzzy matching for finding models that are similar.
-var p = require('../pFactory.js'); //promise factory shortucts.
-var colors = require('colors');
-
-
-Promise.longStackTraces();
-
-
-var merge = require('./merge');
-var match = require('./match');
+/*
+Sync Functions
 
 
 
-var addressGPS = require('../gps');
+syncArtist //a way to sync the artist
+syncVenue //a long way to sync a venue
+syncVenueById //a fast way to sync a venue
+
+*/
+// var heapdump = require('heapdump');
+
+var sync_delay = 200;
 
 
 
-var validate = function(dataset){
+//dependencies
+var _ = require('lodash')
+,db = require('../data')
+,Promise = require('bluebird')
+,fuzzy = require('fuzzyset.js') //fuzzy matching for finding models that are similar.
+,p = require('../pFactory.js') //promise factory shortucts.
+,colors = require('colors')
+,util = require('util')
+,log = require('../util').log
+,merge = require('./merge')
+,match = require('./match')
+,gps = require('../gps')
+,addressGPS = gps.get
+,parseGPS = gps.toArray
+,formatGPS = gps.toObj
+,null_filter = require('../util').null_filter;
 
-	_.each(dataset,function(doc,i){
-
-
-		//translate geocode to interger
-		if(doc.location != null && doc.location.gps != null && doc.location.gps.length != 0){
-			doc.location.gps[0] = parseInt(doc.location.gps[0]);
-			doc.location.gps[1] = parseInt(doc.location.gps[1]);
-		}
-		
-
-		function removeSpecials(obj){
-			for (k in obj){
-				if(_.isObject(obj[k])) removeSpecials(obj[k]);
-				else if(_.isString(obj[k])) obj[k] = obj[k] = obj[k].replace(/\$|\%|\^|\*|\(|\)|\_|\=|\[|\]|\{|\}|\;|\'|\"|\\|\<|\>|\]/g,'');
-			}
-		}
-
-
-		removeSpecials(doc);
+var trimName = require('../util').trimName;
 
 
-		if(doc == null) return;
+var validateOne = p.sync(function(raw_doc,type){
 
-
-		if(doc.is == null){
-			dataset[i] == null;
-		}
-
-
-		_.each(doc.banners,function(banner){
-			if(!_.isString(banner)){
-				console.error('validate ERR'.bold.bgRed,'banners not string',doc.platforms)
-				banner = null;
-			} 
-		});
-
-
-		if(doc.platforms == null){
-			console.error('validate ERR'.bold.bgRed,'no platform for '.red,doc.name);
-			dataset[i] = null;
-		}
-
-
-		if(doc.is == 'event'){
-			if(doc.venue == null){
-				console.error('validate ERR'.bold.bgRed,'event w/o venue'.red);
-				dataset[i] = null;
-			}
-
-			if(doc.name == null){
-				console.error('validate ERR'.bold.bgRed,'event w/o name'.red);
-				dataset[i] = null;				
-			}
-		}
-
-
-		if(doc.is == 'venue'){
-
-			if(doc.location == null){
-				console.error('validate ERR'.bold.redBg,'venue w/o location')
-				dataset[i] = null;
-			}
-
-
-			if(doc.name == null){
-				console.error('validate ERR'.bold.redBg, 'venue w/o name'.red,doc.platforms);
-				dataset[i] = null;
-			}
-
-
-			//VENUE ADDRESS REQUIRED.
-			if((doc.location.address == null || doc.location.address.length < 5) && (doc.location.gps == null || doc.location.gps.length < 2)) {
-				console.log('validate ERR'.bold.bgRed, 'venue w/o address && gps'.red,doc.platforms,doc.name);
-				dataset[i] = null;
-			}
-		}
-	});
-
+	if(!_.isFunction(raw_doc.validate)) raw_doc = new db[type](raw_doc)
 	
-	var dataset = _.filter(dataset, function(n) {
-	  return !(!n);
-	});
+	
 
-	//console.log (dataset);
+	raw_doc.validate(function(err){
+		if(err){
+			console.log(type,'validation ERR'.bold.red.bgBlue,err.message);
+			raw_doc = undefined;
+			return this.resolve(null);
+		}else{
+			return this.resolve(raw_doc.toJSON());
+		} 
+	}.bind(this));
+	
+	return this.promise;
+});
 
-
-
-	return p.pipe(dataset);
+//validate artist pipe
+var validateArtist = function(raw_doc){
+	return validateOne(raw_doc,'artist');	
 };
 
 
+var validateVenues = function(dataset){
+	return Promise.settle(_.map(dataset['venue'],function(venue){
+		return validateVenue(venue);
+	}))
+	.then(function(results){
+		dataset['venue'] = null_filter(_.map(results,function(r){
+			if(r.isFulfilled()){
+				return r.value();
+			}else return null;
+		}));
+		return p.pipe(dataset);
+	})
+}
 
-//Validator Document Types.
-var types = ['venue','event','artist'];
+
+
+//validate venue pipe
+var validateVenue = function(raw_doc){
+	return validateOne(raw_doc,'venue');	
+};
+
+var raw_types = ['venue','event','artist'];
 
 var splitByType = function(dataset){
+	dataset = null_filter(dataset);
 
-
+	//console.log(dataset);
 	var typeset = {};
-	_.each(types,function(type){
+	_.each(raw_types,function(type){
 		typeset[type] = [];
 	});
 
 	_.each(dataset,function(doc){
 		if(typeset[doc.is] == null){
-			console.log('parameter ["is"] ERR:'.bgRed.bold,doc.is,'is not a type of',types,doc.name);
+			console.log('parameter ["is"] ERR:'.bgRed.bold,doc.is,'is not a type of',raw_types,doc.name);
 			return;
 		}
 
@@ -140,38 +108,111 @@ var splitByType = function(dataset){
 		if(type == 'artist') return 1;
 	})
 
-	return p.pipe(typeset)
+	return p.pipe(typeset);
 };
 
 
 
 
+
+
+
+
+
+
+//extract artists from each event and save them;
+var extractArtists = function(types){
+
+
+	function sync(artist){
+		return validateArtist(artist).then(function(a){
+			if(a == null) return p.pipe(null);
+			return syncArtist(a)
+		})
+	}
+
+	var a_pipe = p.pipe();
+
+
+
+	_.each(types['venue'],function(venue,v_i){
+		venue.events = null_filter(venue.events);
+		_.each(venue.events,function(event,e){
+			if(event.artists == null) return;
+
+			//headliners save
+			if(event.artists.headliners != null && event.artists.headliners.length != 0) a_pipe = a_pipe.then(function(){
+				return Promise.reduce(_.clone(event.artists.headliners),function(total,artist){
+				
+					return sync(artist).then(function(a){
+						if(a != null) total.push(a._id)
+						a = undefined;
+						artist = undefined;
+						return total;
+					})
+				},[]).then(function(total){
+					types['venue'][v_i].events[e].artists.headliners = total;
+					return p.pipe()
+				})
+			});
+
+			if(event.artists.openers != null && event.artists.openers.length != 0) a_pipe = a_pipe.then(function(){
+				return Promise.reduce(_.clone(event.artists.openers),function(total,artist){
+					return sync(artist).then(function(a){
+						if(a != null) total.push(a._id)
+						a = undefined;
+						artist = undefined;
+						return total;
+					})
+				},[]).then(function(total){
+					types['venue'][v_i].events[e].artists.openers = total;
+					return p.pipe()
+				})
+			});
+			
+		});
+	});
+
+	return a_pipe.then(function(){
+		return p.pipe(types)
+	});
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
 var flipEvents = function(typeset){
-	
+		
 
 	//flip events to display venues on top
 	var venues = _.map(typeset['event'],function(e){
 		var venue = _.clone(e.venue);
-		if(venue.name == null){
-			venue.name = e.name;
-		}
-		venue.events = [e];
-		delete venue.is;
+		e.venue = null;
 		delete e.venue;
+		var event = e;
+		venue.events = [event];
 		return venue;
 	});
 
 
 	//console.log(util.inspect(typeset, {showHidden: false, depth: null}));
 
-
+	//console.log(venues);
 	typeset['venue'] = typeset['venue'].concat(venues);
 
 	delete typeset['event'];
 
 
 
-	console.log('DONE FLIP EVENTS')
 	return p.pipe(typeset);
 }
 
@@ -197,179 +238,56 @@ GPS data is brought to us by GOOGLE the AI.
 
 */
 
+var fillGPS = function(obj){
+	var addr = {};
+	addr.address = obj.location.address;
 
-
-var getGPS = p.sync(function(obj){
-	//console.log(obj.location);
-	var addr = null;
-	var tries = 0;
-
-
-	function tryget(){
-		addressGPS(obj.name,obj.location)
-		.then(function(loc){
-			if(_.isString(loc)){
-				console.log(('getGPS WARN for: '+loc).gray);
-				if(loc.match(/limit/i) != null && tries< 10){
-					setTimeout(tryget.bind(this),200)
-					return;
-				}else{
-					this.resolve(loc);
-				}
-			}else{
-				
-				this.resolve(loc);
-			}	
-		}.bind(this));
+	if(obj.location.components != null){
+		addr.countrycode= obj.location.components.countrycode
+		addr.statecode= obj.location.components.statecode
+		addr.country= obj.location.components.country
+		addr.zip= obj.location.components.zip
+		addr.city= obj.location.components.city
 	}
-
-
-	// console.log('TO GETGPS',obj.name,obj.platforms[0].id,obj.location.address,obj.location.gps)
 	
-	tryget.bind(this)();
 
-	return this.promise;
-});
+	return addressGPS(obj.name,addr)
 
-
-var fillGPS = p.sync(function(datatype){
-
-	var delay = 300;
-	
-	//get GPS for venues.
-	var has_address = 0;
-
-
-
-	var pipes = _.map(datatype['venue'],function(obj,i){
-
-
-		return Promise
-		.resolve(obj)
-		.delay(delay*i)
-		.then(getGPS)
-		.then(function(loc){
-			if(loc != null && !_.isString(loc)){
-				has_address++;
-				obj.location = loc;
-				obj.location.confirmed = true
-				console.log('getGPS SUCC for: '.green,obj.name.magenta);
-			}else if(_.isString(loc)){
-				obj.location.confirmed = false;
-				console.log('getGPS FAIL for: '.red,obj.name.magenta,' ',loc.red.bold,obj.platforms,'\n',obj.location);
-			}
-		});
-	}.bind(this));
-
-	
-	Promise.settle(pipes).then(function(){
-		console.log(has_address,datatype['venue'].length)
-		var ratio = has_address/datatype['venue'].length;
-		var str = (has_address+'/'+datatype['venue'].length).toString();
-		if(ratio < 0.5) str = str.red;
-		else if(ratio < 0.7) str = str.yellow
-		else if(ratio < 0.85) str = str.green
-		else str = str.cyan
-		console.log('GPS DATA : '.bgBlue,str.bold,' ratio: ',ratio);		
+	.then(function(loc){
+		if(loc.status == 2){
+			if(_.isArray(obj.tags)) obj.tags = obj.tags.concat(loc._tags); else obj.tags = loc._tags;
 		
-		this.resolve(datatype);
-	}.bind(this));
+			
+			obj.location = _.clone(loc);
+			obj.location._gps = [parseFloat(loc.gps.lon),parseFloat(loc.gps.lat)];
+			obj.name = loc._name
+			
+			console.log('SYNC GPS PLACE: '.bold.cyan,obj.name.magenta,loc._name.inverse);
+		}else if(loc.status == 1){
 
-	return this.promise;
-});
+			obj.location = _.clone(loc);
+			obj.location._gps = [parseFloat(loc.gps.lon),parseFloat(loc.gps.lat)];
 
+			console.log('SYNC GPS GEOLOC: '.bold.yellow,obj.name.magenta);
+		}else if(loc.status == 0){
+			console.log('SYNC GPS FAIL: '.red,obj.name.magenta,'\n',obj.location);
+			//if(obj.location.gps != null) obj.location.gps = formatGPS(obj.location.gps);
+			obj.location.status = 0;
+		}else{
+			console.log('SYNC GPS ERR')
+			obj.location.status = 0;
+		}
 
-
-
-
-
-
-
-/*
-
-	VALIDATION FILTERS
-
-*/
-var util = require('util');
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-FILTER OUT DUPLICATES BY MATCHING BY TYPE.
-
-*/
-
-
-
-
-
-var filterDuplicates = function(typeset){
-
-	var max_dupl = 2;
-
-
-
-
-
-
-	_.each(typeset,function(dataset,type){
-	
-
-		var type = type;
-		var l = dataset.length;
-
-
-
-
-		//match and merge
-		for(var i = 0;i<l;i++){
-			if(j == i) continue;
-			if(dataset[i] == null) continue;
-		 	var dupl_count = 0;
-			for(var j = 0;j<l;j++){
-				if(dataset[j] == null || j == i) continue;
-				if(match[type](dataset[i],dataset[j])){
-					console.log('FILTER MERGE:'.bgBlue,dataset[i].name.inverse,dataset[j].name);
-					dataset[i] = merge[type](dataset[i],dataset[j]);
-					dataset[j] = null;
-				}
-			//	console.log(j+' / '+l);
-			}
-			console.log('checked ',i,'/',j);
+		if(obj.location.gps != null && (isNaN(obj.location.gps.lat) || isNaN(obj.location.gps.lon))) {
+			obj.location.gps = null;
 		}
 
 
-		//delete nulls
-		typeset[type] = _.filter(dataset, function(n) {
-		  return n != null;
-		});
-
-
-
-
-		//LOG
-		console.log(('FILTER '+type+' : ').bgBlue,('-'+(l-typeset[type].length)).yellow.bold,(typeset.length+'/'+l).cyan.bold);
-
-		// console.log(util.inspect(_.map(typeset[type],function(dat){
-		// 	return [dat.name,dat.platforms,dat.location];
-		// }).sort(), {showHidden: false, depth: null}));		
-	});
-
-	return p.pipe(typeset);
+		return p.pipe(obj)
+	}).catch(function(e){
+		console.log('GET GPS ERR'.bgRed,e);
+		return {status:0};
+	})
 };
 
 
@@ -383,447 +301,27 @@ var filterDuplicates = function(typeset){
 
 
 
-
-
-
-
-
-function checkPlat(doc1,doc2){
-	var done = false
-	_.each(doc1.platforms,function(plat1,i){
-		_.each(doc2.platforms,function(plat2,i){
-			if(plat1.name == plat2.name && plat1.id == plat2.id) done = true
-			if(done) return false;
-		})
-
-		if(done) return true;
-	})
-}
-
-
-
-
-function linkEventArtists(typeset){
-	_.each(typeset['venue'],function(venue){
-		_.each(venue.events,function(e){
-
-
-			e.artists.headliners = _.map(e.artists.headliners,function(a){
-				var id = _.findIndex(typeset['artist'],{'name':a.name});
-				if(id != null) return typeset['artist'][id]._id;
-				return null;
-			});				
-
-
-
-			e.artists.openers = _.map(e.artists.openers,function(a){
-				var id = _.findIndex(typeset['artist'],{'name':a.name});
-				if(id != null) return typeset['artist'][id]._id;
-				return null;
-			});
-			
-
-			// console.log('LINK E.A'.bgBlue,e.artists.headliners,e.artists.openers);
-		});
-	});
-	
-	console.log('DONE LINK ARTISTS');
-	return p.pipe(typeset);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-var syncVenues = p.async(function(typeset){
-
-	this.total = typeset['venue'].length;
-	this.data = typeset;
-
-
-	if(this.total == 0) this.resolve(typeset);
-
-	//replace artists with id's
-
-
-
-	/*
-
-	FIND BY ID
-	
-	*/
-	var findById = p.sync(function(venue){
-		db['venue'].findOne({
-			platformIds: {$in : _.map(venue.platforms,function(plat){
-				return plat.name+'/'+plat.id
-			})}
-		}).then(function(doc,err){
-
-			if(err) return this.reject(err);
-			if(doc != null) return this.resolve(doc); 
-			this.resolve(findByGPS(venue)); //move down to try and find by gps
-		}.bind(this));
-
-		return this.promise;
-	});
-
-
-
-
-	/*
-
-	ELSE FIND BY GPS
-	
-	*/
-	var findByGPS = p.sync(function(venue){
-			
-		if(venue.location.gps == null) return findByName(venue);
-
-		//GPS Search Query within 10 meters
-		db['venue'].find({
-			location:{gps:{
-				$near : {
-					$geometry : {type: "Point", coordinates : venue.location.gps},
-					$maxDistance : 10
-				}
-			}}
-		}).
-
-		//if GPS Matches fuzzy compare the names, otherwise return with a findByName Query (brute force)
-		then(function(venues){
-			
-			if(venues != null && venues.length > 0){
-
-				//Higher precision name check
-				var found = null;
-				_.each(venues,function(v,i){
-					if(match.checkname(venue,v) == true){
-						found = v;
-						return false
-					}
-				}.bind(this));
-
-
-				if(found){
-					console.log('FIND BY GPS');
-					this.resolve(found);
-				} 
-				
-				else this.resolve(findByName(venue));
-
-			}else this.resolve(findByName(venue));
-		}.bind(this));
-
-		return this.promise;
-	});
-
-
-	/*
-
-	ELSE FIND BY NAME
-	
-	*/
-	var findByName = p.sync(function(venue){
-		
-		//search by name
-		db['venue'].find(
-			{ $text : { $search : venue.name } }, 
-        	{ score : { $meta: "textScore" } }
-        )
-        .limit(5)
-        .sort({ score: { $meta: "textScore" } })
-
-		.then(function(venues){
-			//console.log('FIND BY NAME')
-			if(venues != null && venues.length > 0){
-
-				//Higher precision name check
-				var found = null;
-				_.each(venues,function(v,i){
-					if(match.checkname(venue,v) == true){
-						found = v;
-						return false
-					}
-				}.bind(this));
-
-
-				//console.log('FIND BY NAME',found)
-				this.resolve(found);
-				
-
-			}else this.resolve(null);
-			
-		}.bind(this));
-		
-
-		return this.promise;
-	});
-
-
-
-	_.each(typeset['venue'],function(venue,i){
-		findById(venue)
-
-
-		.then(p.sync(function(doc){
-			//if(err) return this.reject(err);
-			if(doc == null){
-				console.log('SYNC NEW:'.magenta,venue.name.inverse);
-				var new_venue = new db['venue'](venue);
-							
-				new_venue.save(function(err){
-					if(err) return this.reject(err);
-					this.resolve(new_venue);
-				}.bind(this));
-
-			}else{
-
-				console.log('SYNC MERGE:'.bgBlue,venue.name,doc.name.inverse);
-				//this is the complete full new document;
-				var new_doc = merge['venue'](doc,venue);
-				doc = _.merge(doc,new_doc);
-				
-				doc.save(function(err){
-					if(err) return this.reject(err);
-					this.resolve(doc);
-				}.bind(this));
-			}
-
-			return this.promise;
-		}))
-
-		.then(function(v){
-			venue[i] = v;
-			console.log('SYNC DONE:'.bgBlue,v.name.green);
-			this.checkAsync();
-		}.bind(this))
-
-	}.bind(this));
-
-	return this.promise;
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-var syncArtists = p.async(function(data){
-
-
-	var findById = p.sync(function(artist){
-		db['artist'].findOne({
-			platformIds: {$in : _.map(artist.platforms,function(plat){
-				return plat.name+'/'+plat.id
-			})}
-		}).then(function(doc){
-			//if(err) return this.reject(err);
-			if(doc != null) return this.resolve(doc); 
-			
-			this.resolve(findByName(artist));
-		}.bind(this))
-
-		return this.promise;
-	})
-
-
-	var findByName = p.sync(function(artist){
-		//search by name
-
-		db['artist'].find(
-			{ $text : { $search : artist.name } }, 
-        	{ score : { $meta: "textScore" } }
-        ).limit(5).sort({ score: { $meta: "textScore" } })
-
-		.then(function(artistlist){
-			//console.log(err,artistlist.length);
-
-			//if(err) return this.reject(err);
-			
-			if(artistlist == null) return this.resolve(null)
-
-
-
-			//Higher precision name check
-			var found = null;
-			_.each(artistlist,function(a,i){
-				//console.log(artist,a);
-				if(match.checkname(artist,a,1) == true){
-					found = a;
-					return false
-				}
-			}.bind(this));
-			console.log(found)
-			return this.resolve(found);
-
-		}.bind(this))
-
-		return this.promise;
-	})
-
-
-	this.data = data;
-	this.total = data['artist'].length;
+var overwrite = false;
+//merge and/or save document
+function quickMerge(type,found_model,new_model,check_val,priority){
 	
 
-	if(this.total == 0) this.resolve(data);
+	console.log('quick merge'.yellow,found_model.name,new_model.name.inverse);
 
-
-	_.each(data['artist'],function(artist,index){
-		findById(artist)
-		
-		.then(p.sync(function(doc){
-			//console.log(doc.length,err);
-			if(doc == null){
-				console.log('creating new artist in database',artist.name);
-				var new_artist = new db['artist'](artist);
-				
-				new_artist.validate(function(err){
-					if(err) console.log('DB.ARTIST VALIDATION ERR:'.bold.bgRed,err);
-				});
-
-				new_artist.save(function(err){
-					if(err) return this.reject(err);
-					this.resolve(new_artist);
-				}.bind(this));
-
-			}else{
-				console.log('FOUND DB.ARTIST & MERGING'.bgBlue,artist.name,doc.name);
-				doc = _.merge(doc,merge['artist'](doc,artist));
-
-				doc.save(function(err){
-					if(err) return this.reject(err);
-					this.resolve(doc);
-				}.bind(this));
-			}
-
-
-			return this.promise;
-		}))
-
-		.then(function(v){
-
-			data['artist'][index]._id = v._id;
-			console.log('successfully saved artist :',v.name,v._id);
-			this.checkAsync();
-		}.bind(this))
-
-	}.bind(this));
-
-	return this.promise;
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-var extractArtists = function(types){
-	_.each(types['venue'],function(venue){
-		//console.log(venue.events);
-		_.each(venue.events,function(event){
-			_.each(_.union(event.artists.headliners,event.artists.openers),function(artist){
-				types['artist'].push(artist);
-			});
-		});
-	});
-	return p.pipe(types);
-};
-
-
-
-
-
-
-
-
-//Try and do a simple sync to find the documents in the database by their ID
-var simpleVenueSync = p.async(function(typeset){
-
-
-	var sync = p.sync(function(doc,type){
-		
-		db[type].findOne({
-			platformIds: {$in : _.map(doc.platforms,function(plat){
-				return plat.name+'/'+plat.id
-			})}
-		}).then(p.sync(function(found){
-			
-			if(found == null) return this.resolve(null)
-
-			var updated = merge[type](found,doc);
-
-			found = _.merge(found,updated);
-
-			found.save(function(err){
-				if(err) return this.reject();
-				this.resolve(found);
-			}.bind(this))
-		}.bind(this)));
-
-		return this.promise;
-	})
-
-	this.data = typeset;
-
-	this.cb = function(){
-		console.log('DONE S_SYNC'.bg)
-		_.each(typeset,function(dataset,type){
-			typeset[type] = _.filter(dataset, function(n) {
-		  		return n != null;
-			});
-		});
+	//if overwrite is true, do a simple overwrite.
+	if(overwrite){
+		return new_model 
+	//otherwise deep merge and compare.
+	}else{
+		try{
+			return merge[type](found_model,new_model,priority,check_val);
+		}catch(e){
+			console.error(e);
+			console.log(e.stack.split('\n')[1]);
+			return false
+		}
 	}
-
-	
-	this.total = typeset['venue'].length
-	_.each(typeset['venue'],function(doc,i){
-		sync(doc,'venue').then(function(found){
-			if(found){
-				typeset['venue'][i] = null;
-				console.log('S_SYNC DONE:'.bgGreen,found.name.yellow)
-			} 
-			this.checkAsync();
-		}.bind(this));
-	}.bind(this));
-
-
-
-	return this.promise;
-});
-
-
-
+}
 
 
 
@@ -837,42 +335,525 @@ var simpleVenueSync = p.async(function(typeset){
 
 /*
 
-Syncroniously filter through all fetched data, merge any duplicates and re-arrange data then sync it with the database.
+FIND VENUE BY ID
 
 */
 
-module.exports = p.async(function(dataset,save){
+var findVenueById = function(venue){
+
+	return db['venue'].findOneAsync({
+		platformIds: {$in : venue.platformIds}
+	}).then(function(doc){
+		if(doc != null){
+			console.log('MATCHED VENUE BY ID'.green,doc.name);
+		
+			this.check_val = false;
+			return p.pipe([doc]);
+		}
+		else return findVenueByGPS(venue).bind(this);
+	}.bind(this)).catch(function(err){
+		console.log(err)
+		return null;
+	});
+};
 
 
-	console.log('VALIDATE'.bold.bgBlue,'total: '.yellow,dataset.length.toString().yellow)
+/*
+
+ELSE FIND VENUE BY GPS
+
+*/
+function findVenueByGPS(venue){
+	if(venue.location.gps == null || venue.location.gps.lat == null || venue.location.gps.lon == null) return findVenueByName(venue)
+
+	//GPS Search Query within 10 meters
+	return db['venue'].find({
+		'location._gps':{
+			$nearSphere : {
+				$geometry : {type: "Point", coordinates : venue.location._gps},
+				$maxDistance : 100 //meters
+			}
+		}
+	}).limit(10)
+	.execAsync()
+	.then(function(venues){
+		if(venues != null && venues.length > 0){
+			console.log('found similar venues by gps, matching: ',venue.name,_.map(venues,function(v){return v.name}));
+			
+			//Higher precision name check
+			var found = [];
+			_.each(venues,function(v,i){
+				if(match['venue'](v,venue)){
+					found.push(v);
+				}
+			});
 
 
-	validate(dataset) 		//validate data
-	.then(splitByType) 		//split raw data by into types for faster parsing
-	.then(flipEvents)  		//flip events to their
-	
-	.then(filterDuplicates) //merge any data
-	.then(extractArtists) 	//extract artists out of each event and link their platform ids to the venue events
-	.then(syncArtists) 		//sync all artists and upon save add the document id to the raw artist object to reference it later in syncVenues
-	.then(linkEventArtists)
-	.then(simpleVenueSync)
-	.then(fillGPS)			//fill GPS data.
+			//MATCHED BY SIMILAR GPS
+			if(found.length){
+				console.log('MATCHED BY SIMILAR GPS'.green,found.length,' -> ',venue.name.inverse);
+				return p.pipe(found);
+			}else return findVenueByName(venue);
 
-	.then(filterDuplicates) //filter and merge entries that may not have been found because of slightly different GPS addresses.
-
-
-	
-
-	.then(syncVenues) 		// sync documents with database , when syncing event artists save it as a map of artist document ids
-	.then(function(data){
-		this.resolve(data)
+		}else return findVenueByName(venue).bind(this);
 	}.bind(this))
+	.catch(function(err){
+		console.log('find venue by gps error'.bgRed,err);
+		return p.pipe(false);
+	});		
+};
+
+
+
+/*
+
+ELSE VENUE FIND BY NAME
+
+*/
+function findVenueByName(venue){
+	
+	return db['venue'].find(
+		{ $text : { $search : venue.name } }, { score : { $meta: "textScore" } }
+    )
+    .limit(5)
+    .sort({ score: { $meta: "textScore" } })
+	.execAsync()
+	.then(function(venues){
 	
 
+		if(venues != null && venues.length > 0){
+
+			//Higher precision name check
+			console.log('found similar venues by name, matching: ',venue.name,_.map(venues,function(v){return v.name}));
+			var found = [];
+			_.each(venues,function(v,i){
+				if(match['venue'](venue,v)){
+					found.push(v)
+				}
+			});
+
+		
+			return p.pipe(found);
+		}
+
+		//nothing found
+		else{
+			return p.pipe(null);
+		} 
+		
+	}).catch(function(err){
+		console.log('find venue by name err'.bgRed,err)
+		return p.pipe(null);
+	});
+};
+
+
+//Venue Full Sync
+function syncVenue(venue){
+
+	this.check_val = true;
+
+	return Promise.using(findVenueById(venue).bind(this),function(docs){
+		
+		if(docs === false){
+			console.log('err syncVenue')
+			return p.pipe(null);
+		}
+
+		var pipe = null;
+
+		//if venue not found, create a new one
+		if(docs == null || docs.length == 0){
+			console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
+			pipe = p.pipe(new db['venue'](venue));
+		
+
+		//else merge
+		}else{
+			//go through all text search matches and do a single merge + return if a good match, otherwise go to end
+			_.each(docs,function(d){
+				console.log('DB FULL VENUE MERGE:'.green,venue.name,d.name.inverse);
+				m_d = quickMerge('venue',d,venue,check_val);
+				if(m_d != false){
+					d.set(m_d);
+					pipe = p.pipe(d);
+					return false;
+				}
+			});
+			
+			//Failed to merge, probably because answered NO to all prompts.
+			if(pipe == null){
+				console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
+				pipe = p.pipe(new db['venue'](venue));				
+			}
+		}
+
+		return pipe.then(saveVenue);
+	})
+};
+
+
+
+
+
+
+
+
+
+var saveVenue = p.sync(function(doc){
+	doc.save(function(err){
+		if(err){
+			//console.log('VENUE SAVE FAILED'.bgRed,doc.name.red,err);
+			this.reject('VENUE SAVE FAILED',err)
+		}else{
+			console.log('VENUE SAVED'.cyan,doc.name);
+			this.resolve(true)
+		}
+		
+		doc = undefined;
+	}.bind(this));
 	return this.promise;
 });
 
 
+
+
+//Venue Id sync
+var syncVenueById = function(venue){
+
+	return Promise.using(
+		db['venue'].findOneAsync({
+			platformIds: {$in : venue.platformIds},
+			'location.status': {$gt : min_gps_status-1}
+		}),
+		function(doc){
+
+			
+			//when we return null, we can later find by full search
+			if(doc == null) return p.pipe(false);
+			
+
+			//This is guaranteed to work!
+
+			console.log('FOUND DB.VENUE BY ID'.green,venue.name,doc.name.inverse);
+			var fields = quickMerge('venue',doc,venue,false);
+
+
+			if(fields == false){
+				console.log('SYNC DB.VENUE BY ID FAILED'.bgRed)
+				return p.pipe(null)
+			}else{
+				doc.set(fields);
+			}
+
+			venue = undefined;
+			return saveVenue(doc)
+		}
+	)
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//find by id
+var findArtistById =function(artist){
+
+	return db['artist'].findOneAsync({
+		platformIds: {$in : artist.platformIds}
+	}).then(function(doc){
+		if(doc != null){
+			
+			this.check_val = false;
+			return p.pipe([doc]);
+		}else return findArtistByName(artist).bind(this);
+	}.bind(this));
+};
+
+
+//find by name and return a pipe with array or null (erro) /empty (no results) array
+function findArtistByName(artist){
+
+	//search by name
+	return db['artist'].find(
+		{ $text : { $search : trimName(artist.name) }}, 
+    	{ score : { $meta: "textScore" }}
+    )
+    .limit(5)
+    .sort({ score: { $meta: "textScore" } })
+    .execAsync()
+    .then(function(artistlist){
+    	if(artistlist == null) return p.pipe(null)
+		var found = [];
+
+		_.each(artistlist,function(a,i){
+			if(match.artist(artist,a) == true){
+				found.push(a);
+			}
+		});
+		
+		return p.pipe(found);
+
+    }).catch(function(err){
+    	console.log('find artist by name err'.bgRed);
+    	console.error(err);
+		return p.pipe(null);
+    });
+};
+
+module.exports.findArtistByName = findArtistByName;
+
+
+//Artist Sync
+var syncArtist = function(artist){
+	this.check_val = true;
+
+	/*
+	
+	find by id and if find by id fails, find by name,
+	if merging fails, dont save and return a null pipe.
+	
+	*/
+	return Promise.using(findArtistById(artist).bind(this),function(found){
+
+
+		//if found length is 0, means we could not find anything return a new artist from the data
+		if(found == null || found.length == 0){
+			console.log('NEW ARTIST'.bold.cyan,artist.name);
+			var pipe = p.pipe(new db['artist'](artist));
+		
+
+		//otherwise we merge the artist
+		}else{
+
+			var pipe = null;
+			_.each(found,function(a){
+			
+				var new_a = quickMerge('artist',a,artist,check_val);
+				if(new_a != false){
+					a.set(new_a);
+					pipe = p.pipe(a);
+					return false;
+				}
+			});
+
+			//if merging fails (NO Prompt happens for all qualifiers)...we return a null pipe. 
+			if(pipe == null) return p.pipe(artist);
+		}
+
+
+		//SAVE
+		return pipe.then(p.sync(function(doc){
+			
+
+			doc.save(function(err){
+				
+				if(err){
+					console.log('ARTIST SAVE FAILED'.bgRed,doc.name.red,err);
+					this.resolve(null)
+				}else{
+					console.log('ARTIST SAVED'.cyan,doc.name);
+					this.resolve(doc);
+				}
+			}.bind(this));
+			return this.promise;
+		}));
+	})
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+var filter_empty = true;
+
+//do not save venues without events.
+function filterEmpty(data){
+	if(filter_empty == true){
+		data['venue'] = _.filter(data['venue'],function(venue){
+			if(venue.events != null && venue.events.length > 0) return true;
+			return false ;
+		});		
+	}
+
+	return p.pipe(data);
+}
+
+
+
+
+
+
+//default bad words
+var bad_words = [
+	'library',
+	'church',
+	'postal code',
+]
+
+
+
+//filter bad words from the parameters
+function filterBad(data){
+	data['venue'] = _.filter(data['venue'],function(venue){
+		if(venue == null) return false
+		var bad = false;
+		_.each(bad_words,function(regexp){
+			if(venue.name.match(regexp) != null){
+				bad = true
+				return false
+			}
+		})
+		return !bad;
+	});
+	return p.pipe(data);
+}
+
+
+
+var logMem = require('../util').logMem;
+var heapdump = require('heapdump');
+
+var min_gps_status = 2; //default min gps status
+
+var syncData = function(dataset,overw,status,filter_e,badwords){
+	bad_words = badwords
+	bad_words = _.map(bad_words,function(word){
+		return new RegExp(word,'i')
+	});
+
+	if(filter_e == false) filter_empty = false;
+	min_gps_status = status || min_gps_status;
+	overwrite = overw;
+	console.log('SYNC'.bgBlue,dataset.length.toString().bgBlue);
+
+
+	return splitByType(dataset)
+	.then(flipEvents)
+	.then(extractArtists) 	//extract artists out of each event and link their platform ids to the venue event
+	.then(filterEmpty)
+	.then(filterBad)
+	.then(validateVenues)
+	.then(function(types){	//fill Venue GPS and Sync each type asynchroniously.
+		
+
+		//check venues for nulls
+		
+
+
+		//if total is 0 we return
+		var total_n = types['venue'].length;
+		if(total_n == 0){ return p.pipe(null)}
+
+		types['venue'] = null_filter(types['venue']);
+		types['venue'].unshift(0);
+
+		var pipe = p.pipe();
+
+
+		var count = 0;
+
+
+		var batches = _.chunk(types['venue'],20);
+
+
+		_.each(batches,function(venues_batch){
+			
+			pipe = pipe.then(function(){
+				return Promise.map(venues_batch,function(doc,i){
+					if(doc === 0 || doc == null) return i
+					//if overwrite is set to true, we would have to get the gps data all over again.
+					if(overwrite == true){
+						
+						return fillGPS(doc)
+						.then(syncVenue)
+						.finally(function(){
+
+							doc = undefined;
+							types['venue'][total] = undefined
+							logMem();
+							console.log('synced ',total+1,'/',total_n,'\n\n');
+						}).catch(function(e){
+							console.log('syncVenueById ERROR'.bgRed)
+							console.error(e);
+							if(e.stack != null){
+								console.log(e.stack.split('\n')[1])
+							}
+						})
+
+					//otherwise try and sync Id and if that fails, fill gps and do a full sync
+					}else{
+
+						// LEAK START
+						return syncVenueById(doc)
+						.then(function(res){
+							if(res != false){
+								doc = undefined;
+								return 
+							}else{
+								return fillGPS(doc)
+								.then(syncVenue)
+							}
+						})
+						// LEAK END
+						.finally(function(){
+							count++;
+							types['venue'][i] = undefined;
+							doc = undefined;
+							logMem();
+							console.log('synced ',count,'/',total_n,'\n\n');
+						}).catch(function(e){
+							console.log('syncVenueById ERROR'.bgRed)
+							console.error(e);
+							if(e.stack != null){
+								console.log(e.stack.split('\n')[1])
+							}
+						})
+
+					}
+				},{concurrency: 1})
+			})	
+		})
+		return pipe;
+	})
+	.tap(function(total){console.log('DONE W/ SYNC'.bgCyan)})
+}
+
+
+
+module.exports.setOverwrite = function(ow){
+	overwrite = ow;
+}
+
+
+
+
+module.exports.syncData = syncData;
+module.exports.syncVenue = syncVenue;
+module.exports.syncVenueById = syncVenueById;
+module.exports.findVenueByGPS = findVenueByGPS;
+module.exports.syncArtist = syncArtist;
 
 
 

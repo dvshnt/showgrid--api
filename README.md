@@ -3,105 +3,105 @@ RESTful JSON API ignorant of front end.
 
 The API should pull together data surrounding concerts from multiple sources and use the data to provide accurate and readable entries.
 
-
-### Endpoints ###
-Basic Rest endpoints that handle GET requests for users and apps and POST, PUT and DELETE for admins.
-
- Endpoint        | Action        | Description      
- --------------- | ------------- | -----------------
-  */v1/venue/* | POST    | Add Venue
-             | GET     | Get all venues (accepts parameters)
-  */v1/venue/:id* | GET    | Get venue of :id
-                | PUT    | Edit venue of :id
-                | DELETE | Delete venue of :id
-  */v1/show/* | GET    | Get all shows (accepts parameters)
-            | POST   | Add show
-  */v1/show/:id*  | GET    | Get show of :id
-                | PUT    | Edit show of :id
-                | DELETE | Delete show of :id
-  */v1/band/* | GET    | Get all bands (accepts parameters)
-            | POST   | Add band
-  */v1/band/:id*  | GET    | Get band of :id
-                | PUT    | Edit band of :id
-                | DELETE | Delete band of :id
+### Routes ###
 
 
-### Models ###
-#### Venues ####
-* Name (String)
-* Address (Object or String?)
-* Image (URL, store in S3 Bucket)
-* Website (URL)
-* Age (Small Integer)
-* Primary Color (Hex value, String?)
-* Secondary Color (Hex value, String?)
-
-#### Shows ####
-* Title (String)
-* Headliners (Artists Object array)
-* Openers (Artists array)
-* Datetime (Datetime Object)
-* Venue (Venue Object)
-* Price (Integer)
-* Ticket (Affiliate URL)
-* Soldout (Boolean)
-* On Sale Date (Date Object)
-* Age (Small Integer)
-* People (Users Object)
-* Featured (Boolean)
-* Banner (URL, store in S3 Bucket)
-
-#### Artists ####
-* Name (String)
-* Website (URL)
-* Song sample (Some Spotify API)
-* Picture (URL, store in S3 Bucket)
-
-#### Users ####
-* Email (email)
-* Password (password)
-* Phone # (phone)??
 
 
-### API Keys ###
-##### [Eventful](http://api.eventful.com) #####
-* _u_: info@showgrid.com
-* _p_: sh0wgr1d
-* _k_: dFbgV5SxzLT9djCL
 
-##### [Songkick](https://www.songkick.com/developer) #####
-* _u_: info@showgrid.com
-* _p_: sh0wgr1d
-* _k_: <<< PENDING >>>
+### Update Function ###
+# save_cache # : save all fetched raw data in database as cache;
+# use_cache # : only use cached data to create entries in the database;
+## Update Function Parameters ##
+Applies to some endpoints.
+## Endpoints: ##
 
-##### [Jambase](http://developer.jambase.com) #####
-* _u_: info@showgrid.com
-* _p_: sh0wgr1d
-* _k_: aaddmdrur2am379yvxfkgdx
-* _k_: qrq3a7xhf9wx8vh72bd45eud
+zip: ( works as default for all )
+gps : ( does not work for many, easier to convert to zip..)
+country: 'US', ( default, dont know if works for others )
+radius: ( miles )
+query_size: ( == or < amount of venues in radius )
+sort: 'popularity', (default, only applies to a few)
+start_date: (mainly for event queries)
+end_date (mainly for event queries)
 
-##### [TicketFly](https://account.shareasale.com) #####
-* _u_: showgrid
-* _p_: sh0wgr1d
-* _k_: <<< PENDING >>>
+  Eventful:
+
+    zip: 
+
+    country: 
+
+    radius: (miles)
+
+    query_size: optional query size
+
+    sort: 'popularity',
 
 
-#### TicketFly Affiliation ####
-To get a ticketing link for TicketFly venues, we need to first determine if the venue is a TicketFly venue. 
+  Facebook:
 
-We could create a field in the venue's model to indicate the ticketing provider for each venue. 
+    zip:
 
-Conversely, we can just call TicketFly's API on demand and check if the venue is in the set of returned venues for a given area.
+    gps:
 
-TicketFly's API is straightforward as FUCK! You should read the .pdf I sent to get up to speed with it. Very easy.
+    country: 
 
-In order to get only TicketFly events for an area (Appendix C), you just add `tflyTicketed=true` to the request.
+    radius: (miles)
 
-To form a ticketing link, we need to do the following:
-* You will receive a ticketing link (ticketPurchaseURL) for each event
-* Use the Share-A-Sale base URL `http://www.shareasale.com/r.cfm?B=02&U=XXXX&M=01&urllink= `
-* Parameters should be as follows: 
-  * B=02&U=1118395&M=01&urllink=(ticketPurchaseURL from event)
-* The resulting Share-A-Sale link should be used in place of the standard TicketFly link.
+    query_size: q_size,
+    
+  Reverbnation:
+    venue
+      zip
+      country: 
+      radius: (miles)
+      query_size:
+      sort: 'popularity',
+  Jambase:
+    venue:
+      zip
+      country: 
+      radius: (miles)
+      query_size: 
+    event:
+      zip
+      country: 
+      radius: (miles)
+      query_size: 
+      start_date:
+      end_date:     
+  Ticketfly: (USA only)
+    venue
+      zip
+      radius: (miles)
+      query_size: 
+    event
+      zip
+      radius: (miles)
+      query_size: 
+      start_date: 
+      end_date: 
 
-We get 25% of every transaction made immediately after clicking this link.   
+
+
+### Public Routes ###
+localhost:3000/api/[endpoint = (venue|artist|event)]/[parameters]
+
+##api/venue##
+#/[id]# find a venue by its id
+
+id=[id]
+
+get venue by id
+
+##api/event##
+get event by id
+
+##api/artist##
+get artists by id
+
+  
+
+
+
+### APIS Used ###

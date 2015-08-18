@@ -4,19 +4,21 @@ var db = require('./data.js');
 var colors = require('colors');
 var fuzzy = require('fuzzyset.js'); //fuzzy matching for finding models that are similar.
 var p = require('./pFactory'); //promise factory shortucts.
-var sync = require('./sync/sync');
+var sync = require('./sync/sync').syncData;
 var scrapers = require('./scrapers');
-var util = require('util');
+var util = require('./util');
+
+var null_filter = util.null_filter;
+var clamp = util.clamp;
 
 
+var max_query = 99999;
+var min_query = 1;
 
 if(db.venue == null) return console.error('RECURSIVE MODULE REQUIRE ERROR')
 
 /*
-
 linkFiller is used when artist/show ID's are linked to a fetched object, we have to try find those objects in OUR database and link them as well.
-
-
 it gets called after all the scraper filters have been called back.
 */
 
@@ -37,6 +39,7 @@ Promise.longStackTraces();
 
 
 var main = p.async(function(opt){
+
 	opt.params = opt.params || {};
 
 	//update a platform
@@ -55,6 +58,9 @@ var main = p.async(function(opt){
 
 		//update endpoint
 		var up_end = function(params,endpoint){
+			params.query_size = clamp(params.query_size,min_query,max_query);
+
+
 			//check if endpoint exists
 			if(scraper.find[endpoint] == null) return console.error('UPDATE ENDPOINT ERR: '.bgRed.bold+plat_name+' does not have '+endpoint);
 
@@ -64,13 +70,16 @@ var main = p.async(function(opt){
 			return scraper
 			.find[endpoint](params)
 			.then(p.async(function(docs){
+				if(docs == null || docs.length == 0) return p.pipe(null)
+				docs = params.query_size != null ? _.takeRight(docs,params.query_size) : docs;
 
-				this.total = docs.length;
+
 				this.data = docs;
+				this.total = docs.length;
+
+				//filter nulls after all filters passed
 				this.cb = function(self){
-					if(params.query_size != null){
-						self.data = _.takeRight(self.data,params.query_size)
-					}
+					self.data = null_filter(self.data);
 				}.bind(this)
 				
 				_.each(docs,function(doc,i){
@@ -81,11 +90,35 @@ var main = p.async(function(opt){
 					.then(function(){
 						return p.pipe(scraper.filters[endpoint](doc))
 					})
+					.then(function(raw_doc){
+						if(raw_doc != null && save_cache == true){
+							return util.fillCache([raw_doc])
+							.then(function(){
+								console.log('cache saved'.cyan,raw_doc.name);
+								return p.pipe(raw_doc)
+							});
+						} 
+						else return p.pipe(raw_doc)
+					})
 					//check async
 					.then(function(parsed_doc){
-						this.data[i] = parsed_doc;
-						this.checkAsync();
+
+						if(parsed_doc == null){
+							this.checkAsync();
+							console.log(plat_name.bgGreen,endpoint.inverse,'parsed'.green,'NULL'.bgRed,(this.count+'/'+this.total).yellow)
+						}else{
+							this.data[i] = parsed_doc;
+							this.checkAsync();
+							console.log(plat_name.bgGreen,endpoint.inverse,'parsed'.green,parsed_doc.name,(this.count+'/'+this.total).yellow)
+						}
+
+						if( !(i%10) ) util.logMem();
+
+						
+						
+						
 					}.bind(this));
+
 
 				}.bind(this));
 				
@@ -108,6 +141,7 @@ var main = p.async(function(opt){
 			this.total++
 			up_end(_.merge(params2,end_params),endpoint)
 			.then(function(filtered_docs){
+				//console.log(filtered_docs.length);
 				this.data = this.data.concat(filtered_docs);
 				this.checkAsync();
 			}.bind(this))
@@ -120,11 +154,13 @@ var main = p.async(function(opt){
 	
 	_.each(opt.platforms,function(plat,plat_name){
 		this.total++;
-
+		
 		up_plat(plat,plat_name)
 		.then(function(docs){
+			
 			this.data = this.data.concat(docs);
 			this.checkAsync();
+			console.log(plat_name.bgCyan,'done'.green,(this.count+'/'+this.total).cyan)
 		}.bind(this))
 
 	}.bind(this));
@@ -137,7 +173,22 @@ var main = p.async(function(opt){
 
 
 
-
+var save_cache = false
 module.exports = function(opt){
-	return main(opt).then(sync);
+	if(opt.clear_cache == true) var pipe = util.clearCache();
+	else var pipe = p.pipe();
+	if(opt.save_cache == true) save_cache = true;
+
+	if(opt.use_cache){
+		return pipe.then(util.getCache).then(function(data){
+			if(opt.sync === false) return p.pipe(data);
+			return sync(data,opt.overwrite,opt.min_gps_status,opt.filter_empty,opt.bad_words);
+			
+		})
+	}else{
+		return pipe.then(function(){ return main(opt)}).then(function(data){
+			if(opt.sync === false) return p.pipe(data);
+			return sync(data,opt.overwrite,opt.min_gps_status,opt.filter_empty,opt.bad_words);
+		});		
+	}
 };
