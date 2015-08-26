@@ -1,32 +1,4 @@
 # Showgrid API #
-RESTful JSON API ignorant of front end.
-
-The API should pull together data surrounding concerts from multiple sources and use the data to provide accurate and readable entries.
-
-### Routes ###
-
-
-
-
-
-### Update Function ###
-# save_cache # : save all fetched raw data in database as cache;
-# use_cache # : only use cached data to create entries in the database;
-## Update Function Parameters ##
-Applies to some endpoints.
-## Endpoints: ##
-
-	zip: ( works as default for all )
-	gps : ( does not work for many, easier to convert to zip..)
-	country: 'US', ( default, dont know if works for others )
-	radius: ( miles )
-	query_size: ( == or < amount of venues in radius )
-	sort: 'popularity', (default, only applies to a few)
-	start_date: (mainly for event queries)
-	end_date (mainly for event queries)
-
------
-
 
 Showgird API pulls data from different sources and combines it together into one API.
 
