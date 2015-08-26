@@ -78,23 +78,33 @@ Most of them are self explanitory, however it is extremly important to set the r
 
 a. global parameters:
 	1. filter_delay - how much time to wait before parsing each object that was gotten
+	
 	2. zip - postal code
+	
 	3. country -  (tested in US only)
+	
 	4. radius -  in miles
+	
 	5. query_size - size of query
+	
 	6. start_date - this options should be passed to all getter scraper functions (date)
+	
 	7. end_date - this options should be passed to all getter scraper functions (date)
 
 b. endpoint specific:
 	1. get_delay - depends on scraper
+	
 	2. sort - 'popularity',  
+	
 	3. key - most apis have keys that might need to be regularly updated or configured
 
 
 
 c. things to keep in mind:
 	1. If scrapers hav an option for start and end date, its a good idea to set that accordingly.
+	
 	2. Get delays in production mode should be a bit longer because they will ensure that no errors happen in the getters.
+	
 	3. Some apis like evntful have over 9000 venues but are sorted by popularity, its a good idea to only scrape the top 3000 most populare venues, most of those will be unuseable anyway.
 
 
