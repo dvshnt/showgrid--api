@@ -33,10 +33,18 @@ function connect(){
 	mongoose.connection.on('error',console.error.bind(console,'connection error'));	
 }
 
+
+
 connect()
 
 
+
+
+
+
 Promise.longStackTraces();
+
+
 
 
 
@@ -45,7 +53,6 @@ var onemonth = 604800000*4;
 var oneweek = 604800000;
 var oneyear = onemonth*12;
 var meters_in_a_mile = 1609.34;
-
 var max_venue_query_limit = 50;
 
 
@@ -207,7 +214,6 @@ var findVenues_GPS = p.async(function(opt){
 			_.each(docs,function(doc,i){
 				docs[i] = sortEvents(doc,opt)
 			});
-
 			this.data[1] = docs
 		}
 		this.checkAsync();
@@ -294,8 +300,6 @@ var findEvents_GPS = p.sync(function(opt){
 		.spread(function(docs){
 			if(err) this.resolve([null,'INTERNAL ERR']);
 			if(docs == null) this.resolve([[],null]);
-		
-
 			var events = _.takeRight(
 				_.sortBy(_.union(
 					_.map(docs,function(doc){
@@ -304,8 +308,6 @@ var findEvents_GPS = p.sync(function(opt){
 				),function(event){
 					return Date.parse(event.date.start)
 				}),(opt.limit != null && opt.limit < 500) ? Math.floor(parseInt(opt.limit)) : 100)
-
-
 			this.resolve([events,null]);
 		}.bind(this));
 });
@@ -367,7 +369,6 @@ var findArtists_GPS = p.sync(function(opt){
 		}},
 		events: {
 			date : {$gt: opt.mindate || Date.now(), $lt: opt.maxdate || new Date(Date.parse(Date())+oneweek)},
-
 		},
 	}
 
