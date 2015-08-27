@@ -71,12 +71,21 @@ parameters work from outermost to innermost. for example if the param object out
 	b. Each platform endpoint key can have a value that is a settings object, if its null outermost settings are passed.
 
 
+### caching ###
+make sure to use save_cache when running an update so that if something happens during the sync process you can turn on use_cache and debug with the already existing cached and unfiltered data. If delete_cache is disabled then cache will not overwrite and cache duplicates will be created. If use_cache option is enabled scraping will be ignored and process will go straight to sync.
+
 
 ### param keys ###
 Most of them are self explanitory, however it is extremly important to set the right parameter options for the scrapers, because if wrong ones are passed the update might FAIL! 
 
 
 a. global parameters:
+	0. save_cache - save cache 
+
+	0. delete_cache - use it if you dont want to save duplicate cache (will take much longer to sync)
+
+	0. use_cache - option ignores save and delete and skips the entire scraping portion.
+
 	1. filter_delay - how much time to wait before parsing each object that was gotten
 	
 	2. zip - postal code
