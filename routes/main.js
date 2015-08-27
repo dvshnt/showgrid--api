@@ -1,3 +1,5 @@
+var cfg = require('../data/config.json');
+
 var router = require('express').Router();
 var data = require('../data/data');
 var update = require('../data/update');
@@ -8,9 +10,6 @@ var gps = require('../data/gps');
 var _ = require('lodash');
 var util = require('../data/util');
 
-
-//min / max query amount.
-var limits = [10,500];
 
 
 //error handling
@@ -25,21 +24,23 @@ function err(res,type,status,msg){
 
 
 //optional cursor parameter or feaults ot beginning.
-function pageinate(type,opt){
-	opt.limit = util.clamp(opt.limit||100,limits[0],limits[1]);
-	return data
-	.find[type](opt)
-	.spread(function(count,dat){
-		var r = {
-			total: count,
-			type: type,
-			data: dat || [],
-		}
-		if(dat.length >= opt.limit){
-			r.next = dat[dat.length-1]._id
-		}
+function paginate(type, opt) {
+	opt.limit = util.clamp(opt.limit || cfg.limits.venue[1], cfg.limits.venue[0], cfg.limits.venue[2]);
 	
-		return p.pipe(r)
+	return data
+		.find[type](opt)
+		.spread(function(count, dat) {
+			var r = {
+				total: count,
+				type: type,
+				data: dat || [],
+			};
+
+			if (dat.length >= opt.limit) {
+				r.next = dat[dat.length-1]._id
+			}
+	
+			return p.pipe(r)
 	});
 }
 
@@ -121,7 +122,7 @@ zipcode or lat and lon variables
  */
 function findVenues(req,res,next){
 	//QUERY PARAMETER
-	pageinate('venue',req.query)
+	paginate('venue',req.query)
 	.then(function(dat){
 		if(dat == null) return err(res,'find_venues',404);
 		else res.json(dat);	
@@ -217,7 +218,7 @@ function deleteVenue(req,res,next){
  * @param {string} artists - only find events that have artists
  */
 function findEvents(req,res,next){
-	pageinate('event',req.query)
+	paginate('event',req.query)
 	.then(function(dat){
 		if(dat == null) err(res,'venue',404,'Invalid Query'); 
 		else res.status(200).json(dat);	
@@ -327,7 +328,7 @@ Searches for one eartist with an id or a specifc platform and platform id
  * @param {string} platid - platform id
  */
 function getArtist(req,res,next){
-	pageinate('artist',req.query)
+	paginate('artist',req.query)
 	.then(function(dat){
 		if(dat == null) res.status(404).json({error:"ARTIST_NO_MATCH"}); 
 		else res.status(200).json(dat);	

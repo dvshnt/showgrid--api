@@ -1,5 +1,6 @@
 //database setup
 var cfg = require('./config.json');
+var util = require('./util');
 var opt_dev = true;
 
 
@@ -53,7 +54,6 @@ var onemonth = 604800000*4;
 var oneweek = 604800000;
 var oneyear = onemonth*12;
 var meters_in_a_mile = 1609.34;
-var max_venue_query_limit = 50;
 
 
 
@@ -205,7 +205,8 @@ var findVenues_GPS = p.async(function(opt){
 	
 
 	//console.log(db_q);
-	var promise = Venue.find(db_q,fields).limit((opt.limit != null && opt.limit < max_venue_query_limit ) ? Math.floor(parseInt(opt.limit)) : max_venue_query_limit ).select(selects)
+	var limit = util.clamp(opt.limit || cfg.limits.venue[1], cfg.limits.venue[0], cfg.limits.venue[2]);
+	var promise = Venue.find(db_q,fields).limit(limit).select(selects)
 
 	if(opt.q != null) promise = promise.sort({ score: { $meta: "textScore" } })
 	promise.exec(function(err,docs){

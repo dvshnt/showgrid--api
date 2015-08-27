@@ -34,5 +34,8 @@
 		"ticketfly" : {
 			"api" : "http://www.ticketfly.com/api"
 		}
+	},
+	"limits" : {
+		"venue" : [10, 50, 500]
 	}
 }
