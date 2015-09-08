@@ -128,6 +128,20 @@ var find = p.async(function(type,opt){
 
 
 
+module.exports.getVenue = function(opt){
+
+	return req({
+		url: 'http://api.jambase.com/venues?id='+opt.id+'&api_key='+opt.key,
+		json: true		
+	}).spread(function(res,dat,err){
+		if(dat == null || err) return Promise.reject(err);
+		return dat;
+	});
+	
+}
+
+
+
 
 //FIND SHOWS
 module.exports.findEvents = function(opt){

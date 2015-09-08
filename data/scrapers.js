@@ -28,10 +28,7 @@ var scrapers = {
 			'event' : jambase.findEvents,
 		},
 		'get' : {
-			/*
-				getting specific venues and artists is useless here because entire event objects are contained within the find requests.
-				to update data from jambase just query the find scrapers with zipcode or city again and it will update the venues and events accordingly.
-			*/
+			'venue' : jambase.getVenue,
 		},
 		'filters': {
 			'venue' : jambase.parseVenue,
@@ -96,7 +93,7 @@ var scrapers = {
 			'event' : facebook.findEvents,
 		},
 		'get' : {
-			//'venue' : facebook.getVenue,
+			'venue' : facebook.getVenue,
 			//'event' : facebook.getEvent,
 		},
 		'filters' : {
@@ -123,7 +120,7 @@ var scrapers = {
 			'event' : ticketfly.findEvents
 		},
 		'get':{
-
+			'venue' : ticketfly.getVenue
 		},
 		'filters' : {
 			'venue' : ticketfly.parseVenue,

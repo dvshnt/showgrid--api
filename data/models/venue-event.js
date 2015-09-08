@@ -52,6 +52,9 @@ var eventSchema = new db.Schema({
 			end: Date,
 		}
 	}],
+
+
+
 	private: {type: Boolean, default: false},
 	featured: {type:Boolean, default: false},
 	age: {type: Number,max: 99, default: 0},
@@ -371,6 +374,7 @@ var venueSchema = new db.Schema({
 	},
 
 
+	active: {type: Boolean, default: false},
 	
 	name: {type:String, required: true, index: 'text'},
 	description: {type:String},

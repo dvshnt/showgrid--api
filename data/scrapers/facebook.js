@@ -11,7 +11,7 @@ var util = require('../util');
 var moment = require('moment');
 var cheerio = require('cheerio');
 
-var key_string = '';
+var key_string = cfg.token;
 
 module.exports.getKey = p.sync(function(){
 	//pass config settings to key.
@@ -155,6 +155,38 @@ var Getter = function(type,opt){
 	}
 }
 
+
+
+
+
+module.exports.getVenue = function(opt){
+
+	var q = {
+		fields: type == 'venue' ? venue_fields.join(',')+venue_event : event_fields.join(',')+event_venue
+	}
+
+		
+	return request({
+		url : cfg.api + '/' + opt.id + '?' + qs.stringify(q) + '&' + key_string,
+		json: true
+	}).spread(function(res,body,err){
+
+
+		if(err){
+			
+			return Promise.reject(err);
+		
+		}else if( body.error || !body.data.length ) {
+			
+			return Promise.reject(body.error);
+			
+
+		}
+
+		return body;
+
+	})
+}
 
 
 

@@ -305,9 +305,6 @@ var getVenueEvents = p.sync(function(venueid){
 
 
 
-
-
-
 var current_year = new Date().getFullYear()
 
 /*

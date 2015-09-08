@@ -464,12 +464,13 @@ function syncVenue(venue){
 
 		//if venue not found, create a new one
 		if(docs == null || docs.length == 0){
+		
 			console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
 			pipe = p.pipe(new db['venue'](venue));
 		
-
 		//else merge
 		}else{
+
 			//go through all text search matches and do a single merge + return if a good match, otherwise go to end
 			_.each(docs,function(d){
 				console.log('DB FULL VENUE MERGE:'.green,venue.name,d.name.inverse);
@@ -486,10 +487,11 @@ function syncVenue(venue){
 				console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
 				pipe = p.pipe(new db['venue'](venue));				
 			}
+			
 		}
 
 		return pipe.then(saveVenue);
-	})
+	});
 };
 
 
@@ -664,7 +666,9 @@ var syncArtist = function(artist){
 					console.log('ARTIST SAVED'.cyan,doc.name);
 					this.resolve(doc);
 				}
+
 			}.bind(this));
+
 			return this.promise;
 		}));
 	})

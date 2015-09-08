@@ -1,1 +1,1 @@
-//TODO
+//for each event extract artist names.

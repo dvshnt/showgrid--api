@@ -10,6 +10,7 @@
 		"facebook" : {
 			"api": "https://graph.facebook.com",
 			"secret": "02801ae29d77605a491125911a47e4b8",
+			"token":"868089599911045|3SXr3l_H6DprsIMLI-xOYaMF-2o",
 			"id": "868089599911045",
 			"version": "2.4"
 		},

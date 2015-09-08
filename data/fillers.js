@@ -14,7 +14,7 @@ var filler = function(opt){
 			var count = 0;
 			var total = docs.length;
 			return Promise.map(docs,function(doc,i){
-				return new opt.filler(doc).finally(function(){
+				return new opt.filler(doc,opt).finally(function(){
 					count ++
 					console.log('fill',count,'/',total)
 				})
@@ -51,6 +51,9 @@ var filler = function(opt){
 
 var spotify = require('./fillers/spotify'); //spotify filler
 var amazons3 = require('./fillers/amazons3'); //spotify filler
+var updateActive = require('./fillers/updateActive'); //update filler
+
+
 var fillers = {
 	spotify : function(opt){
 		opt.sync = opt.sync || false;
@@ -62,6 +65,12 @@ var fillers = {
 		opt.sync = opt.sync || false;
 		opt.types = ['venue','artist'];
 		opt.filler = amazons3;
+		return filler(opt);
+	},
+	updateActive : function(opt){
+		opt.types = ['venue'];
+		opt.sync = opt.sync || false;
+		opt.filler = updateActive;
 		return filler(opt);
 	}
 }
