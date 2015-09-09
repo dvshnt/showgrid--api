@@ -129,15 +129,17 @@ var find = p.async(function(type,opt){
 
 
 module.exports.getVenue = function(opt){
-
+	console.log('http://api.jambase.com/venues?id='+opt.id+'&api_key='+opt.key)
 	return req({
 		url: 'http://api.jambase.com/venues?id='+opt.id+'&api_key='+opt.key,
 		json: true		
 	}).spread(function(res,dat,err){
+		
+		if(dat.Message != null) return Promise.reject(dat.Message);
 		if(dat == null || err) return Promise.reject(err);
-		return dat;
-	});
-	
+		return p.pipe(dat.Venue);
+
+	});	
 }
 
 

@@ -161,13 +161,10 @@ var Getter = function(type,opt){
 
 module.exports.getVenue = function(opt){
 
-	var q = {
-		fields: type == 'venue' ? venue_fields.join(',')+venue_event : event_fields.join(',')+event_venue
-	}
 
 		
 	return request({
-		url : cfg.api + '/' + opt.id + '?' + qs.stringify(q) + '&' + key_string,
+		url : cfg.api + '/' + opt.id + '?fields='+venue_fields.join(',')+'&' + key_string,
 		json: true
 	}).spread(function(res,body,err){
 
@@ -180,10 +177,9 @@ module.exports.getVenue = function(opt){
 			
 			return Promise.reject(body.error);
 			
-
 		}
 
-		return body;
+		return p.pipe(body);
 
 	})
 }

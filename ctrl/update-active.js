@@ -1,5 +1,5 @@
 var fillers = require('../data/fillers');
-var cfg = require('../config.json');
+var cfg = require('../data/config.json');
 
 fillers.updateActive({
 	sync: false,

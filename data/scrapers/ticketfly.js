@@ -185,14 +185,14 @@ module.exports.getVenues = p.async(function(opt){
 
 module.exports.getVenue = function(opt){
 	var url = cfg.api+"/venues?venueId="+opt.id+'&key='+opt.key;
-	request({
+	return request({
 		url: url,
 		json: true
 	}).spread(function(res,dat,err){
-		if(err) return this.reject(err);
-		if(dat == null) this.reject('no data');
-
-		return 
+		if(err) return Promise.reject(err);
+		if(dat == null) return Promise.reject('no data');
+		console.log(dat);
+		return  p.pipe(dat);
 	});
 }
 
