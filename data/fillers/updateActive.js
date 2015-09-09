@@ -13,7 +13,8 @@ var scrapers = require('../scrapers.js');
 var Promise = require('bluebird');
 var _ = require('lodash');
 var p = require('../pFactory.js');
-var merge = require('../sync/merge.js')
+var merge = require('../sync/merge.js');
+var sync = require('../sync/sync.js')
 
 
 
@@ -38,7 +39,7 @@ var updateActive = function(doc,opt){
 
 
 		//console.log(scrapers[key].get.venue)
-		//console.log('TEST TEST TEST TEST')
+		console.log(plat.name,plat.id)
 		return scrapers[plat.name].get.venue({
 			key : opt.keys[plat.name],
 			id : plat.id
@@ -46,16 +47,25 @@ var updateActive = function(doc,opt){
 
 
 		.then(function(doc){
-		
-			var pipe = scrapers[plat.name].filters.venue(doc);
-		
-			return p.pipe(pipe);
+			if(plat.name == 'reverbnation'){
+				var pipe = scrapers[plat.name].filters.venue_body(doc,plat.id);
+			}else{
+				var pipe = scrapers[plat.name].filters.venue(doc);
+			}
 			
+			return p.pipe(pipe);	
+		})
+
+
+		.then(function(raw){
+			return sync.validateOne(raw,'venue');
 		})
 
 
 		.then(function(parsed_doc){
-			console.log(parsed_doc);
+			
+
+			//console.log(parsed_doc);
 			merge.venue(doc,parsed_doc,null,true);
 			return doc.saveAsync();
 		})

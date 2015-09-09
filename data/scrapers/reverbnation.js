@@ -400,17 +400,7 @@ module.exports.parseEvent = function(nugget){
 
 
 
-
-
-
-
-
-
-
-
-
 var p = require('../pFactory.js');
-
 module.exports.getVenue = function(id){
 
 	var response;
@@ -445,10 +435,12 @@ module.exports.getVenue = function(id){
 
 
 
+
+
+
 var getVenueBanners = p.sync(function(photoid){
 	
 	var tries = 0;
-
 
 	function get(){
 
@@ -511,12 +503,164 @@ function parseVenuePhotos(body){
 	});
 }
 
+
+
+function parse(body,parsed,$,id){
+
+	
+
+
+
+
+	parsed = _.merge({
+		is: 'venue',
+		platforms:[{
+			name: 'reverbnation',
+			id: id
+		}],
+		name: $('.profile_user_name').text(),
+		events: [],
+		links: [],
+	},parsed)
+
+	if(body == null) return;
+
+	var $ = cheerio.load(body);
+
+
+	//address info...
+	var addr = $('p[itemprop="address"] > span');
+	console.log(addr)
+	parsed.location = {
+		address: $(addr[0]).text(),
+		components: {
+			city: $(addr[1]).text(),
+			statecode: $(addr[2]).text(),
+			countrycode: $(addr[3]).text(),	
+		}
+	}
+
+	parsed.events = [];
+	
+
+	//contact info..
+	if($($('.profile_section_container_contents > p')[1]).text() != null){
+		var phone = $($('.profile_section_container_contents > p')[1]).text();
+		if(phone != null){
+			phone = phone.match(/\d/g);
+			if(phone != null) parsed.phone = phone.join('');
+		}
+	}
+	//console.log(parsed.phone);
+	
+
+	//age info..
+	var age_match = $($('.profile_section_container_contents > .two_column > span')[1]).text().match(/\d+/);
+	if(age_match != null) parsed.age = age_match[0];
+	
+
+	//links info... (social media linkes like twitter and facebook)
+	var addr = $('.profile_section_container_contents > p > span');
+	parsed.location = {
+		address: $(addr[0]).text(),
+		components: {
+			city: $(addr[1]).text(),
+			statecode: $(addr[2]).text(),
+			countrycode: $(addr[3]).text(),					
+		}
+	}
+
+	//console.log(parsed.name.green,parsed.location);
+
+	var links = $('#profile_website_items a');
+	var raw_links = _.map(links,function(link){
+		return {
+			
+			url:$(link).attr('href')
+		};
+	});
+	var link_groups = {};
+	_.each(raw_links,function(link,i){
+		var link = link.url;
+		var domain = url.parse(link).hostname;
+		link_groups[domain] = link_groups[domain] || [];
+		link_groups[domain].push(link);
+	});
+
+	//if there are more than one link from same site....use the one with the venue name in it if there is one.
+	_.each(link_groups,function(group,i){
+		if(group.length == 1){
+			parsed.links.push({url:group[0]});
+			return
+		} 
+
+		var real_link = null;
+		var fuzz = null
+		_.each(group,function(link,i){
+
+			if(real_link == null && link.match(/pages\/page/) != null){
+				
+				real_link = link;
+				return false;
+			}else if(real_link != null){
+				return false;
+			}else{
+				fuzz = fuzz || fuzzy()
+				fuzz.add(link);
+			}
+		});
+
+		if(real_link != null){
+			parsed.links.push({url:real_link})
+		}else{
+			var matches = fuzz.get(parsed.name);
+			if(matches == null){
+				parsed.links = parsed.links.concat(fuzz.values());
+				//console.log(parsed.name,);
+			}else{
+				parsed.links.push({url:matches[0][1]});
+			}
+		}
+	});	
+
+	//console.log(parsed)
+	var photos_link = $($('.profile_photos a')[0]).attr('onclick');
+	var photos_linkid = null;
+	if(photos_link != null) var photos_linkid = photos_link.match(/(?!photo_)\d+/);
+	
+
+	var promise = getVenueEvents(parsed.platforms[0].id)
+	.then(p.sync(function(events){
+		parsed.events = events || [];
+
+	//	console.log('REVERB GOT EVNTS:'.cyan,parsed.events.length.toString().yellow.bold,parsed.name.gray)
+		this.resolve(parsed);
+		return this.promise;				
+	}))
+
+	if(photos_linkid != null){
+		promise = promise
+		.then(function(){
+			return getVenueBanners(photos_linkid)
+		})
+		.then(p.sync(function(banners){
+			parsed.banners = banners
+		//	console.log('REVERB GOT BANNERS:'.cyan,parsed.banners.length.toString().yellow.bold,parsed.name.gray)
+			this.resolve(parsed);
+			return this.promise;
+		}));
+	}
+
+	return promise;
+}
+
+
+
 //Parse Venue List Item
 module.exports.parseVenueFindItem = p.sync(function(venue){
 	
-
 	var $ = cheerio.load(venue);
-	var cit = $('.ml1 > p > span').text().split(',');
+	//var cit = $('.ml1 > p > span').text().split(',');
 	var parsed = {
 		is: 'venue',
 		platforms:[{name:'reverbnation',id:$('li').data('search-id')}],
@@ -528,151 +672,23 @@ module.exports.parseVenueFindItem = p.sync(function(venue){
 		links: [],
 	}
 
-
-	function parse(body){
-		if(body == null) return;
-
-		var $ = cheerio.load(body);
-	
-
-		//address info...
-		var addr = $('.profile_section_container_contents > p > span');
-		parsed.location = {
-			address: $(addr[0]).text(),
-			components: {
-				city: $(addr[1]).text(),
-				statecode: $(addr[2]).text(),
-				countrycode: $(addr[3]).text(),	
-			}
-		}
-
-		parsed.events = [];
-		
-
-		//contact info..
-		if($($('.profile_section_container_contents > p')[1]).text() != null){
-			var phone = $($('.profile_section_container_contents > p')[1]).text();
-			if(phone != null){
-				phone = phone.match(/\d/g);
-				if(phone != null) parsed.phone = phone.join('');
-			}
-		}
-		//console.log(parsed.phone);
-		
-
-		//age info..
-		var age_match = $($('.profile_section_container_contents > .two_column > span')[1]).text().match(/\d+/);
-		if(age_match != null) parsed.age = age_match[0];
-		
-
-		//links info... (social media linkes like twitter and facebook)
-		var addr = $('.profile_section_container_contents > p > span');
-		parsed.location = {
-			address: $(addr[0]).text(),
-			components: {
-				city: $(addr[1]).text(),
-				statecode: $(addr[2]).text(),
-				countrycode: $(addr[3]).text(),					
-			}
-		}
-
-		//console.log(parsed.name.green,parsed.location);
-
-		var links = $('#profile_website_items a');
-		var raw_links = _.map(links,function(link){
-			return {
-				
-				url:$(link).attr('href')
-			};
-		});
-		var link_groups = {};
-		_.each(raw_links,function(link,i){
-			var link = link.url;
-			var domain = url.parse(link).hostname;
-			link_groups[domain] = link_groups[domain] || [];
-			link_groups[domain].push(link);
-		});
-
-		//if there are more than one link from same site....use the one with the venue name in it if there is one.
-		_.each(link_groups,function(group,i){
-			if(group.length == 1){
-				parsed.links.push({url:group[0]});
-				return
-			} 
-
-			var real_link = null;
-			var fuzz = null
-			_.each(group,function(link,i){
-
-				if(real_link == null && link.match(/pages\/page/) != null){
-					
-					real_link = link;
-					return false;
-				}else if(real_link != null){
-					return false;
-				}else{
-					fuzz = fuzz || fuzzy()
-					fuzz.add(link);
-				}
-			});
-
-			if(real_link != null){
-				parsed.links.push({url:real_link})
-			}else{
-				var matches = fuzz.get(parsed.name);
-				if(matches == null){
-					parsed.links = parsed.links.concat(fuzz.values());
-					//console.log(parsed.name,);
-				}else{
-					parsed.links.push({url:matches[0][1]});
-				}
-			}
-		});	
-
-		//console.log(parsed)
-		var photos_link = $($('.profile_photos a')[0]).attr('onclick');
-		var photos_linkid = null;
-		if(photos_link != null) var photos_linkid = photos_link.match(/(?!photo_)\d+/);
-		
-
-		var promise = getVenueEvents(parsed.platforms[0].id)
-		.then(p.sync(function(events){
-			parsed.events = events || [];
-
-		//	console.log('REVERB GOT EVNTS:'.cyan,parsed.events.length.toString().yellow.bold,parsed.name.gray)
-			this.resolve(parsed);
-			return this.promise;				
-		}))
-
-
-
-		if(photos_linkid != null){
-			promise = promise
-			.then(function(){
-				return getVenueBanners(photos_linkid)
-			})
-			.then(p.sync(function(banners){
-				parsed.banners = banners
-			//	console.log('REVERB GOT BANNERS:'.cyan,parsed.banners.length.toString().yellow.bold,parsed.name.gray)
-				this.resolve(parsed);
-				return this.promise;
-			}));
-		}
-
-		return promise;
-	}
-
-
-
-
-
-
-	module.exports.getVenue(parsed.platforms[0].id).then(parse).then(function(parsed){
+	module.exports.getVenue(parsed.platforms[0].id).then(function(body){ 
+		return parse(body,parsed,$,id)
+	}).then(function(parsed){
 		console.log('reverbnation ',parsed.name,' has #',parsed.events.length)
 		this.resolve(parsed);
 	}.bind(this));
 
 	return this.promise
+});
+
+
+
+
+//Parse Venue List Item
+module.exports.parseVenueBody = p.sync(function(venue,id){
+	var $ = cheerio.load(venue);
+	return parse(venue,{},$,id)
 });
 
 

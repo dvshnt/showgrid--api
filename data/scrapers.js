@@ -76,6 +76,7 @@ var scrapers = {
 		},
 		'filters' : {
 			'venue' : reverbnation.parseVenueFindItem,
+			'venue_body' : reverbnation.parseVenueBody,
 		}		
 	},
 

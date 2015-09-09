@@ -53,6 +53,11 @@ var validateOne = p.sync(function(raw_doc,type){
 	return this.promise;
 });
 
+
+module.exports.validateOne = validateOne;
+
+
+
 //validate artist pipe
 var validateArtist = function(raw_doc){
 	return validateOne(raw_doc,'artist');	
@@ -487,7 +492,7 @@ function syncVenue(venue){
 				console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
 				pipe = p.pipe(new db['venue'](venue));				
 			}
-			
+
 		}
 
 		return pipe.then(saveVenue);
