@@ -15,6 +15,7 @@ var _ = require('lodash');
 var p = require('../pFactory.js');
 var merge = require('../sync/merge.js');
 var sync = require('../sync/sync.js')
+var colors = require('colors');
 
 
 
@@ -33,13 +34,7 @@ var updateActive = function(doc,opt){
 
 		if(_.has(blacklist,plat.name)) return p.pipe(null);
 
-	
 
-		
-
-
-		//console.log(scrapers[key].get.venue)
-		console.log(plat.name,plat.id)
 		return scrapers[plat.name].get.venue({
 			key : opt.keys[plat.name],
 			id : plat.id
@@ -47,7 +42,10 @@ var updateActive = function(doc,opt){
 
 
 		.then(function(doc){
+			console.log('GOT '.green,plat.name.green);
+
 			if(plat.name == 'reverbnation'){
+
 				var pipe = scrapers[plat.name].filters.venue_body(doc,plat.id);
 			}else{
 				var pipe = scrapers[plat.name].filters.venue(doc);
@@ -58,6 +56,9 @@ var updateActive = function(doc,opt){
 
 
 		.then(function(raw){
+			if(plat.name == 'reverbnation'){
+				console.log(raw)
+			}
 			return sync.validateOne(raw,'venue');
 		})
 
@@ -72,14 +73,21 @@ var updateActive = function(doc,opt){
 
 
 		.spread(function(){
-			console.log('savedddtest')
-			console.log(arguments)
+			console.log('SAVED'.green,arguments[0].name.cyan)
+			//console.log('savedddtest')
+			//console.log(arguments)
 			return p.pipe(null);
 		})
-	},{concurrency: 1})
-	
 
+
+	},{concurrency: 1}).tap(function(data){
+		//console.log('SAVED',data.)
+	})
 }
 
 
 module.exports = updateActive;
+
+
+
+

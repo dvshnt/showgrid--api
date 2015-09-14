@@ -117,7 +117,7 @@ var Getter = function(type,opt){
 
 		var resolve = this.resolve;
 		function getOne(url){
-			console.log(url);
+			//console.log(url);
 			return request({
 				url : url,
 				json: true

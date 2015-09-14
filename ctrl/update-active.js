@@ -3,7 +3,7 @@ var cfg = require('../data/config.json');
 
 fillers.updateActive({
 	sync: false,
-	blacklist: null,
+	blacklist: [],
 	keys: {
 		facebook: cfg.apis.facebook.token,
 		eventful: cfg.apis.eventful.keys[0],

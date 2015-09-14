@@ -104,7 +104,7 @@ module.exports.getVenues = p.async(function(opt){
 
 	function get(page){
 		var url = cfg.api+"/venues?pageNum="+page+"&maxResults="+(limit > 200 ? 200 : limit)+"&distance="+radius+"mi&"+q;
-		console.log(url);
+		//console.log(url);
 		request({
 			url: url,
 			json: true
@@ -190,9 +190,8 @@ module.exports.getVenue = function(opt){
 		json: true
 	}).spread(function(res,dat,err){
 		if(err) return Promise.reject(err);
-		if(dat == null) return Promise.reject('no data');
-		console.log(dat);
-		return  p.pipe(dat);
+		if(dat == null || dat.venues.length == 0) return Promise.reject('no data');
+		return  p.pipe(dat.venues[0]);
 	});
 }
 

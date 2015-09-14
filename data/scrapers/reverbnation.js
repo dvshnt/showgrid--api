@@ -530,7 +530,7 @@ function parse(body,parsed,$,id){
 
 	//address info...
 	var addr = $('p[itemprop="address"] > span');
-	console.log(addr)
+	//console.log(addr)
 	parsed.location = {
 		address: $(addr[0]).text(),
 		components: {
@@ -541,6 +541,8 @@ function parse(body,parsed,$,id){
 	}
 
 	parsed.events = [];
+
+	//console.log()
 	
 
 	//contact info..

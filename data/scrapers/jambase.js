@@ -37,8 +37,8 @@ var find = p.async(function(type,opt){
 		var start_date = opt.start_date || new Date();
 		var end_date = opt.end_date || new Date(Date.parse(start_date) + one_month*6);
 
-		console.log(start_date)
-		console.log(start_date.getUTCDay())
+		//console.log(start_date)
+		//console.log(start_date.getUTCDay())
 		var start_date = start_date.getUTCFullYear()+'-'+(start_date.getUTCMonth()+1)+'-'+end_date.getDate();
 		var end_date = end_date.getUTCFullYear()+'-'+(end_date.getUTCMonth()+1)+'-'+end_date.getDate();
 
@@ -60,7 +60,7 @@ var find = p.async(function(type,opt){
 
 	function get(page,delay,tries){
 		//console.log('jambase get page',page);
-		console.log(url + '?' + qs.stringify(q)+'&page='+page);
+		//console.log(url + '?' + qs.stringify(q)+'&page='+page);
 		var tries = tries || 0;
 		p.pipe({
 			url : url + '?' + qs.stringify(q)+'&page='+page,
