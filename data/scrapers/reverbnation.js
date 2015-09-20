@@ -401,15 +401,17 @@ module.exports.parseEvent = function(nugget){
 
 
 var p = require('../pFactory.js');
-module.exports.getVenue = function(id){
+module.exports.getVenue = function(opt){
 
+	var id = opt.id;
 	var response;
 	var reject;
 	var tries = 0;
 
 	//console.log(cfg.api+'/venue/'+id)
 	function get(){
-		
+		// console.log(cfg.api+'/venue/'+id)
+		// console.log(id)
 		request({url : cfg.api+'/venue/'+id})
 			.spread(function(res,body){
 				//console.log('got venue '+id+', try#',tries)
@@ -432,6 +434,9 @@ module.exports.getVenue = function(id){
 		get();
 	})
 }
+
+
+
 
 
 
@@ -506,8 +511,6 @@ function parseVenuePhotos(body){
 
 
 function parse(body,parsed,$,id){
-
-	
 
 
 
@@ -674,7 +677,9 @@ module.exports.parseVenueFindItem = p.sync(function(venue){
 		links: [],
 	}
 
-	module.exports.getVenue(parsed.platforms[0].id).then(function(body){ 
+	module.exports.getVenue({
+		id: parsed.platforms[0].id,
+	}).then(function(body){ 
 		return parse(body,parsed,$,id)
 	}).then(function(parsed){
 		console.log('reverbnation ',parsed.name,' has #',parsed.events.length)

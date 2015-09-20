@@ -13,4 +13,3 @@ db['venue'].find(function(err,doc){
 		})
 	})
 });
-

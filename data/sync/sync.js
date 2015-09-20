@@ -40,9 +40,11 @@ var validateOne = p.sync(function(raw_doc,type){
 	
 	
 
+
 	raw_doc.validate(function(err){
 		if(err){
 			console.log(type,'validation ERR'.bold.red.bgBlue,err.message);
+			console.log()
 			raw_doc = undefined;
 			return this.resolve(null);
 		}else{
@@ -145,7 +147,7 @@ var extractArtists = function(types){
 		_.each(venue.events,function(event,e){
 			if(event.artists == null) return;
 
-			//headliners save
+			//save headliners
 			if(event.artists.headliners != null && event.artists.headliners.length != 0) a_pipe = a_pipe.then(function(){
 				return Promise.reduce(_.clone(event.artists.headliners),function(total,artist){
 				
@@ -161,6 +163,8 @@ var extractArtists = function(types){
 				})
 			});
 
+
+			//save openers
 			if(event.artists.openers != null && event.artists.openers.length != 0) a_pipe = a_pipe.then(function(){
 				return Promise.reduce(_.clone(event.artists.openers),function(total,artist){
 					return sync(artist).then(function(a){
@@ -745,9 +749,67 @@ var logMem = require('../util').logMem;
 var heapdump = require('heapdump');
 
 var min_gps_status = 2; //default min gps status
+	
 
-var syncData = function(dataset,overw,status,filter_e,badwords){
-	bad_words = badwords
+
+//if dataset contains artist types...go ahead and save them.
+
+function syncArtists(types){
+
+	return Promise.map(types['artist'],function(artist){
+		return validateArtist(artist).then(function(a){
+			if(a == null) return p.pipe(null);
+			return syncArtist(a)
+		})
+	},{concurrency:1})
+	.then(function(){
+		return p.pipe(types);
+	})
+}
+
+
+/*
+syncData : MAIN SYNC CONTROLLER FUNCTION
+
+this function has not been properly refactored and is not very pretty but i will try and explain the gist of what is happening in this file...
+
+essentially what happens is that parsed documents sent into the synData function 
+get validated and created into models, some venues get filtered out based on settings
+below or if their validation with the data/models/{model_name} fails. Artists get extracted
+from the venues and saved under a seperate and their mongodb objectId get pushed back into the venue object as a reference.
+that object is then checked against entries in the database and merged or created as new.
+
+each document has a platform id which is the id that the document is stored under from all the different apis
+when venues are checked against the database they are first checked by objectId because those are indexed.
+if venues with same ids are found the model is saved, otherwise the document is checked by platform id -> gps -> (any other identification patterns) and saved/merged.
+
+match and merge functions are used to sync w/
+
+{
+	docs: array of parsed documents
+	overwrite: overwrite any old venue data with this data.
+	min_gps_status: minimum gps status needed to sync venues (1/2/3)
+		(0 : failed to find any gps data)
+		(1 : found as address but not a gps "places" location)
+		(2 : found as both valid address and a valid registered place)
+	filter_empty: dont sync venues with empty event arrays
+	bad_words: (dont sync venues that have words in [bad_words] )
+}
+
+*/
+
+var syncData = function(opt){
+
+
+
+	var dataset = opt.docs;
+	var overw = opt.overwrite
+	var status = opt.min_gps_status
+	var filter_e = opt.filter_empty
+	var badwords = opt.bad_words
+
+
+	bad_words = opt.badwords
 	bad_words = _.map(bad_words,function(word){
 		return new RegExp(word,'i')
 	});
@@ -759,6 +821,7 @@ var syncData = function(dataset,overw,status,filter_e,badwords){
 
 
 	return splitByType(dataset)
+	.then(syncArtists)
 	.then(flipEvents)
 	.then(extractArtists) 	//extract artists out of each event and link their platform ids to the venue event
 	.then(filterEmpty)

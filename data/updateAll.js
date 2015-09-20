@@ -17,25 +17,15 @@ var min_query = 1;
 
 if(db.venue == null) return console.error('RECURSIVE MODULE REQUIRE ERROR')
 
-/*
-linkFiller is used when artist/show ID's are linked to a fetched object, we have to try find those objects in OUR database and link them as well.
-it gets called after all the scraper filters have been called back.
-*/
-
-var linkFiller = function(model_list,log){
-	////console.log('IN LINK FILLER: ',model_list);
-
-	_.each(model_list)
-
-
-	return new Promise(function(res,rej){
-		res(model_list);
-	});
-}
 
 
 
 Promise.longStackTraces();
+
+
+
+//This function is not refactored and does not need to be bothered...pretty much hooks up parameters and functions from the ./scrapers.js file and passes the data to sync.js
+
 
 
 var main = p.async(function(opt){
@@ -84,12 +74,16 @@ var main = p.async(function(opt){
 				
 				_.each(docs,function(doc,i){
 					var prom = p.pipe(doc)
+
 					//filter delay.
 					.delay(params.filter_delay != null ? params.filter_delay*i : 0)
+					
 					//filter pipe wrapper
 					.then(function(){
 						return p.pipe(scraper.filters[endpoint](doc))
 					})
+					
+					//fill cache if save_cache is set to true.
 					.then(function(raw_doc){
 						if(raw_doc != null && save_cache == true){
 							return util.fillCache([raw_doc])
@@ -100,6 +94,8 @@ var main = p.async(function(opt){
 						} 
 						else return p.pipe(raw_doc)
 					})
+
+
 					//check async
 					.then(function(parsed_doc){
 
@@ -113,10 +109,6 @@ var main = p.async(function(opt){
 						}
 
 						if( !(i%10) ) util.logMem();
-
-						
-						
-						
 					}.bind(this));
 
 
@@ -175,20 +167,45 @@ var main = p.async(function(opt){
 
 var save_cache = false
 module.exports = function(opt){
+
+	//options passed to the syncData function in sync/sync.js
+	var sync_options = {
+		overwrite: opt.overwrite,
+		min_gps_status: opt.min_gps_status,
+		filter_empty: opt.filter_empty,
+		bad_words: opt.bad_words
+	}
+
+
+	//clear cache if nesseary
 	if(opt.clear_cache == true) var pipe = util.clearCache();
+
+	//otherwise create a pipe
 	else var pipe = p.pipe();
+
+	//global save_cache
 	if(opt.save_cache == true) save_cache = true;
 
+
+	//USE CACHE
 	if(opt.use_cache){
-		return pipe.then(util.getCache).then(function(data){
+		return pipe
+		.then(util.getCache)
+		.then(function(data){
+			sync_options
 			if(opt.sync === false) return p.pipe(data);
-			return sync(data,opt.overwrite,opt.min_gps_status,opt.filter_empty,opt.bad_words);
+			return sync(_.merge({docs:data},sync_options));
 			
 		})
+
+	//DONT USE CACHE
 	}else{
-		return pipe.then(function(){ return main(opt)}).then(function(data){
+		return pipe
+		.then(main.bind(null,opt))
+		.then(function(data){
+			sync_options
 			if(opt.sync === false) return p.pipe(data);
-			return sync(data,opt.overwrite,opt.min_gps_status,opt.filter_empty,opt.bad_words);
+			return sync(_.merge({docs:data},sync_options));
 		});		
 	}
 };

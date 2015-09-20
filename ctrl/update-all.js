@@ -10,7 +10,7 @@ ticketfly:
 
 //var morgan = require('morgan');
 var api_cfg = require('../data/config').apis;
-var update = require('../data/update.js');
+var update = require('../data/updateAll.js');
 var fb = require('../data/scrapers/facebook')
 var Promise = require('bluebird');
 
@@ -102,14 +102,16 @@ fb.getKey().then(function(fb_key){
 					key: fb_key
 				}
 			},
-			'reverbnation': {
+
+			'reverbnation' : {
 				endpoints : {
-					'venue':{
+					'venue' : {
 						get_delay: 400,
 						filter_delay: 500
 					}
 				},
 			},
+
 			'jambase' : {
 				endpoints : {'venue':null},
 				params: {

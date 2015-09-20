@@ -69,6 +69,19 @@ TO FETCH STATE,  SET DISTANCE = 0;
 */
 
 
+function getVenueEvents(id,delay){
+	return p.pipe({
+		url: cfg.api+"/events/upcoming.json?venueId="+id,
+		json: true
+	}).delay(delay).then(request).spread(function(res,dat,err){
+		if(err){
+			console.log('ticketfly get venue events err'.bgRed,err);
+			return p.pipe(null);
+		}
+		if(dat == null || dat.events == null || dat.events.length == 0) return p.pipe(null);
+		else return dat.events
+	});
+}
 
 //fetch all venues from city
 module.exports.getVenues = p.async(function(opt){
@@ -85,19 +98,7 @@ module.exports.getVenues = p.async(function(opt){
 	
 
 
-	function getVenueEvents(id,delay){
-		return p.pipe({
-			url: cfg.api+"/events/upcoming.json?venueId="+id,
-			json: true
-		}).delay(delay).then(request).spread(function(res,dat,err){
-			if(err){
-				console.log('ticketfly get venue events err'.bgRed,err);
-				return p.pipe(null);
-			}
-			if(dat == null || dat.events == null || dat.events.length == 0) return p.pipe(null);
-			else return dat.events
-		});
-	}
+
 
 
 
@@ -190,9 +191,46 @@ module.exports.getVenue = function(opt){
 		json: true
 	}).spread(function(res,dat,err){
 		if(err) return Promise.reject(err);
-		if(dat == null || dat.venues.length == 0) return Promise.reject('no data');
-		return  p.pipe(dat.venues[0]);
+		if(dat == null || dat.venues.length == 0) return Promise.reject(new Error('no data'));
+
+		var venue = dat.venues[0];
+
+		//get the events for the venue with a 500ms delay
+		return p.pipe(null)
+		.delay(500)
+		.then(getVenueEvents.bind(null,opt.id))
+
+		//link events w/ raw venue data for later parsing.q
+		.then(function(events){
+			
+			venue.events = events;
+			console.log(venue.events.length);
+
+			return p.pipe(venue)
+		});
+
 	});
+
+
+	function getVenueEvents(id){
+		//console.log(cfg.api+"/events/upcoming.json?venueId="+id)
+		return p.pipe({
+			url: cfg.api+"/events/upcoming.json?venueId="+id,
+			json: true
+		})
+		.then(request)
+		.spread(function(res,dat,err){
+		//	console.log(dat.events)
+
+			//return p.stop(new Error('stop'))
+			if(err){
+				console.log('ticketfly get venue events err'.bgRed,err);
+				return p.pipe(null);
+			}
+			if(dat == null || dat.events == null || dat.events.length == 0) return p.pipe(null);
+			else return p.pipe(dat.events)
+		});
+	}
 }
 
 
@@ -321,9 +359,6 @@ module.exports.parseEvent = function(event){
 		end: event.endDate != null ? moment(event.endDate).tz(event.venue.timeZone).utc().format() : null
 	}
 
-
-
-	//console.log(parsed.date);
 	return parsed;
 }
 
@@ -359,6 +394,8 @@ module.exports.parseVenue = function(venue){
 			return link.url != null && link.url != '';
 		}),
 	}
+
+	
 
 	parsed.events = _.map(venue.events,function(event){
 		return module.exports.parseEvent(event);

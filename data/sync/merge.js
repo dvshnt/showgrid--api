@@ -181,6 +181,9 @@ merge.venue = function(e1,e2,priority,check_val){
 		return obj.name+'/'+obj.id
 	});
 
+	//description
+	if(i1 >= i2 && e1.description != null) merged.description = e1.description
+	else merged.description = e2.description
 
 	
 	//time 2
@@ -394,7 +397,7 @@ merge.event = function(e1,e2,priority,check_val){
 
 	//description 9
 	if(i1 >= i2 && e1.description != null) merged.description = e1.description
-	else merged.description = e2.pdescription
+	else merged.description = e2.description
 
 	//banners 10
 	if(e2.banners == null || e1.banners == null){

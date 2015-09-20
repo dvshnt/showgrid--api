@@ -290,7 +290,7 @@ eventSchema.path('platforms').validate(function(value){
 
 
 eventSchema.path('platformIds').validate(function(value){
-  return value.length;
+  return value.length;x
 },"'platforms' cannot be an empty array");
 
 
