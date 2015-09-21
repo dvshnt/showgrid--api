@@ -680,7 +680,7 @@ module.exports.parseVenueFindItem = p.sync(function(venue){
 	module.exports.getVenue({
 		id: parsed.platforms[0].id,
 	}).then(function(body){ 
-		return parse(body,parsed,$,id)
+		return parse(body,parsed,$,parsed.platforms[0].id)
 	}).then(function(parsed){
 		console.log('reverbnation ',parsed.name,' has #',parsed.events.length)
 		this.resolve(parsed);

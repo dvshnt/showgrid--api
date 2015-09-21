@@ -49,7 +49,9 @@ fb.getKey().then(function(fb_key){
 		//clear_cache: true, //clear cache before updating (REMEMBER TO TURN OFF IF USING CACHE!)
 		
 		//use preexisting cache to sync/merge
-		use_cache: true,
+		use_cache: false,
+		save_cahce: true,
+		delete_cache: true,
 
 		//if these words are found in a venue name, that venue will be ignored. (default is library & church)
 		bad_words: [
