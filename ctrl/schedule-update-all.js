@@ -12,7 +12,7 @@ function run(){
 	
 
 	//run the update
-	var update = spawn('node', ['./update']);
+	var update = spawn('node', ['./update-all']);
 
 
 	//log data

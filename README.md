@@ -2,6 +2,20 @@
 
 Showgird API pulls data from different sources and combines it together into one API.
 
+
+TODO:
+	1. facebook does not seem to fetch all the venues, to gather venue facebook data would need to add a facebook filler.
+
+
+
+
+
+
+
+
+
+
+
 this is more or less how the data tree looks like:
 -Venue
   -Event

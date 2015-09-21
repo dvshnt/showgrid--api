@@ -30,6 +30,10 @@ fillers.updateActive({
 	//which endpoints to update?
 	endpoints: [
 		'reverbnation',
+		'ticketfly',
+		'eventful',
+		'facebook',
+		'jambase'
 	],
 
 	//endpoint keys
