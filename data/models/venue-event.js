@@ -524,12 +524,67 @@ venueSchema.path('platformIds').validate(function(value){
 
 
 
+
+
+
+
+
 /*
 UPDATE
 	sync venue (and all nested events/artists) with all the scrapers and save it.
 */
-venueSchema.methods.update = function(opt){
+var scrapers = require('../scrapers.js') //scrapers
+var cfg = require('../data/config.json') //we need the cfg file to get the keys
 
+var	keys = 
+{
+	facebook: cfg.apis.facebook.token,
+	eventful: cfg.apis.eventful.keys[0],
+	jambase: cfg.apis.jambase.keys[0],
+	reverbnation: null,
+	ticketfly: null
+}
+
+venueSchema.methods.update = function(cb){
+
+	function save(res,rej){ //promise reject and resolve
+		return this.save(function (err){
+			if (err) return rej(new Error(err)); //reject the update if save failed.
+			console.log('venue updated & saved'.cyan)
+			else return res(this) //resolve
+		});
+	}
+
+	//we need to pass this venues id to each one of those scraper get functions
+	return Promise.map(scrapers,function(plat,name){
+		console.log('get platform ->')
+
+		var plat_id = _.where(this.platforms,{name:plat},'id')[0]; //get the platform id.
+
+		if( plat_id == null ) return Promise.resolve(null);
+
+		//ALL SCRAPERS NEED TO HAVE A GET VENUE!!
+		plat.get.venue({
+			id: plat_id,
+			key: keys[plat] 
+		}).then(function(data){
+			/*
+
+
+			here we will call merge 
+	
+			
+			*/
+
+		})
+
+		
+	}.bind(this),{concurrency: 1}) //we need to be in sync mode because we have to merge every time we update the document with a different api
+	
+	//save the venue.
+	.then(function(){
+		return new Promise(save.bind(this))
+	}.bind(this))
 }
 
 

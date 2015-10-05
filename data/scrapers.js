@@ -18,7 +18,7 @@ Calling scrapers from this raw module can lead to unexpected results, make sure 
 
 */
 
-
+//ALL SCRAPERS NEED TO HAVE A GET VENUE!!
 
 var scrapers = {
 
@@ -41,7 +41,7 @@ var scrapers = {
 	/*
 
 		40-50% of all data from eventful seems to be scraped from reverbnation because the event/venues link back to reverb
-		with the sponsor message "find out more at reverbnation!"
+		with the sponsor message "find out more at reverbnation!" (maybe im wrong, the sample size was pretty small too)
 		
 	*/
 	'eventful' : {
