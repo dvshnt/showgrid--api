@@ -555,18 +555,18 @@ venueSchema.methods.update = function(cb){
 		});
 	}
 
-	//we need to pass this venues id to each one of those scraper get functions
-	return Promise.map(scrapers,function(plat,name){
+	//for each scraper platform, we will pass that scrapers platform id of the venue (located in venue.platforms[x].name, if there is one. And will pass that platforms key, if there is one.
+	return Promise.map(scrapers,function(plat,platform_name){
 		console.log('get platform ->')
 
-		var plat_id = _.where(this.platforms,{name:plat},'id')[0]; //get the platform id.
+		var plat_id = _.where(this.platforms,{name:platform_name},'id')[0]; //get the platform id.
 
 		if( plat_id == null ) return Promise.resolve(null);
 
 		//ALL SCRAPERS NEED TO HAVE A GET VENUE!!
 		plat.get.venue({
 			id: plat_id,
-			key: keys[plat] 
+			key: keys[platform_name] 
 		}).then(function(data){
 			/*
 
