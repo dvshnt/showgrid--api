@@ -1,3 +1,4 @@
+//this is a filler function for artist spotify data
 
 
 //urls
@@ -47,6 +48,7 @@ function filler(artist,opt){
 }
 
 
+//save artist
 var saveArtist = p.sync(function(doc){
 	doc.status = 1;
 	doc.save(function(err){

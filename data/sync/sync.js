@@ -15,25 +15,25 @@ var sync_delay = 200;
 
 
 //dependencies
-var _ = require('lodash')
-,db = require('../data')
-,Promise = require('bluebird')
+var _ = require('lodash') //different types of array helpers
+,db = require('../data') //database functions
+,Promise = require('bluebird')  //bluebird Promises used to pipe data through all the different functions since everything is async (callback managment)
 ,fuzzy = require('fuzzyset.js') //fuzzy matching for finding models that are similar.
 ,p = require('../pFactory.js') //promise factory shortucts.
-,colors = require('colors')
-,util = require('util')
-,log = require('../util').log
-,merge = require('./merge')
-,match = require('./match')
-,gps = require('../gps')
-,addressGPS = gps.get
-,parseGPS = gps.toArray
-,formatGPS = gps.toObj
-,null_filter = require('../util').null_filter;
+,colors = require('colors') //log statments in the console with color
+,util = require('util') //nodes util
+,log = require('../util').log //log imported from homemade utils
+,merge = require('./merge') //merge functions
+,match = require('./match') //match functions
+,gps = require('../gps') //google gps validation
+,addressGPS = gps.get //functions from the gps file
+,parseGPS = gps.toArray //functions from the gps file
+,formatGPS = gps.toObj //functions from the gps file
+,null_filter = require('../util').null_filter //remove any items that are null from an array
+,trimName = require('../util').trimName; //some handy name trimming, mod as you see fit.
 
-var trimName = require('../util').trimName;
 
-
+//validate a single document
 var validateOne = p.sync(function(raw_doc,type){
 
 	if(!_.isFunction(raw_doc.validate)) raw_doc = new db[type](raw_doc)
@@ -66,6 +66,7 @@ var validateArtist = function(raw_doc){
 };
 
 
+//validate  all venues from the datatype
 var validateVenues = function(dataset){
 	return Promise.settle(_.map(dataset['venue'],function(venue){
 		return validateVenue(venue);
@@ -82,13 +83,34 @@ var validateVenues = function(dataset){
 
 
 
-//validate venue pipe
+//validate venue pipe, just a shortcut for validateOne(document_json,type)
 var validateVenue = function(raw_doc){
 	return validateOne(raw_doc,'venue');	
 };
 
+
+
+//document types to be passed to the sync function (at the very bottom)
 var raw_types = ['venue','event','artist'];
 
+
+
+
+
+
+
+/* SPLIT THE DATA SET INTO ARRAYS 
+now the dataset in the pipe will look like this:
+
+data : {
+	venues: [], 
+	events: [], //this actually gets flipped so all events are moved to venues (this is posiblebecause if an event is passed to the sync function it must contain the reference to its venue)
+	artists: [].
+}
+
+
+
+*/
 var splitByType = function(dataset){
 	dataset = null_filter(dataset);
 
@@ -127,7 +149,7 @@ var splitByType = function(dataset){
 
 
 
-//extract artists from each event and save them;
+/* EXTRACT THE ARTISTS FROM ALL EVENTS, AND SAVE THEM TO THE DATABASE */
 var extractArtists = function(types){
 
 
@@ -197,8 +219,7 @@ var extractArtists = function(types){
 
 
 
-
-
+/* FLIP ALL DATA PASSED with "{type:'event'}" and make is so that its   {event.venue : events:[origional event object] } */
 var flipEvents = function(typeset){
 		
 
@@ -236,11 +257,12 @@ var flipEvents = function(typeset){
 
 
 
-/*
 
-////////////////////
-GET GPS
-////////////////////
+/* ------------------------  */
+/* ------------------------  */
+/* GET VENUE GPS FROM GOOGLE */
+/* ------------------------  */
+/* ------------------------  */
 
 We need to get the GPS data for venue and events to compare them later on!
 GPS data is brought to us by GOOGLE the AI.
@@ -342,6 +364,84 @@ function quickMerge(type,found_model,new_model,check_val,priority){
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* -------------------  */
+/* -------------------  */
+/* VENUE SYNC FUNCTIONS */
+/* -------------------  */
+/* -------------------  */
+
+
+/*SYNC A VENUE WITH THE DATABASE
+this includes finding duplicates, merging, saving, etc...
+all the functions below this are the ones that get used and go in order from top to bottom.
+*/
+function syncVenue(venue){
+
+	this.check_val = true;
+
+	return Promise.using(findVenueById(venue).bind(this),function(docs){
+		
+		if(docs === false){
+			console.log('err syncVenue')
+			return p.pipe(null);
+		}
+
+		var pipe = null;
+
+		//if venue not found, create a new one
+		if(docs == null || docs.length == 0){
+		
+			console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
+			pipe = p.pipe(new db['venue'](venue));
+		
+		//else merge
+		}else{
+
+			//go through all text search matches and do a single merge + return if a good match, otherwise go to end
+			_.each(docs,function(d){
+				console.log('DB FULL VENUE MERGE:'.green,venue.name,d.name.inverse);
+				m_d = quickMerge('venue',d,venue,check_val);
+				if(m_d != false){
+					d.set(m_d);
+					pipe = p.pipe(d);
+					return false;
+				}
+			});
+			
+			//Failed to merge, probably because answered NO to all prompts.
+			if(pipe == null){
+				console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
+				pipe = p.pipe(new db['venue'](venue));				
+			}
+
+		}
+
+		return pipe.then(saveVenue);
+	});
+};
+
 /*
 
 FIND VENUE BY ID
@@ -365,6 +465,13 @@ var findVenueById = function(venue){
 		return null;
 	});
 };
+
+
+
+
+
+
+
 
 
 /*
@@ -414,6 +521,11 @@ function findVenueByGPS(venue){
 
 
 
+
+
+
+
+
 /*
 
 ELSE VENUE FIND BY NAME
@@ -457,51 +569,14 @@ function findVenueByName(venue){
 };
 
 
-//Venue Full Sync
-function syncVenue(venue){
 
-	this.check_val = true;
 
-	return Promise.using(findVenueById(venue).bind(this),function(docs){
-		
-		if(docs === false){
-			console.log('err syncVenue')
-			return p.pipe(null);
-		}
 
-		var pipe = null;
 
-		//if venue not found, create a new one
-		if(docs == null || docs.length == 0){
-		
-			console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
-			pipe = p.pipe(new db['venue'](venue));
-		
-		//else merge
-		}else{
 
-			//go through all text search matches and do a single merge + return if a good match, otherwise go to end
-			_.each(docs,function(d){
-				console.log('DB FULL VENUE MERGE:'.green,venue.name,d.name.inverse);
-				m_d = quickMerge('venue',d,venue,check_val);
-				if(m_d != false){
-					d.set(m_d);
-					pipe = p.pipe(d);
-					return false;
-				}
-			});
-			
-			//Failed to merge, probably because answered NO to all prompts.
-			if(pipe == null){
-				console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
-				pipe = p.pipe(new db['venue'](venue));				
-			}
 
-		}
 
-		return pipe.then(saveVenue);
-	});
-};
+
 
 
 
@@ -575,6 +650,44 @@ var syncVenueById = function(venue){
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* -------------------  */
+/* -------------------  */
+/* ARTIST SYNC FUNCTIONS */
+/* -------------------  */
+/* -------------------  */
 
 //find by id
 var findArtistById =function(artist){
@@ -746,7 +859,7 @@ function filterBad(data){
 
 
 var logMem = require('../util').logMem;
-var heapdump = require('heapdump');
+//var heapdump = require('heapdump'); dump heap to debug for memory leaks...thankfully i know the source well enough to refactor the leaky parts without having to crawl through the "dumps"...
 
 var min_gps_status = 2; //default min gps status
 	

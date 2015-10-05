@@ -64,7 +64,7 @@ fb.getKey().then(function(fb_key){
 
 		//parameters
 		params: {
-			zip: '37064',
+			zip: '89502',
 			country: 'US',
 			radius: 25,
 			query_size: q_size,
@@ -129,7 +129,7 @@ fb.getKey().then(function(fb_key){
 	console.log("----------------".cyan)
 }).then(function(){
 	return fillers.spotify({
-		sync: false
+		sync: true
 	})
 }).done(function(){
 	process.exit(0);

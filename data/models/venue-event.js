@@ -125,7 +125,7 @@ function splitByAnd(n){
 
 
 
-
+//find artists in DB by name
 
 function findArtistByName(artist){
 	
@@ -161,7 +161,7 @@ function findArtistByName(artist){
 
 
 
-
+//sync Artist
 
 function syncArtist(artist_name){
 
@@ -181,6 +181,14 @@ function syncArtist(artist_name){
 	})
 }
 
+
+
+
+//extract artist data from event name
+/*
+
+
+*/
 eventSchema.methods.extractArtists = function(){
 	
 	var names = this.name.split(',');
@@ -357,7 +365,7 @@ eventSchema.path('platformIds').validate(function(value){
 
 
 
-
+/* JSON SCHEMA */
 
 var venueSchema = new db.Schema({
 	//identification
@@ -415,10 +423,12 @@ var venueSchema = new db.Schema({
 
 
 
+
+/*VALIDATION*/
+
 venueSchema.path('platforms').validate(function(value){
   return value.length;
 },"'platforms' cannot be an empty array");
-
 
 venueSchema.path('platformIds').validate(function(value){
   return value.length;
@@ -426,15 +436,16 @@ venueSchema.path('platformIds').validate(function(value){
 
 
 
+//SETTERS/GETTERS
 
+//flip gps coordinates (there is a wierd bug with some of the apis where the gps coords are in reverse)
+function flip_gps(gps){
+	if(gps == null) return null
+	return [gps[1],gps[0]]
+}
 
-
-
-//set gps.
 venueSchema
-
 .virtual('location.gps')
-
 .get(function(){
 	if(this.location._gps != null){
 		return {
@@ -446,20 +457,12 @@ venueSchema
 		lon:null
 	}
 })
-
 .set(function(gps){
 	if(gps.lon != null && gps.lat != null ) this.location._gps = [parseFloat(gps.lon),parseFloat(gps.lat)];
 	else console.log('set location.gps -> invalid GPS virtual Object.');
 })
 
-
-
-
-//flip gps coordinates
-function flip_gps(gps){
-	if(gps == null) return null
-	return [gps[1],gps[0]]
-}
+/*VALIDATION*/
 
 venueSchema.pre('save',function(next){
 	if(_.isString(this.phone)){
@@ -470,7 +473,6 @@ venueSchema.pre('save',function(next){
 	}
 	next();
 });
-
 
 venueSchema.pre('validate',function(next){
 
@@ -497,21 +499,11 @@ venueSchema.pre('validate',function(next){
 	next();
 });
 
-
-
-
 venueSchema.path('location.status').validate(function(value){
 	if(value == null) return true;
 	else return value;
   return value;
 },"Cannot save a venue with location status of 0 because it probably does not exist!");
-
-
-
-
-
-
-
 
 venueSchema.path('platforms').validate(function(value){
   return value.length;
@@ -526,9 +518,35 @@ venueSchema.path('platformIds').validate(function(value){
 
 
 
+
+
+
+
+
+
+/*
+UPDATE
+	sync venue (and all nested events/artists) with all the scrapers and save it.
+*/
+venueSchema.methods.update = function(opt){
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* MODULE EXPORT */
 var Venue = db.model('Venue',venueSchema);
-
-
-
-
 module.exports = Venue;

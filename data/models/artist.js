@@ -4,6 +4,8 @@ var _ = require('lodash');
 var scrapers = require('../scrapers.js')
 
 
+
+/* JSON SCHEMA */
 var artistSchema = new db.Schema({
 
 	platformIds:[{type:String}],
@@ -38,8 +40,18 @@ artistSchema.index({
 });
 
 
+/* VALIDATION */
+
+//make sure platfoms is not empty.
+artistSchema.path('platforms').validate(function(value){
+  return value.length;
+},"'platforms' cannot be an empty array");
 
 
+//make sure platform Ids have been properly assigned
+artistSchema.path('platformIds').validate(function(value){
+  return value.length;
+},"'platformIds' cannot be an empty array");
 
 artistSchema.pre('save',function(next){
 	if(this.members.length > 1) this.isGroup = true;
@@ -49,10 +61,6 @@ artistSchema.pre('save',function(next){
 	this.time.updated = Date.now();
 	next();
 });
-
-
-
-
 
 //PRE VALIDATION FILLERS
 artistSchema.pre('validate',function(next){
@@ -67,9 +75,25 @@ artistSchema.pre('validate',function(next){
 
 
 
-//SPOTIFY FILLER
+
+
+
+
+
+
+
+
+
+
+
+/* FILLERS */
 var spotify = require('../fillers/spotify');
 artistSchema.methods.getSpotify = function(){
+	return new spotify(this);
+}
+
+
+artistSchema.methods.update = function(){
 	return new spotify(this);
 }
 
@@ -78,16 +102,6 @@ artistSchema.methods.getSpotify = function(){
 
 
 
-//make sure platfoms is not empty.
-artistSchema.path('platforms').validate(function(value){
-  return value.length;
-},"'platforms' cannot be an empty array");
-
-
-//make sure platform Ids have been properly assigned
-artistSchema.path('platformIds').validate(function(value){
-  return value.length;
-},"'platformIds' cannot be an empty array");
 
 
 
@@ -98,5 +112,8 @@ artistSchema.path('platformIds').validate(function(value){
 
 
 
+
+
+/* EXPORT */
 var artist = db.model('Artist',artistSchema);
 module.exports = artist;
