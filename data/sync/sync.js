@@ -142,8 +142,10 @@ var splitByType = function(dataset){
 
 
 
+//extract and sync artists from ONE event.
+var extractArtistsFromEvent = function(){
 
-
+}
 
 
 
@@ -179,6 +181,7 @@ var extractArtists = function(types){
 						artist = undefined;
 						return total;
 					})
+
 				},[]).then(function(total){
 					types['venue'][v_i].events[e].artists.headliners = total;
 					return p.pipe()
@@ -936,10 +939,14 @@ var syncData = function(opt){
 	return splitByType(dataset)
 	.then(syncArtists)
 	.then(flipEvents)
-	.then(extractArtists) 	//extract artists out of each event and link their platform ids to the venue event
-	.then(filterEmpty)
-	.then(filterBad)
-	.then(validateVenues)
+	//.then(extractArtists) 	//MOVED TO EVENT MIDDLEWARE in venue-event.js , reduces steps because if there are identical events, same event artists will be extracted and synced multiple times
+	.then(filterEmpty) //just bad data filters
+	.then(filterBad) //just bad data filters
+	.then(validateVenues) //
+	
+
+
+	//nonrefactored venue sync
 	.then(function(types){	//fill Venue GPS and Sync each type asynchroniously.
 		
 

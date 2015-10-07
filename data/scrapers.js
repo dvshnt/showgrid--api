@@ -7,7 +7,7 @@ var facebook = require('./scrapers/facebook');
 var ticketfly = require('./scrapers/ticketfly');
 
 
-//SCRAPER HOOKS
+//SCRAPER HOOKS/CONSTRUCTORS
 
 
 /*

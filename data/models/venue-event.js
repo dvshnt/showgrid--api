@@ -88,27 +88,7 @@ var eventSchema = new db.Schema({
 
 
 
-eventSchema.pre('validate',function(next){
-	this.name = this.name.replace(/[\|]/gi,',');
 
-	this.time.updated = Date.now();
-	
-	this.platformIds = _.map(this.platforms,function(plat){
-		return plat.name+'/'+plat.id;
-	});
-
-	this.links = _.map(this.links,function(link){
-		if(_.isString(link)) return {url:link}
-		return link
-	});
-
-	if(_.isArray(this.tickets)){
-		_.each(this.tickets,function(t,i){
-			if(t == null || t.url == null) this.tickets[i] = undefined;
-		}.bind(this))		
-	}
-	next();
-});
 
 
 
@@ -187,9 +167,46 @@ function syncArtist(artist_name){
 //extract artist data from event name
 /*
 
+TODO
 
 */
-eventSchema.methods.extractArtists = function(){
+
+//Event Middleware
+eventSchema.pre('save',extractEventArtists);
+eventSchema.pre('validate',validateEvent);
+
+function extractArtists(next){
+	
+}
+
+
+
+
+function validateEvent(next){
+
+	this.name = this.name.replace(/[\|]/gi,',');
+
+	this.time.updated = Date.now();
+	
+	this.platformIds = _.map(this.platforms,function(plat){
+		return plat.name+'/'+plat.id;
+	});
+
+	this.links = _.map(this.links,function(link){
+		if(_.isString(link)) return {url:link}
+		return link
+	});
+
+	if(_.isArray(this.tickets)){
+		_.each(this.tickets,function(t,i){
+			if(t == null || t.url == null) this.tickets[i] = undefined;
+		}.bind(this))		
+	}
+	next();
+}
+
+
+eventSchema.methods.parseOutArtists = function(){
 	
 	var names = this.name.split(',');
 	console.log('extract...',names.length,this.name.inverse)
@@ -274,10 +291,6 @@ eventSchema.methods.extractArtists = function(){
 	// 	console.log(this.artists);
 	// }.bind(this));
 }
-
-
-
-
 
 
 
@@ -529,10 +542,12 @@ venueSchema.path('platformIds').validate(function(value){
 
 
 
+
 /*
 UPDATE
 	sync venue (and all nested events/artists) with all the scrapers and save it.
 */
+
 var scrapers = require('../scrapers.js') //scrapers
 var cfg = require('../data/config.json') //we need the cfg file to get the keys
 
@@ -545,38 +560,42 @@ var	keys =
 	ticketfly: null
 }
 
-venueSchema.methods.update = function(cb){
+
+venueSchema.methods.update = function(cb){ //cb means callback
+
+	var model = this;
 
 	function save(res,rej){ //promise reject and resolve
 		return this.save(function (err){
-			if (err) return rej(new Error(err)); //reject the update if save failed.
+			if (err) return rej(new Error(err)); //if update failed...reject the promise so nothing more happens down the pipeline.
 			console.log('venue updated & saved'.cyan)
 			else return res(this) //resolve
 		});
 	}
 
 	//for each scraper platform, we will pass that scrapers platform id of the venue (located in venue.platforms[x].name, if there is one. And will pass that platforms key, if there is one.
-	return Promise.map(scrapers,function(plat,platform_name){
+	Promise.map(scrapers,function(plat,platform_name){
 		console.log('get platform ->')
 
 		var plat_id = _.where(this.platforms,{name:platform_name},'id')[0]; //get the platform id.
 
 		if( plat_id == null ) return Promise.resolve(null);
 
-		//ALL SCRAPERS NEED TO HAVE A GET VENUE!!
+		//get venue (all scrapers should have a get method, otherwise this will break.)
 		plat.get.venue({
 			id: plat_id,
 			key: keys[platform_name] 
-		}).then(function(data){
-			/*
-
-
-			here we will call merge 
-	
-			
-			*/
-
 		})
+
+		//filter the json
+		.then(plat.filter.venue)
+
+		//merge with new data, we curry the merge function with new and old models.
+		.then(merge.venue.bind(null,this,venue_json,false,false)) //NO overwriting, NO checking.
+
+		//now we have to 
+		
+
 
 		
 	}.bind(this),{concurrency: 1}) //we need to be in sync mode because we have to merge every time we update the document with a different api
@@ -585,6 +604,7 @@ venueSchema.methods.update = function(cb){
 	.then(function(){
 		return new Promise(save.bind(this))
 	}.bind(this))
+	.then(cb.bind(this))
 }
 
 

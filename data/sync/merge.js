@@ -41,9 +41,15 @@ var rl = require('readline-sync');
 
 
 /*
-confirm
+CONFIRM
 
-displays old, new and merged objects and asks if you reall want to merge if double check returned true.
+this method cofirms merges to double check that we are not merging bad stuff items.
+
+- type     : venue,event,artist
+- merged_v : merged object,
+- old_v    : old object (this usually means the one thats stored in the database or has the most old data)
+- new_v    : fresh data
+- check    : do we double check that we are not doing a BAD merge? otherwise this whole function gets ignored at the beginning base case
 
 */
 function confirm(type,merged_v,old_v,new_v,check){
@@ -99,9 +105,15 @@ function confirm(type,merged_v,old_v,new_v,check){
 
 
 
+/*
 
+CHECKS
+
+these get called inside merge.[venue,event,artist]
+
+*/
 var check = {};
-var merge = {};
+
 
 //venue double check after merge (NOT A MATCHER)
 check.venue = function(e1,e2){
@@ -143,12 +155,18 @@ check.artist = function(e1,e2){
 
 /*
 
-Merge Venues
+MERGE
 
-- priority boolean defaults to true (if set to false, will ignore priority weights and overwrite)
+- e1         : old object
+- e2         : new object (fresh data)
+- priority   : e2 overwrites e1 ? (exported object WILL be e2, not a merged object)
+- check_val  : double check if we are merging correctly?
 
 */
+var merge = {};
 
+
+//MERGE VENUE
 merge.venue = function(e1,e2,priority,check_val){
 	var merged,weight;
 
@@ -292,16 +310,7 @@ merge.venue = function(e1,e2,priority,check_val){
 };
 
 
-
-
-/*
-
-Merge Events
-
-- priority boolean defaults to true (if set to false, will ignore priority weights and overwrite)
-
-*/
-
+//MERGE EVENT
 merge.event = function(e1,e2,priority,check_val){
 	var merged = {},weight;
 	//null exception
@@ -487,15 +496,6 @@ merge.event = function(e1,e2,priority,check_val){
 }
 
 
-
-
-
-
-
-
-
-
-
 //MERGE ARTIST
 merge.artist = function(e1,e2,priority,check_val){
 	if(e1 == null || e2 == null) return e1 || e2 || null;
@@ -615,9 +615,11 @@ merge.artist = function(e1,e2,priority,check_val){
 
 
 /*
-very dumb demand merging
+not very smart demand merging
 
 demand wieght is equal to merge priority of each platform
+
+This will probably need more work!
 
 */
 function mergeDemand(doc1,doc2){
