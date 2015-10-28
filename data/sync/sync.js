@@ -263,7 +263,7 @@ var flipEvents = function(typeset){
 /* GET VENUE GPS FROM GOOGLE */
 /* ------------------------  */
 /* ------------------------  */
-
+/*
 We need to get the GPS data for venue and events to compare them later on!
 GPS data is brought to us by GOOGLE the AI.
 

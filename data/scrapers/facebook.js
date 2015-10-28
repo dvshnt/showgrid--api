@@ -21,14 +21,23 @@ module.exports.getKey = p.sync(function(){
 		grant_type: 'client_credentials'
 	};
 
+	var url = cfg.api + '/oauth/access_token?' + qs.stringify(q);
+
+	console.log('fetching facebook key... ' + '\n\n' + url + '\n\n');
+
+
 	request({
-		url : cfg.api + '/oauth/access_token?' + qs.stringify(q),
+		url : url,
 	}).spread(function(res,data,err){
+
+		console.log(data)
 		if(err) return this.reject(err);
 		
 		if(data == null) return this.resolve(data);
 		key_string = data;
 		return this.resolve(data)
+
+		console.log('FB Key set to [',key_string,']')
 	}.bind(this));
 
 	return this.promise;
