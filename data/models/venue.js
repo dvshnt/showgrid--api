@@ -198,6 +198,12 @@ var	keys =
 
 
 
+
+
+
+
+
+
 venueSchema.statics.update = function(cb){
 
 	var model = this;
@@ -228,7 +234,7 @@ venueSchema.statics.update = function(cb){
 		.then(plat.filter.venue)
 
 		//merge with new data, we curry the merge function with new and old models.
-		.then(merge.venue.bind(null,this,venue_json,false,false)) //NO overwriting, NO checking.
+		.then(merge.venue.bind(this,this,venue_json,false,false)) //NO overwriting, NO checking.
 
 		//now we have to 
 		
@@ -265,13 +271,12 @@ venueSchema.statics.update = function(cb){
 
 
 
-
+//MAIN SYNC LOGIC
 Venue.methods.Sync = function(raw_json,overwrite){
 
 	var self = this;
 
 	venue = new Venue(raw_json);
-
 
 	//validate raw json
 	p.sync(function(){
@@ -282,72 +287,37 @@ Venue.methods.Sync = function(raw_json,overwrite){
 
 		return this.promise;
 	})
-
-
-	//if overwrite is set to true, refetch the gps data
 	.then(function(){
 		if(overwrite == true){
-			return artist.fillGPS()
-			.then(findVenueById.bind(self,venue))
+
+			//fill gps and sync venue
+			return venue.fillGPS()
+			.then(function(venue){
+				return self.syncVenue(venue)
+			})
+
 		}else{
 
+			//try and syncvenue by ID
+			self.syncVenueById(venue)
+
+			.then(function(res){
+
+				//SYNC VENUE BY ID GOOD
+				if(res != false){
+					doc = undefined;
+					return 
+
+				//SYNC VENUE BY ID BAD, FILL GPS AND DO A FULL SYNC
+				}else{
+					return venue.fillGPS()
+					.then(function(venue){
+						self.syncVenue(venue)
+					})
+				}
+			})
 		}
 	})
-
-
-
-
-
-
-	if(overwrite == true){
-
-		return this.Validate()
-			
-		return this.fillGPS()
-		.then(syncVenue)
-		.finally(function(){
-
-			doc = undefined;
-			types['venue'][total] = undefined
-			logMem();
-			console.log('synced ',total+1,'/',total_n,'\n\n');
-		}).catch(function(e){
-			console.log('syncVenueById ERROR'.bgRed)
-			console.error(e);
-			if(e.stack != null){
-				console.log(e.stack.split('\n')[1])
-			}
-		})
-
-	//otherwise try and sync Id and if that fails, fill gps and do a full sync
-	}else{
-
-		// LEAK START
-		return syncVenueById(doc)
-		.then(function(res){
-			if(res != false){
-				doc = undefined;
-				return 
-			}else{
-				return fillGPS(doc)
-				.then(syncVenue)
-			}
-		})
-		// LEAK END
-		.finally(function(){
-			count++;
-			types['venue'][i] = undefined;
-			doc = undefined;
-			logMem();
-			console.log('synced ',count,'/',total_n,'\n\n');
-		}).catch(function(e){
-			console.log('syncVenueById ERROR'.bgRed)
-			console.error(e);
-			if(e.stack != null){
-				console.log(e.stack.split('\n')[1])
-			}
-		})
-	}
 }
 
 
@@ -435,61 +405,11 @@ var overwrite = false;
 /* -------------------  */
 
 
-/*SYNC A VENUE WITH THE DATABASE
-this includes finding duplicates, merging, saving, etc...
-all the functions below this are the ones that get used and go in order from top to bottom.
-*/
-function syncVenue(venue){
 
-	this.check_val = true;
 
-	return Promise.using(findVenueById(venue).bind(this),function(docs){
-		
-		if(docs === false){
-			console.log('err syncVenue')
-			return p.pipe(null);
-		}
 
-		var pipe = null;
 
-		//if venue not found, create a new one
-		if(docs == null || docs.length == 0){
-		
-			console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
-			pipe = p.pipe(new db['venue'](venue));
-		
-		//else merge
-		}else{
-
-			//go through all text search matches and do a single merge + return if a good match, otherwise go to end
-			_.each(docs,function(d){
-				console.log('DB FULL VENUE MERGE:'.green,venue.name,d.name.inverse);
-				m_d = merge.venue(d,venue,null,check_val);
-				if(m_d != false){
-					d.set(m_d);
-					pipe = p.pipe(d);
-					return false;
-				}
-			});
-			
-			//Failed to merge, probably because answered NO to all prompts.
-			if(pipe == null){
-				console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
-				pipe = p.pipe(new db['venue'](venue));				
-			}
-
-		}
-
-		return pipe.then(saveVenue);
-	});
-};
-
-/*
-
-FIND VENUE BY ID
-
-*/
-
+/* FIND VENUE BY PLATFORM ID */
 VenueSchema.methods.findByPlatformIds = function(venue){
 
 	return this.findOneAsync({
@@ -617,10 +537,6 @@ VenueSchema.methods.findVenueByName = function(venue){
 
 
 
-
-
-
-
 var saveVenue = p.sync(function(doc){
 	doc.save(function(err){
 		if(err){
@@ -639,11 +555,80 @@ var saveVenue = p.sync(function(doc){
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+//Venue Full Sync
+VenueSchema.methods.syncVenue = function(venue){
+
+	this.check_val = true;
+
+	return this.findByPlatformIds(venue)
+	.then(function(docs){
+		var pipe = null;
+
+		//if venue not found, create a new one
+		if(docs == null || docs.length == 0){
+			console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
+			pipe = p.pipe(new db['venue'](venue));
+		
+		//else merge
+		}else{
+
+			//go through all text search matches and do a single merge + return if a good match, otherwise go to end
+			_.each(docs,function(d){
+				console.log('DB FULL VENUE MERGE:'.green,venue.name,d.name.inverse);
+				m_d = merge.venue(d,venue,null,check_val);
+				if(m_d != false){
+					d.set(m_d);
+					pipe = p.pipe(d);
+					return false;
+				}
+			});
+			
+			//Failed to merge, probably because answered NO to all prompts.
+			if(pipe == null){
+				console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
+				pipe = p.pipe(new db['venue'](venue));				
+			}
+
+		}
+
+		return pipe.then(saveVenue);
+	});
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //Venue Id sync
-var syncVenueById = function(venue){
+VenueSchema.methods.syncVenueById = function(venue){
 
 	return Promise.using(
-		db['venue'].findOneAsync({
+		this.findOneAsync({
 			platformIds: {$in : venue.platformIds},
 			'location.status': {$gt : min_gps_status-1}
 		}),
@@ -657,7 +642,8 @@ var syncVenueById = function(venue){
 			//This is guaranteed to work!
 
 			console.log('FOUND DB.VENUE BY ID'.green,venue.name,doc.name.inverse);
-			var fields = quickMerge('venue',doc,venue,false);
+
+			var fields = merge.venue(doc,venue,null,true);
 
 
 			if(fields == false){
