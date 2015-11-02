@@ -73,7 +73,9 @@ function getVenueEvents(id,delay){
 	return p.pipe({
 		url: cfg.api+"/events/upcoming.json?venueId="+id,
 		json: true
-	}).delay(delay).then(request).spread(function(res,dat,err){
+	}).delay(delay).then(request).then(function(res){
+		var dat = res.body
+		var err = null
 		if(err){
 			console.log('ticketfly get venue events err'.bgRed,err);
 			return p.pipe(null);
@@ -109,7 +111,9 @@ module.exports.getVenues = p.async(function(opt){
 		request({
 			url: url,
 			json: true
-		}).spread(function(res,dat,err){
+		}).then(function(res){
+			var err = null;
+			var dat = res.body;
 			if(err) return this.reject(err);
 			if(dat == null) this.reject('no data');
 
@@ -189,7 +193,10 @@ module.exports.getVenue = function(opt){
 	return request({
 		url: url,
 		json: true
-	}).spread(function(res,dat,err){
+	}).then(function(res){
+		var err = null;
+		var dat = res.body;
+
 		if(err) return Promise.reject(err);
 		if(dat == null || dat.venues.length == 0) return Promise.reject(new Error('no data'));
 
@@ -219,7 +226,9 @@ module.exports.getVenue = function(opt){
 			json: true
 		})
 		.then(request)
-		.spread(function(res,dat,err){
+		.then(function(res){
+			err = null
+			dat = res.body
 		//	console.log(dat.events)
 
 			//return p.stop(new Error('stop'))

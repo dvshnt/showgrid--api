@@ -206,7 +206,7 @@ artistSchema.methods.Sync = function(artist){
 
 			return this.promise;
 		}));
-		else return new Artist(artist)
+		
 	})
 }
 
@@ -221,6 +221,13 @@ artistSchema.methods.Sync = function(artist){
 
 
 
+
+
+
 /* EXPORT */
 var Artist = db.model('Artist',artistSchema);
+
+Promise.promisifyAll(Artist);
+Promise.promisifyAll(Artist.prototype);
+
 module.exports = Artist;

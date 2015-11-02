@@ -19,8 +19,8 @@ var colors = require('colors');
 
 
 
-var Venue = require('./models/venue-event');
-var User = require('./models/user');
+var Venue = require('./models/venue');
+var Event = require('./models/event');
 var Artist = require('./models/artist');
 
 
@@ -415,15 +415,8 @@ var findArtists_GPS = p.sync(function(opt){
 
 
 
-Promise.promisifyAll(Venue);
-Promise.promisifyAll(Venue.prototype);
 
 
-Promise.promisifyAll(User);
-Promise.promisifyAll(User.prototype);
-
-Promise.promisifyAll(Artist);
-Promise.promisifyAll(Artist.prototype);
 
 
 
@@ -439,7 +432,6 @@ module.exports = {
 	update : {'event':null,'venue':null,'artist':null},
 
 	venue: Venue,
-	user: User,
 	artist: Artist
 }
 

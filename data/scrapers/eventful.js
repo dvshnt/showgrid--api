@@ -458,8 +458,10 @@ module.exports.parseVenue = function(venue){
 			req_get({
 				url: url,
 				json: true
-			}).spread(function(res,dat){
+			}).then(function(res){
 				//console.log('GET PAGE ',page,id)
+				var dat = res.body
+
 				if(dat == null){
 					this.resolve(data);
 				}else if(dat.events != null && dat.events.length != 0){

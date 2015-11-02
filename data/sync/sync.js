@@ -1,44 +1,11 @@
-/*
-Sync Functions
-
-
-
-syncArtist //a way to sync the artist
-syncVenue //a long way to sync a venue
-syncVenueById //a fast way to sync a venue
-
-*/
-// var heapdump = require('heapdump');
-
-var sync_delay = 200;
-
-
-
 //dependencies
 var _ = require('lodash') //different types of array helpers
-,db = require('../data') //database functions
-,Promise = require('bluebird')  //bluebird Promises used to pipe data through all the different functions since everything is async (callback managment)
-,fuzzy = require('fuzzyset.js') //fuzzy matching for finding models that are similar.
-,p = require('../pFactory.js') //promise factory shortucts.
-,colors = require('colors') //log statments in the console with color
-,util = require('util') //nodes util
-,log = require('../util').log //log imported from homemade utils
-,merge = require('./merge') //merge functions
-,match = require('./match') //match functions
-,gps = require('../gps') //google gps validation
-,addressGPS = gps.get //functions from the gps file
-,parseGPS = gps.toArray //functions from the gps file
-,formatGPS = gps.toObj //functions from the gps file
-,null_filter = require('../util').null_filter //remove any items that are null from an array
-,trimName = require('../util').trimName; //some handy name trimming, mod as you see fit.
-
-
-
-var Artists = db['artist'];
-var Venues = db['venue'];
-
-
-
+var Artist = require('../models/artist');
+var Venue = require('../models/venue');
+var util = require('../util');
+var null_filter = util.null_filter;
+var p = require('../pFactory');
+var Promise = require('bluebird')
 
 //default bad words
 var bad_words = [
@@ -47,6 +14,7 @@ var bad_words = [
 	'postal code',
 ]
 
+var filter_empty = true;
 
 
 //filter bad words from the parameters
@@ -65,9 +33,6 @@ function filterBad(data){
 	return p.pipe(data);
 }
 
-
-var filter_empty = true;
-
 //do not save venues without events.
 function filterEmpty(data){
 	if(filter_empty == true){
@@ -79,7 +44,6 @@ function filterEmpty(data){
 
 	return p.pipe(data);
 }
-
 
 
 var logMem = require('../util').logMem;
@@ -229,8 +193,12 @@ var syncData = function(opt){
 			return Artist.Sync(raw_artist_json).finally(function(){
 				console.log('synced artist',++total,'/',total_n,'\n\n');
 			})
+		},{concurrency: 1})
+		.then(function(){
+			return p.pipe(dat)
 		})
-	},{concurrency: 1}) //node.js...NEVER AGAIN
+	}) //node.js...NEVER AGAIN
+
 
 	//event.venue -> venue.events
 	.then(flipEvents)
@@ -246,6 +214,9 @@ var syncData = function(opt){
 				console.log('synced venue',++total,'/',total_n,'\n\n');
 			})
 		},{concurrency: 1}) //node.js...NEVER AGAIN
+		.then(function(){
+			return p.pipe(dat)
+		})
 	})
 
 	.tap(function(total){console.log('DONE W/ SYNC'.bgCyan)})

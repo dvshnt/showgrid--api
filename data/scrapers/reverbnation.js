@@ -63,7 +63,8 @@ function search(type,opt){
 
 		request({
 			url : url + '?' + qs.stringify(q),
-		}).spread(function(res,body){
+		}).then(function(res){
+			var body = res.body
 			if(body == null) return this.resolve(-1);
 			var $ = cheerio.load(body);
 			if($('.content-container > .js-results-div > .alert-box > h5').html() == null) {
@@ -110,7 +111,8 @@ function search(type,opt){
 		
 
 
-		.spread(function(res,body){
+		.then(function(res){
+			var body = res.body;
 			if(body == null) return;
 		
 			if(results.length >= opt.query_size) return;
@@ -231,7 +233,10 @@ var getVenueEvents = p.sync(function(venueid){
 		
 		var promise = request({url : cfg.api+'/venue/load_schedule/'+venueid+'?page='+current})
 
-		.spread(function(res,body,err){
+		.then(function(res){
+			var err = null
+			var body = res.body;
+
 			if(err){
 				console.log('reverb get venue events error ',venueid,tries,err);
 				if(tries < 10){
@@ -413,7 +418,8 @@ module.exports.getVenue = function(opt){
 		// console.log(cfg.api+'/venue/'+id)
 		// console.log(id)
 		request({url : cfg.api+'/venue/'+id})
-			.spread(function(res,body){
+			.then(function(res){
+				var body = res.body
 				//console.log('got venue '+id+', try#',tries)
 				if(body == null) return;
 				return response(body);
@@ -455,7 +461,8 @@ var getVenueBanners = p.sync(function(photoid){
 			return request({url : cfg.api+'/venue/view_photo_popup/photo_'+photoid})
 		})
 		
-		.spread(function(err,res,body){
+		.then(function(res){
+			var body = res.body
 			if(body == null) this.resolve([]);
 			
 			var banners  = parseVenuePhotos(body);

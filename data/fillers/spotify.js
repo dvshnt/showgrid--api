@@ -100,7 +100,8 @@ filler.prototype.getId = function(name){
 		url: get_id_url+'?'+qs.stringify(q),
 		json:true
 	})
-	.spread(function(res,data){
+	.then(function(res){
+		var data = res.body
 		if(data == null) return p.pipe(null);
 		data = data.artists
 		

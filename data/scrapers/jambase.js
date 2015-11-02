@@ -68,7 +68,8 @@ var find = p.async(function(type,opt){
 		})
 		.delay(delay)
 		.then(req)
-		.spread(function(res,dat,err){
+		.then(function(res){
+			dat = res.body
 			tries ++;
 			if(dat == null){
 				console.log('jambase get '+type+' ERR'.bgRed,err)
@@ -133,10 +134,10 @@ module.exports.getVenue = function(opt){
 	return req({
 		url: 'http://api.jambase.com/venues?id='+opt.id+'&api_key='+opt.key,
 		json: true		
-	}).spread(function(res,dat,err){
-		
+	}).then(function(res){
+		var dat = res.body
 		if(dat.Message != null) return Promise.reject(dat.Message);
-		if(dat == null || err) return Promise.reject(err);
+		if(dat == null || err) return Promise.reject(new Error(err));
 		return p.pipe(dat.Venue);
 
 	});	

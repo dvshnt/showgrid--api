@@ -4,7 +4,7 @@ var db = require('./data.js');
 var colors = require('colors');
 var fuzzy = require('fuzzyset.js'); //fuzzy matching for finding models that are similar.
 var p = require('./pFactory'); //promise factory shortucts.
-var sync = require('./sync/sync').syncData;
+var sync = require('./sync/sync');
 var scrapers = require('./scrapers');
 var util = require('./util');
 

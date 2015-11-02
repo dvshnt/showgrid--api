@@ -9,7 +9,15 @@ var match = require('../sync/match'); //match methods
 var util = require('../util.js'); //util methods
 var colors = require('colors');
 var max_banners = 20;
-
+var fuzzy = require('fuzzyset.js') //fuzzy matching for finding models that are similar.
+var log = require('../util').log //log imported from homemade utils
+var gps = require('../gps') //google gps validation
+var addressGPS = gps.get //functions from the gps file
+var parseGPS = gps.toArray //functions from the gps file
+var formatGPS = gps.toObj //functions from the gps file
+var null_filter = require('../util').null_filter //remove any items that are null from an array
+var trimName = require('../util').trimName; //some handy name trimming, mod as you see fit.
+var eventSchema = require('./event');
 
 
 
@@ -183,7 +191,7 @@ UPDATE
 */
 
 var scrapers = require('../scrapers.js') //scrapers
-var cfg = require('../data/config.json') //we need the cfg file to get the keys
+var cfg = require('../config.json') //we need the cfg file to get the keys
 
 var	keys = 
 {
@@ -202,53 +210,53 @@ var	keys =
 
 
 
+/*TODO*/
 
+// venueSchema.statics.update = function(cb){
 
-venueSchema.statics.update = function(cb){
+// 	var model = this;
 
-	var model = this;
+// 	function save(res,rej){ //promise reject and resolve
+// 		return this.save(function (err){
+// 			if (err) return rej(new Error(err)); //if update failed...reject the promise so nothing more happens down the pipeline.
+// 			console.log('venue updated & saved'.cyan)
+// 			else return res(this) //resolve
+// 		});
+// 	}
 
-	function save(res,rej){ //promise reject and resolve
-		return this.save(function (err){
-			if (err) return rej(new Error(err)); //if update failed...reject the promise so nothing more happens down the pipeline.
-			console.log('venue updated & saved'.cyan)
-			else return res(this) //resolve
-		});
-	}
+// 	//for each scraper platform, we will pass that scrapers platform id of the venue (located in venue.platforms[x].name, if there is one. And will pass that platforms key, if there is one.
+// 	Promise.map(scrapers,function(plat,platform_name){
+// 		console.log('get platform ->')
 
-	//for each scraper platform, we will pass that scrapers platform id of the venue (located in venue.platforms[x].name, if there is one. And will pass that platforms key, if there is one.
-	Promise.map(scrapers,function(plat,platform_name){
-		console.log('get platform ->')
+// 		var plat_id = _.where(this.platforms,{name:platform_name},'id')[0]; //get the platform id.
 
-		var plat_id = _.where(this.platforms,{name:platform_name},'id')[0]; //get the platform id.
+// 		if( plat_id == null ) return Promise.resolve(null);
 
-		if( plat_id == null ) return Promise.resolve(null);
+// 		//get venue (all scrapers should have a get method, otherwise this will break.)
+// 		plat.get.venue({
+// 			id: plat_id,
+// 			key: keys[platform_name] 
+// 		})
 
-		//get venue (all scrapers should have a get method, otherwise this will break.)
-		plat.get.venue({
-			id: plat_id,
-			key: keys[platform_name] 
-		})
+// 		//filter the json
+// 		.then(plat.filter.venue)
 
-		//filter the json
-		.then(plat.filter.venue)
+// 		//merge with new data, we curry the merge function with new and old models.
+// 		.then(merge.venue.bind(this,this,venue_json,false,false)) //NO overwriting, NO checking.
 
-		//merge with new data, we curry the merge function with new and old models.
-		.then(merge.venue.bind(this,this,venue_json,false,false)) //NO overwriting, NO checking.
-
-		//now we have to 
+// 		//now we have to 
 		
 
 
 		
-	}.bind(this),{concurrency: 1}) //we need to be in sync mode because we have to merge every time we update the document with a different api
+// 	}.bind(this),{concurrency: 1}) //we need to be in sync mode because we have to merge every time we update the document with a different api
 	
-	//save the venue.
-	.then(function(){
-		return new Promise(save.bind(this))
-	}.bind(this))
-	.then(cb.bind(this))
-}
+// 	//save the venue.
+// 	.then(function(){
+// 		return new Promise(save.bind(this))
+// 	}.bind(this))
+// 	.then(cb.bind(this))
+// }
 
 
 
@@ -268,11 +276,11 @@ venueSchema.statics.update = function(cb){
 
 
 
-
+var min_gps_status = 2;
 
 
 //MAIN SYNC LOGIC
-Venue.methods.Sync = function(raw_json,overwrite){
+venueSchema.methods.Sync = function(raw_json,overwrite){
 
 	var self = this;
 
@@ -336,7 +344,7 @@ Venue.methods.Sync = function(raw_json,overwrite){
 We need to get the GPS data for venue and events to compare them later on!
 GPS data is brought to us by GOOGLE the AI.
 */
-Venue.statics.fillGPS = function(){
+venueSchema.statics.fillGPS = function(){
 	var addr = {};
 	addr.address = this.location.address;
 
@@ -410,7 +418,7 @@ var overwrite = false;
 
 
 /* FIND VENUE BY PLATFORM ID */
-VenueSchema.methods.findByPlatformIds = function(venue){
+venueSchema.methods.findByPlatformIds = function(venue){
 
 	return this.findOneAsync({
 		platformIds: {$in : venue.platformIds}
@@ -439,7 +447,7 @@ VenueSchema.methods.findByPlatformIds = function(venue){
 ELSE FIND VENUE BY GPS
 
 */
-VenueSchema.methods.findByGPS = function(venue){
+venueSchema.methods.findByGPS = function(venue){
 	if(venue.location.gps == null || venue.location.gps.lat == null || venue.location.gps.lon == null) return p.pipe(null)
 
 	//GPS Search Query within 10 meters
@@ -486,9 +494,9 @@ VenueSchema.methods.findByGPS = function(venue){
 ELSE VENUE FIND BY NAME
 
 */
-VenueSchema.methods.findVenueByName = function(venue){
+venueSchema.methods.findVenueByName = function(venue){
 	
-	return db['venue'].find(
+	return this.find(
 		{ $text : { $search : venue.name } }, { score : { $meta: "textScore" } }
     )
     .limit(5)
@@ -567,7 +575,7 @@ var saveVenue = p.sync(function(doc){
 
 
 //Venue Full Sync
-VenueSchema.methods.syncVenue = function(venue){
+venueSchema.methods.syncVenue = function(venue){
 
 	this.check_val = true;
 
@@ -578,7 +586,7 @@ VenueSchema.methods.syncVenue = function(venue){
 		//if venue not found, create a new one
 		if(docs == null || docs.length == 0){
 			console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
-			pipe = p.pipe(new db['venue'](venue));
+			pipe = p.pipe(venue);
 		
 		//else merge
 		}else{
@@ -597,11 +605,9 @@ VenueSchema.methods.syncVenue = function(venue){
 			//Failed to merge, probably because answered NO to all prompts.
 			if(pipe == null){
 				console.log('DB FULL VENUE NEW:'.bold.cyan,venue.name);
-				pipe = p.pipe(new db['venue'](venue));				
+				pipe = p.pipe(venue);				
 			}
-
 		}
-
 		return pipe.then(saveVenue);
 	});
 };
@@ -625,7 +631,7 @@ VenueSchema.methods.syncVenue = function(venue){
 
 
 //Venue Id sync
-VenueSchema.methods.syncVenueById = function(venue){
+venueSchema.methods.syncVenueById = function(venue){
 
 	return Promise.using(
 		this.findOneAsync({
@@ -692,16 +698,8 @@ VenueSchema.methods.syncVenueById = function(venue){
 
 
 
-
-
-
-
-
-
-
-
-
-
 /* MODULE EXPORT */
 var Venue = db.model('Venue',venueSchema);
+Promise.promisifyAll(Venue);
+Promise.promisifyAll(Venue.prototype);
 module.exports = Venue;

@@ -1,3 +1,6 @@
+/* wrapper config file for updateAll.js */
+
+
 /*
 NOTICE
 
@@ -21,15 +24,13 @@ var fb_key = null;
 
 
 
-var q_size = 3000;
-var eventful_max = 3000; //eventful has too much data, most of it seems to be irrelevant and is sorted by popularity.
+var q_size = 500;
+var eventful_max = 500; //eventful has too much data, most of it seems to be irrelevant and is sorted by popularity.
 
 
 
 
-
-
-
+Promise.longStackTraces();
 /*
 
 EVENT NAME = [^\w\s,'&\/\|]
@@ -45,13 +46,11 @@ fb.getKey().then(function(fb_key){
 		//sync: false, // default is true, if set to false will only save cache (if save_cache set to true)
 		filter_empty: true, //try and only save venues with events, other venues are useless
 		min_gps_status: 2, //this or greater location status will be updated automatically, otherwise will try and find gps (again)
-		//save_cache: true,
-		//clear_cache: true, //clear cache before updating (REMEMBER TO TURN OFF IF USING CACHE!)
-		
+
 		//use preexisting cache to sync/merge
-		use_cache: false,
-		save_cahce: true,
-		delete_cache: true,
+		use_cache: true,
+		//save_cahce: true,
+		//clear_cache: true,
 
 		//if these words are found in a venue name, that venue will be ignored. (default is library & church)
 		bad_words: [

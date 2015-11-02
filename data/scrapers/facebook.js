@@ -23,21 +23,18 @@ module.exports.getKey = p.sync(function(){
 
 	var url = cfg.api + '/oauth/access_token?' + qs.stringify(q);
 
-	console.log('fetching facebook key... ' + '\n\n' + url + '\n\n');
+//	console.log('fetching facebook key... ' + '\n\n' + url + '\n\n');
 
 
 	request({
 		url : url,
-	}).spread(function(res,data,err){
+	}).then(function(res){
+		if(res.data == null) return this.resolve(res.data);
+		if(res.body != null) key_string = res.body; 
 
-		console.log(data)
-		if(err) return this.reject(err);
-		
-		if(data == null) return this.resolve(data);
-		key_string = data;
-		return this.resolve(data)
+		console.log('FB Key set to [',key_string,']\n\n')
 
-		console.log('FB Key set to [',key_string,']')
+			return this.resolve(res.body)
 	}.bind(this));
 
 	return this.promise;
@@ -130,20 +127,20 @@ var Getter = function(type,opt){
 			return request({
 				url : url,
 				json: true
-			}).spread(function(res,body){
+			}).then(function(res){
 
-				if(body.data != null) docs = docs.concat(body.data);
+				if(res.body.data != null) docs = docs.concat(res.body.data);
 
-				else if(body.error || !body.data.length){
-					console.log('FB GET '+(type+"s").toUpperCase()+' ERR'.bgRed.bold,body.error.message.red);
+				else if(res.body.error || !res.body.data.length){
+					console.log('FB GET '+(type+"s").toUpperCase()+' ERR'.bgRed.bold,res.body.error.message.red);
 					return resolve(docs);
 				}else return resolve(docs);
 				
 
 				//resolve or get next page
 				//console.log(docs.length);
-				if(docs.length > opt.query_size || (!body.paging  || !body.paging.next)) resolve(_.takeRight(docs,opt.query_size));
-				else if(body.paging && body.paging.next) getOne.bind(this)(body.paging.next);
+				if(docs.length > opt.query_size || (!res.body.paging  || !res.body.paging.next)) resolve(_.takeRight(docs,opt.query_size));
+				else if(res.body.paging && res.body.paging.next) getOne.bind(this)(res.body.paging.next);
 
 			}.bind(this));	
 		}
@@ -175,20 +172,16 @@ module.exports.getVenue = function(opt){
 	return request({
 		url : cfg.api + '/' + opt.id + '?fields='+venue_fields.join(',')+'&' + key_string,
 		json: true
-	}).spread(function(res,body,err){
+	}).then(function(res){
 
 
 		if(err){
-			
 			return Promise.reject(err);
-		
-		}else if( body.error || !body.data.length ) {
-			
-			return Promise.reject(body.error);
-			
+		}else if( res.body.error || !res.body.data.length ) {
+			return Promise.reject(res.body.error);
 		}
 
-		return p.pipe(body);
+		return p.pipe(res.body);
 
 	})
 }
@@ -258,7 +251,7 @@ module.exports.parseVenue = function(venue){
 				headers:{
 					'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.155 Safari/537.36'
 				}
-			}).spread(function(res){
+			}).then(function(res){
 				//console.log(res.request.uri);
 				return p.pipe(res.request.uri.href);
 			}).catch(function(err){

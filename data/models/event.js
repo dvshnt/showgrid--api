@@ -298,11 +298,6 @@ eventSchema.methods.parseOutArtists = function(){
 
 
 
-
-
-
-
-
 eventSchema.path('platforms').validate(function(value){
   return value.length;
 },"'platforms' cannot be an empty array");
@@ -311,3 +306,7 @@ eventSchema.path('platforms').validate(function(value){
 eventSchema.path('platformIds').validate(function(value){
   return value.length;x
 },"'platforms' cannot be an empty array");
+
+
+
+module.exports = eventSchema
