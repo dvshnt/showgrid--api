@@ -32,11 +32,7 @@ module.exports.stop = function(err){
 }
 
 
-/*
-
-Promise factory with extra repetitive async variables added.
-
-*/
+/* Promise factory with extra repetitive async variables added. */
 module.exports.async = function(func){
 
 
@@ -78,11 +74,7 @@ module.exports.async = function(func){
 }
 
 
-/*
-
-Promise factory removes the repitition of adding promises to functions every single time.
-
-*/
+/* Promise factory removes the repitition of adding promises to functions every single time. */
 module.exports.sync = function(func){
 	var func = func;
 
@@ -98,7 +90,8 @@ module.exports.sync = function(func){
 		
 		var f = _.bind(func,ObamaDelivers);
 
-		return f.apply(this,arguments)
+		f = f.apply(this,arguments)
+
+		return f
 	}
-	
 }

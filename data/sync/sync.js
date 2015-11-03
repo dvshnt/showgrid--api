@@ -210,6 +210,7 @@ var syncData = function(opt){
 		var total_n = dat['venue'].length, total = 0;
 
 		return Promise.map(dat['venue'],function(raw_venue_json){
+
 			return Venue.Sync(raw_venue_json,overwrite).finally(function(){
 				console.log('synced venue',++total,'/',total_n,'\n\n');
 			})

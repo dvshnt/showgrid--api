@@ -212,7 +212,7 @@ var	keys =
 
 /*TODO*/
 
-// venueSchema.statics.update = function(cb){
+// venueSchema.methods.update = function(cb){
 
 // 	var model = this;
 
@@ -280,21 +280,23 @@ var min_gps_status = 2;
 
 
 //MAIN SYNC LOGIC
-venueSchema.methods.Sync = function(raw_json,overwrite){
+venueSchema.statics.Sync = function(raw_json,overwrite){
 
 	var self = this;
 
-	venue = new Venue(raw_json);
+	var venue = new Venue(raw_json);
+		
 
 	//validate raw json
-	p.sync(function(){
+	return p.sync(function(){
 		venue.validate(function(err){
-			if(err) return this.reject(new Error('venue validation error'));
+			if(err) this.reject(new Error('venue validation error'));
 			else this.resolve(venue)
 		}.bind(this))
-
+		console.log(this.promise.then)
 		return this.promise;
-	})
+	})()
+
 	.then(function(){
 		if(overwrite == true){
 
@@ -307,9 +309,7 @@ venueSchema.methods.Sync = function(raw_json,overwrite){
 		}else{
 
 			//try and syncvenue by ID
-			self.syncVenueById(venue)
-
-			.then(function(res){
+			return self.syncVenueById(venue).then(function(res){
 
 				//SYNC VENUE BY ID GOOD
 				if(res != false){
@@ -344,7 +344,7 @@ venueSchema.methods.Sync = function(raw_json,overwrite){
 We need to get the GPS data for venue and events to compare them later on!
 GPS data is brought to us by GOOGLE the AI.
 */
-venueSchema.statics.fillGPS = function(){
+venueSchema.methods.fillGPS = function(){
 	var addr = {};
 	addr.address = this.location.address;
 
@@ -418,7 +418,7 @@ var overwrite = false;
 
 
 /* FIND VENUE BY PLATFORM ID */
-venueSchema.methods.findByPlatformIds = function(venue){
+venueSchema.statics.findByPlatformIds = function(venue){
 
 	return this.findOneAsync({
 		platformIds: {$in : venue.platformIds}
@@ -447,7 +447,7 @@ venueSchema.methods.findByPlatformIds = function(venue){
 ELSE FIND VENUE BY GPS
 
 */
-venueSchema.methods.findByGPS = function(venue){
+venueSchema.statics.findByGPS = function(venue){
 	if(venue.location.gps == null || venue.location.gps.lat == null || venue.location.gps.lon == null) return p.pipe(null)
 
 	//GPS Search Query within 10 meters
@@ -494,7 +494,7 @@ venueSchema.methods.findByGPS = function(venue){
 ELSE VENUE FIND BY NAME
 
 */
-venueSchema.methods.findVenueByName = function(venue){
+venueSchema.statics.findVenueByName = function(venue){
 	
 	return this.find(
 		{ $text : { $search : venue.name } }, { score : { $meta: "textScore" } }
@@ -575,7 +575,7 @@ var saveVenue = p.sync(function(doc){
 
 
 //Venue Full Sync
-venueSchema.methods.syncVenue = function(venue){
+venueSchema.statics.syncVenue = function(venue){
 
 	this.check_val = true;
 
@@ -631,7 +631,7 @@ venueSchema.methods.syncVenue = function(venue){
 
 
 //Venue Id sync
-venueSchema.methods.syncVenueById = function(venue){
+venueSchema.statics.syncVenueById = function(venue){
 
 	return Promise.using(
 		this.findOneAsync({

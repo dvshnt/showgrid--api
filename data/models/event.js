@@ -77,95 +77,12 @@ var eventSchema = new db.Schema({
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-var extractArtists = function(types){
-
-
-	function sync(artist){
-		return validateArtist(artist).then(function(a){
-			if(a == null) return p.pipe(null);
-			return syncArtist(a)
-		})
-	}
-
-	var a_pipe = p.pipe();
-
-
-
-	_.each(types['venue'],function(venue,v_i){
-		venue.events = null_filter(venue.events);
-		_.each(venue.events,function(event,e){
-			if(event.artists == null) return;
-
-			//save headliners
-			if(event.artists.headliners != null && event.artists.headliners.length != 0) a_pipe = a_pipe.then(function(){
-				return Promise.reduce(_.clone(event.artists.headliners),function(total,artist){
-				
-					return sync(artist).then(function(a){
-						if(a != null) total.push(a._id)
-						a = undefined;
-						artist = undefined;
-						return total;
-					})
-
-				},[]).then(function(total){
-					types['venue'][v_i].events[e].artists.headliners = total;
-					return p.pipe()
-				})
-			});
-
-
-			//save openers
-			if(event.artists.openers != null && event.artists.openers.length != 0) a_pipe = a_pipe.then(function(){
-				return Promise.reduce(_.clone(event.artists.openers),function(total,artist){
-					return sync(artist).then(function(a){
-						if(a != null) total.push(a._id)
-						a = undefined;
-						artist = undefined;
-						return total;
-					})
-				},[]).then(function(total){
-					types['venue'][v_i].events[e].artists.openers = total;
-					return p.pipe()
-				})
-			});
-			
-		});
-	});
-
-	return a_pipe.then(function(){
-		return p.pipe(types)
-	});
-};
-
-
-
-
-
-eventSchema.statics.extractArtists = function(next){
-	
-}
-
-
-
-
-eventSchema.statics.validateEvent = function(next){
+eventSchema.methods.validateEvent = function(next){
 
 	this.name = this.name.replace(/[\|]/gi,',');
 
 	this.time.updated = Date.now();
-	
+
 	this.platformIds = _.map(this.platforms,function(plat){
 		return plat.name+'/'+plat.id;
 	});
@@ -187,113 +104,29 @@ eventSchema.statics.validateEvent = function(next){
 
 
 
-//Event Middleware
-eventSchema.pre('save',function(next){
-	this.extractArtists().then(next);
-});
 
+//extract artists from raw data and map the synced artists to the event headliners/openers
 eventSchema.pre('validate',function(next){
-	this.validateEvent().then(next);
-})
 
-
-
-
-
-
-
-//TODO
-/*
-eventSchema.methods.parseOutArtists = function(){
-	
-	var names = this.name.split(',');
-	console.log('extract...',names.length,this.name.inverse)
-	var headliners = [];
-	var openers = [];
-	_.each(names,function(name){
-		n2 = name.split(/\/w|with/);
-		if(n2.length > 1){
-			for(var i = 0;i<n2.length;i++){
-				if(i%2 == 0){
-					var nn2 = splitByAnd(n2[i]);
-					if(nn2){
-						for(var j = 0;j<nn2.length;j++){
-							headliners.push(nn2[i]);
-						}
-					}else headliners.push(n2[i]);
-				}else{
-					var nn2 = splitByAnd(n2[i]);
-					if(nn2){
-						for(var j = 0;j<nn2.length;j++){
-							openers.push(nn2[i]);
-						}
-					}else openers.push(n2[i]);					
-				}
-			}
-		}else{
-			headliners.push(n2[0]);
-		}
-	});
-
-	console.log(headliners,'||',openers);
-
-	var new_headliners = this.artists.headliners;
-	var new_openers = this.artists.openers;
-
-
-
-
-	var p1 = Promise.map(headliners,function(artist_name){
-		
-		return syncArtist(artist_name).finally(function(a){
-			if(a != null){
-				console.log('EVENT NAME HEADLINER ARTISTS -> GOT SPOTIFY'.bold.green)
-				if(new_headliners.indexOf(a._id) == -1){
-					if(new_openers.indexOf(a._id) != -1){
-						new_openers[new_openers.indexOf(a._id)] = undefined;
-					}
-					new_headliners.push(a._id);				
-				}else if(new_openers.indexOf(a._id) != -1){
-					new_openers[new_openers.indexOf(a._id)] = undefined
-				}
-
-			}
-		});	
+	var groups_promises = _.map(this.artists,function(group,key){
+		return Promise.map(group,function(artist){
+			if (group.indexOf(artist._id) >= 0) return p.pipe(null)
+			else return Artist.sync(artist);
+		})
+		.finally(function(group){
+			this.artists[key] = group;
+			console.log(group)
+		})
 	})
+	
+	return Promise.all(groups_promises)
 
-	// var p2 = Promise.map(openers,function(artist_name){
-	// 	return syncArtist(artist_name).then(function(a){
-	// 		if(a != null){
-	// 			console.log('EVENT NAME OPENER ARTISTS -> GOT SPOTIFY'.bold.green)
-	// 			if(new_openers.indexOf(a._id) == -1){
-	// 				if(new_headliners.indexOf(a._id) != -1){
-	// 					new_headliners[new_headliners.indexOf(a._id)] = undefined;
-	// 				}
-	// 				new_openers.push(a._id);				
-	// 			}else if(new_headliners.indexOf(a._id) != -1){
-	// 				new_headliners[new_headliners.indexOf(a._id)] = undefined
-	// 			}
-	// 		}
-	// 	});
-	// })
+	//validate the event data to make sure the data is correct, this is fail proof.
+	.then(function(){
+		this.validateEvent(next)
+	}.bind(this));
 
-	return p1;
-
-	// return Promise.settle([p1,p2]).then(function(){
-	// 	this.artists.headliners = new_headliners;
-	// 	this.artists.openers = new_openers;
-
-
-	// 	console.log('EVENT NAME EXTRACTION DONE'.bold.cyan)
-	// 	console.log(this.name.cyan);
-	// 	console.log(this.artists);
-	// }.bind(this));
-}
-*/
-
-
-
-
+});
 
 
 
