@@ -82,17 +82,17 @@ artistSchema.pre('validate',function(next){
 
 /* FILLERS */
 var spotify = require('../fillers/spotify');
-artistSchema.statics.getSpotify = function(){
+artistSchema.methods.getSpotify = function(){
 	return new spotify(this);
 }
 
 
-artistSchema.statics.update = function(){
+artistSchema.methods.update = function(){
 	return new spotify(this);
 }
 
 
-artistSchema.methods.findByPlatformIds = function(artist){
+artistSchema.statics.findByPlatformIds = function(artist){
 	return this.findOneAsync({
 		platformIds: {$in : artist.platformIds}
 	}).then(function(doc){
@@ -103,7 +103,7 @@ artistSchema.methods.findByPlatformIds = function(artist){
 
 
 //find artists in DB by name
-artistSchema.methods.findByName = function(artist){
+artistSchema.statics.findByName = function(artist){
 	
 	//search by name
 	return this.find(
@@ -140,7 +140,7 @@ artistSchema.methods.findByName = function(artist){
 
 
 //Find an artist based off of model...OR,
-artistSchema.methods.Sync = function(artist){
+artistSchema.statics.Sync = function(artist){
 	var self = this;
 
 	artist = new Artist(artist);
@@ -154,8 +154,9 @@ artistSchema.methods.Sync = function(artist){
 		return this.promise;
 	})
 
-	.then(self.findByPlatformIds.bind(self,artist))
-
+	.then(function(){
+		return self.findByPlatformIds(artist)
+	})
 
 	.then(function(found_artist){
 		if(found_artist != null) return found_artist

@@ -77,21 +77,24 @@ var eventSchema = new db.Schema({
 
 
 
+
+//EVENTS ARE SUBDOCUMENTS OF VENUES, THEY DO NOT NEED TO BE SAVED (or validated manually) because that all happens automatically when a venue gets saved :)
+
+
+
+
+
 eventSchema.methods.validateEvent = function(next){
 
 	this.name = this.name.replace(/[\|]/gi,',');
-
 	this.time.updated = Date.now();
-
 	this.platformIds = _.map(this.platforms,function(plat){
 		return plat.name+'/'+plat.id;
 	});
-
 	this.links = _.map(this.links,function(link){
 		if(_.isString(link)) return {url:link}
 		return link
 	});
-
 	if(_.isArray(this.tickets)){
 		_.each(this.tickets,function(t,i){
 			if(t == null || t.url == null) this.tickets[i] = undefined;
@@ -108,24 +111,25 @@ eventSchema.methods.validateEvent = function(next){
 //extract artists from raw data and map the synced artists to the event headliners/openers
 eventSchema.pre('validate',function(next){
 
-	var groups_promises = _.map(this.artists,function(group,key){
+
+
+	var self = this;
+
+	var groups_promises = _.map({headliners:self.artists.headliners,openers:self.artists.openers},function(group,key){
 		return Promise.map(group,function(artist){
 			if (group.indexOf(artist._id) >= 0) return p.pipe(null)
-			else return Artist.sync(artist);
+			else return Artist.Sync(artist);
 		})
-		.finally(function(group){
-			this.artists[key] = group;
-			console.log(group)
+		.then(function(group){
+			self.artists[key] = _.unique(util.null_filter(group),function(artist){
+				return artist._id
+			});
 		})
 	})
 	
-	return Promise.all(groups_promises)
-
-	//validate the event data to make sure the data is correct, this is fail proof.
-	.then(function(){
-		this.validateEvent(next)
-	}.bind(this));
-
+	return Promise.all(groups_promises).finally(function(){
+		self.validateEvent(next)
+	})
 });
 
 

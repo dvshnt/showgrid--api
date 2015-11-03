@@ -290,10 +290,9 @@ venueSchema.statics.Sync = function(raw_json,overwrite){
 	//validate raw json
 	return p.sync(function(){
 		venue.validate(function(err){
-			if(err) this.reject(new Error('venue validation error'));
+			if(err) this.reject(err);
 			else this.resolve(venue)
 		}.bind(this))
-		console.log(this.promise.then)
 		return this.promise;
 	})()
 
@@ -426,9 +425,7 @@ venueSchema.statics.findByPlatformIds = function(venue){
 	.then(function(found_venue){
 		if(found_venue != null){
 			console.log('MATCHED VENUE BY ID'.green,found_venue.name);
-		
-			this.check_val = false;
-			return p.pipe(found_venue);
+			return p.pipe([found_venue]);
 		}
 		else return p.pipe(null)
 	}.bind(this))
@@ -494,7 +491,7 @@ venueSchema.statics.findByGPS = function(venue){
 ELSE VENUE FIND BY NAME
 
 */
-venueSchema.statics.findVenueByName = function(venue){
+venueSchema.statics.findByName = function(venue){
 	
 	return this.find(
 		{ $text : { $search : venue.name } }, { score : { $meta: "textScore" } }
@@ -549,7 +546,7 @@ var saveVenue = p.sync(function(doc){
 	doc.save(function(err){
 		if(err){
 			//console.log('VENUE SAVE FAILED'.bgRed,doc.name.red,err);
-			this.reject('VENUE SAVE FAILED',err)
+			this.reject(err)
 		}else{
 			console.log('VENUE SAVED'.cyan,doc.name);
 			this.resolve(true)
@@ -575,11 +572,38 @@ var saveVenue = p.sync(function(doc){
 
 
 //Venue Full Sync
-venueSchema.statics.syncVenue = function(venue){
+venueSchema.statics.syncVenue = function(venue,check_val){
+	var self = this;
 
-	this.check_val = true;
+	var check_val = check_val || true;
 
+
+	//try to find by platformid
 	return this.findByPlatformIds(venue)
+	
+
+	//try to find by gps
+	.then(function(found){
+		if(found == null){
+			return self.findByGPS(venue)
+		}else{
+			check_val = false;
+			return p.pipe(found)
+		}
+	})
+	
+
+	//try to find by name
+	.then(function(found){
+		if(found == null){
+			return self.findByName(venue)
+		}else{
+			return p.pipe(found)
+		}		
+	})
+
+
+	//finally...
 	.then(function(docs){
 		var pipe = null;
 
@@ -590,9 +614,12 @@ venueSchema.statics.syncVenue = function(venue){
 		
 		//else merge
 		}else{
-
+			console.log('VENUE MATCHES..'.bgGreen,_.map(docs,function(d){return d.name}))
 			//go through all text search matches and do a single merge + return if a good match, otherwise go to end
 			_.each(docs,function(d){
+				
+
+
 				console.log('DB FULL VENUE MERGE:'.green,venue.name,d.name.inverse);
 				m_d = merge.venue(d,venue,null,check_val);
 				if(m_d != false){

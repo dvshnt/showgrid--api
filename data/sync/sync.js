@@ -206,21 +206,32 @@ var syncData = function(opt){
 
 	//sync venues
 	.then(function(dat){
-
+		var fail = 0;
+		var succ = 0;
 		var total_n = dat['venue'].length, total = 0;
 
 		return Promise.map(dat['venue'],function(raw_venue_json){
-
-			return Venue.Sync(raw_venue_json,overwrite).finally(function(){
+			return Venue.Sync(raw_venue_json,overwrite).reflect().tap(function(){
 				console.log('synced venue',++total,'/',total_n,'\n\n');
 			})
-		},{concurrency: 1}) //node.js...NEVER AGAIN
-		.then(function(){
-			return p.pipe(dat)
+		},{concurrency: 1})
+		.each(function(inspection){
+			if (inspection.isFulfilled()) {
+				succ++; 
+			} else {
+				fail++
+			}
+		})
+		.finally(function(){
+			return p.pipe([succ,total_n])
 		})
 	})
 
-	.tap(function(total){console.log('DONE W/ SYNC'.bgCyan)})
+	//the end :)
+	.spread(function(succ,total){
+		console.log( (succ + ' / ' + total_n).bgCyan )
+		console.log('DONE W/ SYNC'.bgCyan)
+	})
 }
 
 
