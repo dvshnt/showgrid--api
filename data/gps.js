@@ -85,7 +85,8 @@ module.exports.toObj = function(arr){
 module.exports.tz = p.sync(function(gps){
 	var get = function(){
 		request({url:'http://api.geonames.org/timezone?lat='+gps.lat+'&lng='+gps.lon+'&username='+geonames_user})
-		.spread(function(res,dat){
+		.then(function(res){
+			var dat = res.body
 			if(dat.match('<title>500 - Internal Server Error</title>') != null){
 				console.log('500 error, retry in 500');
 				p.pipe().delay(500).then(get.bind(this));
@@ -183,7 +184,7 @@ module.exports.get = function(name,addr,zip,gps){
 
 		function get(){
 
-
+			console.log('geocode url:',url)
 
 
 			var q = {url:url,json:true};
@@ -200,7 +201,10 @@ module.exports.get = function(name,addr,zip,gps){
 
 
 			return request(q)
-			.spread(function(res,loc,err){
+			.then(function(res){
+				var loc = res.body;
+				var err = null;
+
 				
 
 				//error handle
@@ -250,8 +254,7 @@ module.exports.get = function(name,addr,zip,gps){
 					zip: _.pluck(_.where(loc['address_components'], { 'types' : ['postal_code'] }),'long_name')[0],						
 				}
 
-
-
+			
 				//return data
 				return p.pipe({
 					address: loc.formatted_address,
@@ -326,7 +329,10 @@ module.exports.get = function(name,addr,zip,gps){
 			if(key != '') q.url+='&key='+key;
 		
 			
-			return request(q).spread(function(res,loc,err){
+			return request(q).then(function(res){
+				var loc = res.body;
+				var err = null;
+
 				var found = null;
 
 				//error handle
@@ -491,6 +497,7 @@ module.exports.get = function(name,addr,zip,gps){
 
 			//if status is 2 then get the place
 			return getplace(r).then(function(p_loc){
+				
 				if(p_loc.status == 0){
 					dat.status = 1;
 					return p.pipe(dat);

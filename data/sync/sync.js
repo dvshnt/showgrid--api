@@ -171,7 +171,10 @@ var syncData = function(opt){
 
 	if(filter_e == false) filter_empty = false;
 	min_gps_status = status || min_gps_status;
-	overwrite = overw;
+	overwrite = overw || false;
+
+
+
 
 
 
@@ -210,21 +213,23 @@ var syncData = function(opt){
 		var succ = 0;
 		var total_n = dat['venue'].length, total = 0;
 
-		return Promise.map(dat['venue'],function(raw_venue_json){
-			return Venue.Sync(raw_venue_json,overwrite).reflect().tap(function(){
-				console.log('synced venue',++total,'/',total_n,'\n\n');
+		var groups = _.chunk(dat['venue'],20)
+
+		return Promise.map(groups,function(g){
+			return Promise.map(g,function(raw_venue_json){
+				return Venue.Sync(raw_venue_json,overwrite).reflect().tap(function(){
+					console.log('synced venue',++total,'/',total_n,'\n\n');
+				}).delay(0)
+			}).finally(function(){
+				console.log('DONE NIGGER'.bgRed)
 			})
-		},{concurrency: 1})
-		.each(function(inspection){
-			if (inspection.isFulfilled()) {
-				succ++; 
-			} else {
-				fail++
-			}
-		})
-		.finally(function(){
-			return p.pipe([succ,total_n])
-		})
+		},{concurrency:2})
+
+
+
+
+	
+		
 	})
 
 	//the end :)

@@ -68,6 +68,13 @@ artistSchema.pre('save',function(next){
 
 //PRE VALIDATION FILLERS
 artistSchema.pre('validate',function(next){
+
+	if(this.name == null) return next();
+
+	
+
+
+
 	this.name = this.name.replace(/[\\\+\!\@\#\^\*\(\)\;\/\|]/,'')
 	this.platformIds = _.map(this.platforms,function(plat){
 		return plat.name+'/'+plat.id;
@@ -152,7 +159,7 @@ artistSchema.statics.Sync = function(artist){
 		}.bind(this))
 
 		return this.promise;
-	})
+	})()
 
 	.then(function(){
 		return self.findByPlatformIds(artist)
@@ -208,6 +215,10 @@ artistSchema.statics.Sync = function(artist){
 			return this.promise;
 		}));
 		
+	}).then(function(){
+		console.log('DONE WITH SYNC ARTIST, DELETING ALL DATA'.bgRed)
+		artist = undefined;
+		return p.pipe(null)
 	})
 }
 

@@ -52,6 +52,7 @@ this method cofirms merges to double check that we are not merging bad stuff ite
 - check    : do we double check that we are not doing a BAD merge? otherwise this whole function gets ignored at the beginning base case
 
 */
+var max_char_count = 7000;
 function confirm(type,merged_v,old_v,new_v,check){
 	//console.log(old_1.name.bgRed,old_2.name.bgRed)
 	if(check == false){
@@ -62,28 +63,61 @@ function confirm(type,merged_v,old_v,new_v,check){
 	var n_string = JSON.stringify(new_v,null,4);
 	var m_string = JSON.stringify(merged_v,null,4);
 
-	console.log('\nOLD\n---------\n'.green,o_string.green);
-	console.log('\nNEW\n---------\n'.cyan,n_string.cyan);
-	console.log('\nMERGED\n---------\n');
+	
+	
+	
 
-	_.each(m_string.split('\n'),function(str){
-		var n_matched = n_string.indexOf(str);
-		
-		var o_matched = o_string.indexOf(str);
+	console.log('\n\n\nCURRATING MERGE '.bgRed,old_v.name.green,' + ',new_v.name.cyan,'(new)',' -> ',merged_v.name.yellow)
 
 
-		if(n_matched != -1 && o_matched != -1) return console.log(str.yellow);
-		if(n_matched != -1) return console.log(str.cyan);
-		if(o_matched != -1) return console.log(str.green);
-		
 
-		console.log(str.yellow);
-	});
+	console.log('\nOLD\n---------\n'.green);
+	if(o_string.length > max_char_count){
+		console.log('do you want to display this model? (over',max_char_count,')');
+		var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
+		if(answer === 'no' || answer === 'n'){}
+		else console.log(o_string.green)
+	}
+
+	console.log('\nNEW\n---------\n'.cyan);
+	if(n_string.length > max_char_count){
+		console.log('do you want to display this model? (over',max_char_count,')');
+		var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
+		if(answer === 'no' || answer === 'n'){}
+		else console.log(n_string.cyan)
+	}
+	
+	console.log('\nMERGED\n---------\n'.yellow);
+	if(m_string.length > max_char_count){
+		console.log('do you want to display this model? (over',max_char_count,')');
+		var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
+		if(answer === 'no' || answer === 'n'){}
+		else 	
+			_.each(m_string.split('\n'),function(str){
+				var n_matched = n_string.indexOf(str);
+				
+				var o_matched = o_string.indexOf(str);
+
+
+				if(n_matched != -1 && o_matched != -1) return console.log(str.yellow);
+				if(n_matched != -1) return console.log(str.cyan);
+				if(o_matched != -1) return console.log(str.green);
+				
+
+				console.log(str.yellow);
+			});
+
+	}
+
 
 	function ask(){
 		if(old_v.location != null){
 			console.log(JSON.stringify(old_v.location, null, 4).green,'\n',JSON.stringify(new_v.location,null,4).cyan)
 		}
+		if( old_v.events != null ) console.log( ('old events # '+old_v.events.length).blue )
+		if( new_v.events != null ) console.log( ('new events # '+new_v.events.length).green )
+		if( merged_v.events != null) console.log( ('merged (old+new) events # '+ merged_v.events.length).yellow )
+
 		console.log('do you want to merge \n',old_v.name.green,' + ',new_v.name.cyan,'(new) \n='.gray,'\n',merged_v.name.yellow);
 		var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
 		if(answer === 'no' || answer === 'n'){

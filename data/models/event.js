@@ -115,9 +115,10 @@ eventSchema.pre('validate',function(next){
 
 	var self = this;
 
+
 	var groups_promises = _.map({headliners:self.artists.headliners,openers:self.artists.openers},function(group,key){
 		return Promise.map(group,function(artist){
-			if (group.indexOf(artist._id) >= 0) return p.pipe(null)
+			if (group.indexOf(artist._id) >= 0 || artist.constructor.name == 'ObjectID') return p.pipe(null)
 			else return Artist.Sync(artist);
 		})
 		.then(function(group){

@@ -68,7 +68,6 @@ var venueSchema = new db.Schema({
 	colors: [Number],
 	age: Number,
 	events: [eventSchema], //all events for this venue
-	users: [{type:db.Schema.Types.ObjectId, ref: 'User'}], //users that are going to this venue
 });
 
 
@@ -210,7 +209,7 @@ var	keys =
 
 
 
-/*TODO*/
+/*update active*/
 
 // venueSchema.methods.update = function(cb){
 
@@ -276,11 +275,12 @@ var	keys =
 
 
 
-var min_gps_status = 2;
+var min_gps_status = 1;
 
 
 //MAIN SYNC LOGIC
 venueSchema.statics.Sync = function(raw_json,overwrite){
+
 
 	var self = this;
 
@@ -297,11 +297,16 @@ venueSchema.statics.Sync = function(raw_json,overwrite){
 	})()
 
 	.then(function(){
+
+
+
 		if(overwrite == true){
 
 			//fill gps and sync venue
-			return venue.fillGPS()
+			return self.fillGPS(venue)
 			.then(function(venue){
+				console.log(venue)
+
 				return self.syncVenue(venue)
 			})
 
@@ -310,20 +315,25 @@ venueSchema.statics.Sync = function(raw_json,overwrite){
 			//try and syncvenue by ID
 			return self.syncVenueById(venue).then(function(res){
 
+
 				//SYNC VENUE BY ID GOOD
 				if(res != false){
 					doc = undefined;
-					return 
+					return p.pipe(null);
 
 				//SYNC VENUE BY ID BAD, FILL GPS AND DO A FULL SYNC
 				}else{
-					return venue.fillGPS()
+					return self.fillGPS(venue)
 					.then(function(venue){
-						self.syncVenue(venue)
+						return self.syncVenue(venue)
 					})
 				}
 			})
 		}
+	}).then(function(){
+		console.log('DONE WITH SYNC ARTIST, DELETING ALL DATA'.bgRed)
+		venue = undefined;
+		return p.pipe(null)
 	})
 }
 
@@ -343,64 +353,61 @@ venueSchema.statics.Sync = function(raw_json,overwrite){
 We need to get the GPS data for venue and events to compare them later on!
 GPS data is brought to us by GOOGLE the AI.
 */
-venueSchema.methods.fillGPS = function(){
+venueSchema.statics.fillGPS = function(venue){
 	var addr = {};
-	addr.address = this.location.address;
+	addr.address = venue.location.address;
 
 
-	if(this.location.components != null){
-		addr.countrycode= this.location.components.countrycode
-		addr.statecode= this.location.components.statecode
-		addr.country= this.location.components.country
-		addr.zip= this.location.components.zip
-		addr.city= this.location.components.city
+	if(venue.location.components != null){
+		addr.countrycode= venue.location.components.countrycode
+		addr.statecode= venue.location.components.statecode
+		addr.country= venue.location.components.country
+		addr.zip= venue.location.components.zip
+		addr.city= venue.location.components.city
 	}
 	
-	return addressGPS(this.name,addr)
+	return addressGPS(venue.name,addr)
 	.then(function(loc){
+	
+
+
 		if(loc.status == 2){
-			if(_.isArray(this.tags)) this.tags = this.tags.concat(loc._tags); else this.tags = loc._tags;
+			if(_.isArray(venue.tags)) venue.tags = venue.tags.concat(loc._tags)
+			else venue.tags = loc._tags;
 		
 			
-			this.location = _.clone(loc);
-			this.location._gps = [parseFloat(loc.gps.lon),parseFloat(loc.gps.lat)];
-			this.name = loc._name
+			venue.location = _.clone(loc);
+			venue.location._gps = [parseFloat(loc.gps.lon),parseFloat(loc.gps.lat)];
+			venue.name = loc._name
 			
-			console.log('SYNC GPS PLACE: '.bold.cyan,this.name.magenta,loc._name.inverse);
+			console.log('SYNC GPS PLACE: '.bold.cyan,venue.name.magenta,loc._name.inverse);
 		}else if(loc.status == 1){
 
-			this.location = _.clone(loc);
-			this.location._gps = [parseFloat(loc.gps.lon),parseFloat(loc.gps.lat)];
+			venue.location = _.clone(loc);
+			venue.location._gps = [parseFloat(loc.gps.lon),parseFloat(loc.gps.lat)];
 
-			console.log('SYNC GPS GEOLOC: '.bold.yellow,this.name.magenta);
+			console.log('SYNC GPS GEOLOC: '.bold.yellow,venue.name.magenta);
 		}else if(loc.status == 0){
-			console.log('SYNC GPS FAIL: '.red,this.name.magenta,'\n',this.location);
-			//if(this.location.gps != null) this.location.gps = formatGPS(this.location.gps);
-			this.location.status = 0;
+			
+			//if(venue.location.gps != null) venue.location.gps = formatGPS(venue.location.gps);
+			venue.location.status = 0;
+			console.log('SYNC GPS FAIL: '.red,venue.name.magenta,'\n',venue.location);
 		}else{
+			
+			venue.location.status = 0;
 			console.log('SYNC GPS ERR')
-			this.location.status = 0;
 		}
 
-		if(this.location.gps != null && (isNaN(this.location.gps.lat) || isNaN(this.location.gps.lon))) {
-			this.location.gps = null;
+		if(venue.location.gps != null && (isNaN(venue.location.gps.lat) || isNaN(venue.location.gps.lon))) {
+			venue.location.gps = null;
 		}
 
+	
 
-		return p.pipe(this)
-	}.bind(this))
-	.catch(function(e){
-		console.log('GET GPS ERR'.bgRed,e);
-		return p.pipe(this);
-	}.bind(this))
+		return p.pipe(venue)
+	})
 }
 
-
-
-
-
-
-var overwrite = false;
 
 
 
@@ -445,6 +452,9 @@ ELSE FIND VENUE BY GPS
 
 */
 venueSchema.statics.findByGPS = function(venue){
+	//console.log("FIND BY GPS")
+
+
 	if(venue.location.gps == null || venue.location.gps.lat == null || venue.location.gps.lon == null) return p.pipe(null)
 
 	//GPS Search Query within 10 meters
@@ -474,7 +484,10 @@ venueSchema.statics.findByGPS = function(venue){
 		if(found.length){
 			console.log('MATCHED BY SIMILAR GPS'.green,found.length,' -> ',venue.name.inverse);
 			return p.pipe(found);
-		}else return p,pipe(null);
+		}else{
+			console.log('FIND BY GPS FAILED')
+			return p.pipe(null);
+		} 
 
 	}.bind(this))
 };
@@ -492,7 +505,7 @@ ELSE VENUE FIND BY NAME
 
 */
 venueSchema.statics.findByName = function(venue){
-	
+	//console.log("FIND BY NAME")
 	return this.find(
 		{ $text : { $search : venue.name } }, { score : { $meta: "textScore" } }
     )
@@ -542,7 +555,8 @@ venueSchema.statics.findByName = function(venue){
 
 
 
-var saveVenue = p.sync(function(doc){
+var saveVenue = p.sync(function(doc,check_val){
+
 	doc.save(function(err){
 		if(err){
 			//console.log('VENUE SAVE FAILED'.bgRed,doc.name.red,err);
@@ -551,9 +565,9 @@ var saveVenue = p.sync(function(doc){
 			console.log('VENUE SAVED'.cyan,doc.name);
 			this.resolve(true)
 		}
-		
 		doc = undefined;
 	}.bind(this));
+
 	return this.promise;
 });
 
@@ -578,28 +592,17 @@ venueSchema.statics.syncVenue = function(venue,check_val){
 	var check_val = check_val || true;
 
 
-	//try to find by platformid
-	return this.findByPlatformIds(venue)
+
 	
 
 	//try to find by gps
-	.then(function(found){
-		if(found == null){
-			return self.findByGPS(venue)
-		}else{
-			check_val = false;
-			return p.pipe(found)
-		}
-	})
+	return self.findByGPS(venue)
 	
 
 	//try to find by name
 	.then(function(found){
-		if(found == null){
-			return self.findByName(venue)
-		}else{
-			return p.pipe(found)
-		}		
+		if(found == null) return self.findByName(venue)
+		else return p.pipe(found)	
 	})
 
 
@@ -660,36 +663,36 @@ venueSchema.statics.syncVenue = function(venue,check_val){
 //Venue Id sync
 venueSchema.statics.syncVenueById = function(venue){
 
-	return Promise.using(
-		this.findOneAsync({
-			platformIds: {$in : venue.platformIds},
-			'location.status': {$gt : min_gps_status-1}
-		}),
-		function(doc){
-
-			
-			//when we return null, we can later find by full search
-			if(doc == null) return p.pipe(false);
-			
-
-			//This is guaranteed to work!
-
-			console.log('FOUND DB.VENUE BY ID'.green,venue.name,doc.name.inverse);
-
-			var fields = merge.venue(doc,venue,null,true);
 
 
-			if(fields == false){
-				console.log('SYNC DB.VENUE BY ID FAILED'.bgRed)
-				return p.pipe(null)
-			}else{
-				doc.set(fields);
-			}
 
-			venue = undefined;
-			return saveVenue(doc)
+	return this.findOneAsync({
+		platformIds: {$in : venue.platformIds},
+		'location.status': {$gt : min_gps_status-1}
+	}).then(function(doc){
+
+		
+		//when we return null, we can later find by full search
+		if(doc == null) return p.pipe(false);
+		
+
+		//This is guaranteed to work!
+
+		console.log('FOUND DB.VENUE BY ID'.green,venue.name,doc.name.inverse);
+
+		var fields = merge.venue(doc,venue,null,false);
+
+
+		if(fields == false){
+			console.log('SYNC DB.VENUE BY ID FAILED'.bgRed)
+			return p.pipe(null)
+		}else{
+			doc.set(fields);
 		}
-	)
+
+		venue = undefined;
+		return saveVenue(doc)
+	})
 }
 
 
