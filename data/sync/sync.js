@@ -220,8 +220,6 @@ var syncData = function(opt){
 				return Venue.Sync(raw_venue_json,overwrite).reflect().tap(function(){
 					console.log('synced venue',++total,'/',total_n,'\n\n');
 				}).delay(0)
-			}).finally(function(){
-				console.log('DONE NIGGER'.bgRed)
 			})
 		},{concurrency:2})
 
