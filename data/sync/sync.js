@@ -6,6 +6,7 @@ var util = require('../util');
 var null_filter = util.null_filter;
 var p = require('../pFactory');
 var Promise = require('bluebird')
+var db = p.make(require('mongoose'));
 
 //default bad words
 var bad_words = [
@@ -213,25 +214,30 @@ var syncData = function(opt){
 		var succ = 0;
 		var total_n = dat['venue'].length, total = 0;
 
-		var groups = _.chunk(dat['venue'],20)
+		var batches = _.chunk(dat['venue'],20)
 
-		return Promise.map(groups,function(g){
-			return Promise.map(g,function(raw_venue_json){
-				return Venue.Sync(raw_venue_json,overwrite).reflect().tap(function(){
-					console.log('synced venue',++total,'/',total_n,'\n\n');
-				}).delay(0)
+
+		var pipe = p.pipe();
+
+
+		//split models up into chunks of promise maps so that references get deleted and become available for the GC.
+		_.each(batches,function(batch){
+			pipe = pipe.then(function(){
+				return Promise.map(batch,function(raw_venue_json){
+					return Venue.Sync(raw_venue_json,overwrite).reflect().tap(function(){
+						console.log('synced venue',++total,'/',total_n,'\n\n');
+					})
+				},{concurrency:1})
 			})
-		},{concurrency:2})
+		})
 
-
-
-
-	
-		
+		return pipe.then(function(){
+			return [succ,total_n]
+		});
 	})
 
 	//the end :)
-	.spread(function(succ,total){
+	.then(function(succ,total){
 		console.log( (succ + ' / ' + total_n).bgCyan )
 		console.log('DONE W/ SYNC'.bgCyan)
 	})

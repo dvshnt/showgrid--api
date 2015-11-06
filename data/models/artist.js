@@ -150,7 +150,10 @@ artistSchema.statics.findByName = function(artist){
 artistSchema.statics.Sync = function(artist){
 	var self = this;
 
+
+	console.log('creating new artist model')
 	artist = new Artist(artist);
+	console.log('done creating new artist model')
 
 	p.sync(function(){
 		artist.validate(function(err){
@@ -216,8 +219,7 @@ artistSchema.statics.Sync = function(artist){
 		}));
 		
 	}).then(function(){
-		console.log('DONE WITH SYNC ARTIST, DELETING ALL DATA'.bgRed)
-		artist = undefined;
+		delete artist;
 		return p.pipe(null)
 	})
 }

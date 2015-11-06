@@ -284,8 +284,9 @@ venueSchema.statics.Sync = function(raw_json,overwrite){
 
 	var self = this;
 
+
 	var venue = new Venue(raw_json);
-		
+
 
 	//validate raw json
 	return p.sync(function(){
@@ -301,6 +302,7 @@ venueSchema.statics.Sync = function(raw_json,overwrite){
 
 
 		if(overwrite == true){
+			console.log('OVERWRITE'.bgRed)
 
 			//fill gps and sync venue
 			return self.fillGPS(venue)
@@ -323,6 +325,7 @@ venueSchema.statics.Sync = function(raw_json,overwrite){
 
 				//SYNC VENUE BY ID BAD, FILL GPS AND DO A FULL SYNC
 				}else{
+					console.log('SYNC BY ID FAILED, (NEW)'.bgRed)
 					return self.fillGPS(venue)
 					.then(function(venue){
 						return self.syncVenue(venue)
@@ -331,8 +334,7 @@ venueSchema.statics.Sync = function(raw_json,overwrite){
 			})
 		}
 	}).then(function(){
-		console.log('DONE WITH SYNC ARTIST, DELETING ALL DATA'.bgRed)
-		venue = undefined;
+		delete venue;
 		return p.pipe(null)
 	})
 }
@@ -562,7 +564,7 @@ var saveVenue = p.sync(function(doc,check_val){
 			//console.log('VENUE SAVE FAILED'.bgRed,doc.name.red,err);
 			this.reject(err)
 		}else{
-			console.log('VENUE SAVED'.cyan,doc.name);
+			console.log('VENUE SAVED'.bold.bgCyan,doc.name);
 			this.resolve(true)
 		}
 		doc = undefined;
@@ -665,28 +667,31 @@ venueSchema.statics.syncVenueById = function(venue){
 
 
 
-
+	console.log(venue.platformIds)
 	return this.findOneAsync({
 		platformIds: {$in : venue.platformIds},
-		'location.status': {$gt : min_gps_status-1}
+		//'location.status': {$gt : min_gps_status}
 	}).then(function(doc){
 
 		
 		//when we return null, we can later find by full search
-		if(doc == null) return p.pipe(false);
+		if(doc == null){
+			console.log('FIND DB.VENUE BY ID FAILED '.bgRed+venue.name.inverse);
+			return p.pipe(false);
+		}
 		
 
 		//This is guaranteed to work!
-
-		console.log('FOUND DB.VENUE BY ID'.green,venue.name,doc.name.inverse);
+		console.log('FOUND DB.VENUE BY ID'.bold.white.bgGreen,venue.name,doc.name.inverse);
 
 		var fields = merge.venue(doc,venue,null,false);
 
 
 		if(fields == false){
-			console.log('SYNC DB.VENUE BY ID FAILED'.bgRed)
+			console.log('VENUE MERGE FAILED'.bgRed)
 			return p.pipe(null)
 		}else{
+			//console.log('SYNC DB.VENUE BY ID FOUND'.bold.bgGreen)
 			doc.set(fields);
 		}
 
