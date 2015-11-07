@@ -62,7 +62,7 @@ module.exports.findVenues = function(opt){
 		sort_order: 'popularity',
 		sort_direction: 'descending',
 		units: 'miles',
-		category: 'music'
+		//category: 'music'
 	};
 
 	if(opt.query_size < 100) q.page_size = opt.query_size;

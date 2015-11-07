@@ -24,8 +24,8 @@ var fb_key = null;
 
 
 
-var q_size = 500;
-var eventful_max = 500; //eventful has too much data, most of it seems to be irrelevant and is sorted by popularity.
+var q_size = 1000;
+var eventful_max = 2000; //eventful has too much data, most of it seems to be irrelevant and is sorted by popularity.
 
 
 
@@ -50,6 +50,7 @@ fb.getKey().then(function(fb_key){
 		//use preexisting cache to sync/merge
 		//use_cache: true,
 		save_cache: true,
+
 		//clear_cache: true,
 
 		//if these words are found in a venue name, that venue will be ignored. (default is library & church)
@@ -89,37 +90,37 @@ fb.getKey().then(function(fb_key){
 				},
 			},
 
-			'ticketfly': {
+/*			'ticketfly': {
 				endpoints: {'venue':{
 					radius: 0
 				}},
 			},
 
-			// 'facebook': {
+			 'facebook': {
 				
-			// 	endpoints: {'venue':null},
-			// 	params: {
-			// 		filter_delay: 300,
-			// 		key: fb_key
-			// 	}
-			// },
+			 	endpoints: {'venue':null},
+			 	params: {
+			 		filter_delay: 300,
+			 		key: fb_key
+			 	}
+			 },
 
-			// 'reverbnation' : {
-			// 	endpoints : {
-			// 		'venue' : {
-			// 			get_delay: 400,
-			// 			filter_delay: 500
-			// 		}
-			// 	},
-			// },
+			 'reverbnation' : {
+			 	endpoints : {
+			 		'venue' : {
+			 			get_delay: 400,
+			 			filter_delay: 500
+			 		}
+			 	},
+			 },
 
-			// 'jambase' : {
-			// 	endpoints : {'venue':null},
-			// 	params: {
-			// 		get_delay: 600,
-			// 		key : api_cfg.jambase.keys[3],
-			// 	},
-			// }
+			 'jambase' : {
+			 	endpoints : {'venue':null},
+			 	params: {
+			 		get_delay: 600,
+			 		key : api_cfg.jambase.keys[3],
+			 	},
+			 }*/
 		},
 	})
 }).tap(function(){

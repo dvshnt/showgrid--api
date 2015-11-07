@@ -114,11 +114,9 @@ module.exports.getVenues = p.async(function(opt){
 		}).then(function(res){
 			var err = null;
 			var dat = res.body;
-			console.log(dat)
 
 			if(err) return this.reject(err);
 			if(dat == null) this.reject('no data');
-
 
 			//async pagination
 			if(page == 1){
