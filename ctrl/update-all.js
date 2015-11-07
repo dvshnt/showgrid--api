@@ -44,12 +44,12 @@ fb.getKey().then(function(fb_key){
 	return update({
 		//overwrite: true,
 		//sync: false, // default is true, if set to false will only save cache (if save_cache set to true)
-		filter_empty: true, //try and only save venues with events, other venues are useless
+		filter_empty: false, //try and only save venues with events, other venues are useless
 		min_gps_status: 2, //this or greater location status will be updated automatically, otherwise will try and find gps (again)
 
 		//use preexisting cache to sync/merge
-		use_cache: true,
-		//save_cahce: true,
+		//use_cache: true,
+		save_cache: true,
 		//clear_cache: true,
 
 		//if these words are found in a venue name, that venue will be ignored. (default is library & church)
@@ -95,41 +95,37 @@ fb.getKey().then(function(fb_key){
 				}},
 			},
 
-			'facebook': {
+			// 'facebook': {
 				
-				endpoints: {'venue':null},
-				params: {
-					filter_delay: 300,
-					key: fb_key
-				}
-			},
+			// 	endpoints: {'venue':null},
+			// 	params: {
+			// 		filter_delay: 300,
+			// 		key: fb_key
+			// 	}
+			// },
 
-			'reverbnation' : {
-				endpoints : {
-					'venue' : {
-						get_delay: 400,
-						filter_delay: 500
-					}
-				},
-			},
+			// 'reverbnation' : {
+			// 	endpoints : {
+			// 		'venue' : {
+			// 			get_delay: 400,
+			// 			filter_delay: 500
+			// 		}
+			// 	},
+			// },
 
-			'jambase' : {
-				endpoints : {'venue':null},
-				params: {
-					get_delay: 600,
-					key : api_cfg.jambase.keys[3],
-				},
-			}
+			// 'jambase' : {
+			// 	endpoints : {'venue':null},
+			// 	params: {
+			// 		get_delay: 600,
+			// 		key : api_cfg.jambase.keys[3],
+			// 	},
+			// }
 		},
 	})
 }).tap(function(){
 	console.log("----------------".cyan)
 	console.log("UPDATE DONE!".bold.cyan);
 	console.log("----------------".cyan)
-}).then(function(){
-	return fillers.spotify({
-		sync: true
-	})
 }).done(function(){
 	process.exit(0);
 })

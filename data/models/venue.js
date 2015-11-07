@@ -302,7 +302,7 @@ venueSchema.statics.Sync = function(raw_json,overwrite){
 
 
 		if(overwrite == true){
-			console.log('OVERWRITE'.bgRed)
+			console.log('OVERWRITE VENUE'.red.bgYellow)
 
 			//fill gps and sync venue
 			return self.fillGPS(venue)
@@ -325,7 +325,7 @@ venueSchema.statics.Sync = function(raw_json,overwrite){
 
 				//SYNC VENUE BY ID BAD, FILL GPS AND DO A FULL SYNC
 				}else{
-					console.log('SYNC BY ID FAILED, (NEW)'.bgRed)
+					console.log('could not sync venue by id..'.white.bg + ' (creating new entry)'.cyan)
 					return self.fillGPS(venue)
 					.then(function(venue){
 						return self.syncVenue(venue)
@@ -676,7 +676,7 @@ venueSchema.statics.syncVenueById = function(venue){
 		
 		//when we return null, we can later find by full search
 		if(doc == null){
-			console.log('FIND DB.VENUE BY ID FAILED '.bgRed+venue.name.inverse);
+			//console.log('could not find venue by platform id '.red.bgYellow+venue.name.inverse);
 			return p.pipe(false);
 		}
 		

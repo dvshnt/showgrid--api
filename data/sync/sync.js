@@ -39,6 +39,8 @@ function filterEmpty(data){
 	if(filter_empty == true){
 		data['venue'] = _.filter(data['venue'],function(venue){
 			if(venue.events != null && venue.events.length > 0) return true;
+			
+			console.log('FILTER EMPTY VENUE [ %s ]'.yellow,venue.name);
 			return false ;
 		});		
 	}
@@ -102,6 +104,7 @@ data : {
 var raw_types = ['venue','event','artist'];
 
 var splitByType = function(dataset){
+
 	dataset = null_filter(dataset);
 
 	//console.log(dataset);
@@ -126,6 +129,8 @@ var splitByType = function(dataset){
 		if(type == 'venue') return 2;
 		if(type == 'artist') return 1;
 	})
+
+
 
 	return p.pipe(dat);
 };
@@ -212,9 +217,9 @@ var syncData = function(opt){
 	.then(function(dat){
 		var fail = 0;
 		var succ = 0;
-		var total_n = dat['venue'].length, total = 0;
-
-		var batches = _.chunk(dat['venue'],20)
+		var total_n = dat['venue'].length;
+		var total = 0;
+		var batches = _.chunk(dat['venue'],20);
 
 
 		var pipe = p.pipe();
@@ -225,8 +230,9 @@ var syncData = function(opt){
 			pipe = pipe.then(function(){
 				return Promise.map(batch,function(raw_venue_json){
 					return Venue.Sync(raw_venue_json,overwrite).reflect().tap(function(){
+						succ++;
 						console.log('synced venue',++total,'/',total_n,'\n\n');
-					})
+					}).reflect();
 				},{concurrency:1})
 			})
 		})
@@ -237,7 +243,7 @@ var syncData = function(opt){
 	})
 
 	//the end :)
-	.then(function(succ,total){
+	.spread(function(succ,total_n){
 		console.log( (succ + ' / ' + total_n).bgCyan )
 		console.log('DONE W/ SYNC'.bgCyan)
 	})

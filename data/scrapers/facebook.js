@@ -97,22 +97,15 @@ var Getter = function(type,opt){
 
 	
 	//get zip gps.
-	var getGPS = p.sync(function(zip){
-		gps(null,null,zip).then(function(loc){
-			if(loc.status <= 0){
-				console.log('FB GET '+(type+"s").toUpperCase()+' ERR'.bgRed.bold,loc.red);
-				return this.reject(loc);
-			}
-			return this.resolve(loc.gps);
-		}.bind(this));
 
-		return this.promise;
-	})
+
 
 	var docs = [];
 	
 
 	var get = p.sync(function(pos){
+		var pos = pos.gps
+
 		
 		var q = {
 			q: '',
@@ -155,7 +148,8 @@ var Getter = function(type,opt){
 
 	if(opt.zip != null){
 		//console.log(opt.zip)
-		return getGPS(opt.zip).then(get);
+		return gps(null,null,opt.zip).then(get);
+
 	}else if(opt.gps != null){
 		pos = opt.gps;
 		return get(pos);

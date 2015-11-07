@@ -29,8 +29,6 @@ function filler(artist,opt){
 	this.artist = artist;
 	this.country = opt.country || 'US';
 	this.id = _.pluck(_.where(artist.platforms, { 'name' : 'spotify' }),'id')[0];
-	//console.log(this.id)
-
 
 	if(this.id == null || !this.id.length){
 		console.log('finding'.yellow,this.artist.name.inverse)
@@ -164,7 +162,8 @@ filler.prototype.getArtist = function(){
 	return request({
 		url: get_artist_url+'/'+this.id,
 		json: true
-	}).spread(function(res,data){
+	}).then(function(res){
+		var data = res.body
 		if(data == null) return p.pipe(null);
 		if(data.error != null) return p.stop(data.error.message)
 		
@@ -193,8 +192,8 @@ filler.prototype.getTracks = function(){
 	return request({
 		url: get_tracks_url+'/'+this.id+'/top-tracks?country='+this.country,
 		json: true
-	})
-	.spread(function(res,data){
+	}).then(function(res){
+		var data = res.body
 		if(data == null) return p.pipe(null)
 		data = data.tracks
 		if(data == null || !data.length) return p.pipe(null);

@@ -23,6 +23,9 @@ if(db.venue == null) return console.error('RECURSIVE MODULE REQUIRE ERROR')
 Promise.longStackTraces();
 
 
+setInterval(function(){
+	util.logMem();
+}, 5000)
 
 //This function is not refactored and does not need to be bothered...pretty much hooks up parameters and functions from the ./scrapers.js file and passes the data to sync.js
 
@@ -108,7 +111,7 @@ var main = p.async(function(opt){
 							console.log(plat_name.bgGreen,endpoint.inverse,'parsed'.green,parsed_doc.name,(this.count+'/'+this.total).yellow)
 						}
 
-						if( !(i%10) ) util.logMem();
+						
 					}.bind(this));
 
 
@@ -192,7 +195,7 @@ module.exports = function(opt){
 		return pipe
 		.then(util.getCache)
 		.then(function(data){
-			sync_options
+			
 			if(opt.sync === false) return p.pipe(data);
 			return sync(_.merge({docs:data},sync_options));
 			
@@ -203,7 +206,7 @@ module.exports = function(opt){
 		return pipe
 		.then(main.bind(null,opt))
 		.then(function(data){
-			sync_options
+			
 			if(opt.sync === false) return p.pipe(data);
 			return sync(_.merge({docs:data},sync_options));
 		});		
