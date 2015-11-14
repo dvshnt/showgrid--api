@@ -15,7 +15,7 @@ var moment = require('moment');
 var _ = require('lodash');
 var gps = require('../gps');
 var req_get = p.make1(require('request').get);
-var colots = require('colors')
+var colors = require('colors')
 
 var events_paging_delay = 50;
 var events_get_delay = 200;
@@ -58,7 +58,7 @@ module.exports.findVenues = function(opt){
 	var q = {
 		app_key:opt.key,
 		page_number:0,
-		page_size:opt.query_size < 50 ? opt.query_size : 50,
+		page_size: opt.query_size < 50 ? opt.query_size : 50,
 		sort_order: 'popularity',
 		sort_direction: 'descending',
 		units: 'miles',
@@ -83,7 +83,7 @@ module.exports.findVenues = function(opt){
 
 		function get(page){
 			q.page_number = page;
-			//console.log(url + '?' + qs.stringify(q))
+			console.log('get eventful page : '.yellow, (url + '?' + qs.stringify(q) ).grey )
 			request.get({
 				url : url + '?' + qs.stringify(q),
 				json: true
@@ -91,13 +91,13 @@ module.exports.findVenues = function(opt){
 				
 
 				if(err){
-					console.log('EVENTFUL GET VENUES ERR',err);
+					console.log('EVENTFUL GET VENUES ERR'.bgRed,err);
 					return this.resolve(null);
 				};
 
 
 				if(dat.venues == null || (dat.venues != null && dat.venues.venue == null)){
-					console.log('EVENTFUL NO VENUES FOUND',dat);
+					console.log('EVENTFUL NO VENUES FOUND'.bgRed,dat);
 					return this.resolve(null);
 				};
 
@@ -105,11 +105,12 @@ module.exports.findVenues = function(opt){
 				if(page == 0){
 					var max_p = Math.floor(limit/dat.page_size+0.99999)
 					this.total = dat.page_count > max_p ? max_p : dat.page_count;
-					console.log('EVENTFUL TOTAL PAGES:',this.total,'TOTAL:',dat.total_items);
+					console.log('eventful got pages '.magenta,this.total,'/',dat.total_items);
 					for(var pge = 1;pge<this.total;pge++){
 						p.pipe(pge).delay(opt.get_delay*(pge-1)).then(get.bind(this));
 					};
 				};
+
 
 
 				this.data = this.data.concat(dat.venues.venue);
@@ -130,9 +131,15 @@ module.exports.findVenues = function(opt){
 
 	//GET FULL VENUES
 	return getAll().then(p.async(function(raw_venues){
-		if(raw_venues == null) return p.pipe(null);
+		if(raw_venues == null){
+			console.log('eventful tried to get individual venues but was piped null..(no venues)'.bgRed)
+			return p.pipe(null);
+		}
+		console.log('got all eventful venues'.magenta,raw_venues.length);
+
 		this.data = [];
 		this.total = raw_venues.length;
+
 		_.each(raw_venues,function(v,i){
 			if(v.event_count == 0 && GET_EMPTY == false){
 				this.total--;
@@ -142,12 +149,15 @@ module.exports.findVenues = function(opt){
 			.delay(opt.get_delay/2*i)
 			.then(module.exports.getVenue)
 			.then(function(v_full){
-				
 				this.data.push(v_full);
 				this.checkAsync();
-				console.log('eventful got full',this.count,'/',this.total)
+				console.log('eventful got venue'.green,this.count,'/',this.total,'(',raw_venues.length,')');
 			}.bind(this));
 		}.bind(this))
+
+		this.cb = function(){
+			delete raw_venues;
+		}
 
 		return this.promise;
 	}));
@@ -187,12 +197,15 @@ var get = p.sync(function(uri,opt){
 					.then(get_fn.bind(this));
 					return
 				}else{
+					if(tries > 1){
+						console.log('eventful get retry success'.cyan,'(',tries,')')
+					}
 					return this.resolve(null)
 				}
 			}
 			//console.log('eventful get ',uri);
 			if(err){
-				console.log('EVENTFUL GET ERR retry in 500'.bgRed,err);
+				console.log( ('EVENTFUL GET ERR retry in 500 '+err.code).red , ('TRY #'+tries).yellow );
 				p.pipe()
 				.delay(500)
 				.then(get_fn.bind(this));
@@ -563,7 +576,7 @@ module.exports.parseVenue = function(venue){
 		return getAllEvents(host_city,venue.id)
 	})
 	.tap(function(evnts){
-		if(evnts!= null) console.log('got events',evnts.length);
+		if(evnts!= null) console.log('eventful got events'.green,'(',evnts.length,')');
 		else console.log('no events');
 	})
 	.then(getEvents)

@@ -111,10 +111,14 @@ eventSchema.methods.validateEvent = function(next){
 //extract artists from raw data and map the synced artists to the event headliners/openers
 eventSchema.pre('validate',function(next){
 
-
-
 	var self = this;
 
+	if(self.artists.headliners.length > 0 || self.artists.openers.length > 0){
+	//	console.log('EVENT HAS ARTISTS.'.bgGreen,self.artists.headliners.length,self.artists.openers.length)
+	}else{
+		console.log('EVENT HAS ARTISTS.'.grey,self.artists.headliners.length,self.artists.openers.length)
+	}
+	
 
 	var groups_promises = _.map({headliners:self.artists.headliners,openers:self.artists.openers},function(group,key){
 		return Promise.map(group,function(artist){
@@ -122,16 +126,16 @@ eventSchema.pre('validate',function(next){
 			else return Artist.Sync(artist);
 		})
 		.then(function(group){
-			self.artists[key] = _.unique(util.null_filter(group),function(artist){
-				return artist._id
-			});
+			self.artists[key] = _.unique(util.null_filter(group));
 		})
 	})
 	
 	return Promise.all(groups_promises).finally(function(){
+	//	console.log('MAPPED EVENT ARTISTS'.bold.yellow,JSON.stringify(self.artists,null,5))
 		self.validateEvent(next)
 	})
 });
+
 
 
 

@@ -80,7 +80,10 @@ function getVenueEvents(id,delay){
 			console.log('ticketfly get venue events err'.bgRed,err);
 			return p.pipe(null);
 		}
-		if(dat == null || dat.events == null || dat.events.length == 0) return p.pipe(null);
+		if(dat == null || dat.events == null || dat.events.length == 0){
+			console.log( ('ticketfly venue '+id+' has no events').yellow,dat.events.length)
+			return p.pipe(null);
+		} 
 		else return dat.events
 	});
 }
@@ -101,7 +104,9 @@ module.exports.getVenues = p.async(function(opt){
 
 
 
-
+	this.cb = function(){
+		console.log('GOT ALL TICKETFLY VENUES.'.green)
+	}
 
 
 
@@ -131,26 +136,30 @@ module.exports.getVenues = p.async(function(opt){
 
 	
 			//reduce venues
-			console.log('total venues',dat.venues.length)
+			console.log('ticketfly total venues',dat.venues.length)
 
+
+			var totes = dat.venues.length;
 			//pipes to get all venues with delay intervals
 			var pipes = _.map(dat.venues,function(venue,i){
 				return getVenueEvents(venue.id,i*50).then(function(events){
 					if(events == null) return p.pipe();
 					venue.events = events;
 					this.data.push(venue);
-					console.log('ticketfly got venue events for :',venue.name,'#'+venue.id,'|',events.length);
+					console.log('ticketfly '.green+this.data.length+'/'+totes+' got venue events'.green,venue.name.grey,'->',String(events.length).yellow);
 					return p.pipe()
 				}.bind(this));
 			}.bind(this));
 
 			//settle all pipes.
 			Promise.settle(pipes).then(function(results){
-				console.log('venues with events',this.data.length);
+				console.log('ticketfly got all venues with events ->',(this.data.length).cyan);
 				this.checkAsync();
 			}.bind(this));
 
 		}.bind(this));
+
+		
 	}
 
 
@@ -236,7 +245,10 @@ module.exports.getVenue = function(opt){
 				console.log('ticketfly get venue events err'.bgRed,err);
 				return p.pipe(null);
 			}
-			if(dat == null || dat.events == null || dat.events.length == 0) return p.pipe(null);
+			if(dat == null || dat.events == null || dat.events.length == 0){
+				console.log('ticketfly venue has no events'.yellow,dat.events.length)
+				return p.pipe(null);
+			}
 			else return p.pipe(dat.events)
 		});
 	}

@@ -281,61 +281,37 @@ var min_gps_status = 1;
 //MAIN SYNC LOGIC
 venueSchema.statics.Sync = function(raw_json,overwrite){
 
-
 	var self = this;
-
-
-	var venue = new Venue(raw_json);
-
+	var venue = new Venue(raw_json); //large memory allocation happens here.
 
 	//validate raw json
-	return p.sync(function(){
-		venue.validate(function(err){
-			if(err) this.reject(err);
-			else this.resolve(venue)
-		}.bind(this))
-		return this.promise;
-	})()
-
+	return venue.validateAsync()
 	.then(function(){
-
-
 
 		if(overwrite == true){
 			console.log('OVERWRITE VENUE'.red.bgYellow)
-
 			//fill gps and sync venue
-			return self.fillGPS(venue)
-			.then(function(venue){
-				console.log(venue)
-
-				return self.syncVenue(venue)
-			})
-
-		}else{
-
-			//try and syncvenue by ID
-			return self.syncVenueById(venue).then(function(res){
-
-
-				//SYNC VENUE BY ID GOOD
-				if(res != false){
-					doc = undefined;
-					return p.pipe(null);
-
-				//SYNC VENUE BY ID BAD, FILL GPS AND DO A FULL SYNC
-				}else{
-					console.log('could not sync venue by id..'.white.bg + ' (creating new entry)'.cyan)
-					return self.fillGPS(venue)
-					.then(function(venue){
-						return self.syncVenue(venue)
-					})
-				}
-			})
+			return self.fillGPS(venue).then(self.syncVenueFull.bind(self))
 		}
-	}).then(function(){
+	
+		//try and syncvenue by ID
+		return self.syncVenueById(venue).then(function(res){
+
+			//SYNC VENUE BY ID GOOD
+			if(res != false){
+				res = undefined;
+				return p.pipe(venue);
+
+			//SYNC VENUE BY ID BAD, FILL GPS AND DO A FULL SYNC
+			}else{
+				console.log('could not sync venue by id..'.white.bg + ' (creating new entry)'.cyan)
+				return self.fillGPS(venue).then(self.syncVenueFull.bind(self))
+			}
+		})	
+	}).finally(function(){
+		console.log('done w/ sync venue, deleting...\n\n\n'.green)
 		delete venue;
-		return p.pipe(null)
+		venue = undefined;
 	})
 }
 
@@ -557,17 +533,14 @@ venueSchema.statics.findByName = function(venue){
 
 
 
-var saveVenue = p.sync(function(doc,check_val){
+var saveVenue = p.sync(function(doc){
 
 	doc.save(function(err){
-		if(err){
-			//console.log('VENUE SAVE FAILED'.bgRed,doc.name.red,err);
-			this.reject(err)
-		}else{
+		if(err) this.reject(err)
+		else{
 			console.log('VENUE SAVED'.bold.bgCyan,doc.name);
-			this.resolve(true)
+			this.resolve(doc)
 		}
-		doc = undefined;
 	}.bind(this));
 
 	return this.promise;
@@ -588,17 +561,13 @@ var saveVenue = p.sync(function(doc,check_val){
 
 
 //Venue Full Sync
-venueSchema.statics.syncVenue = function(venue,check_val){
+venueSchema.statics.syncVenueFull = function(venue,check_val){
 	var self = this;
 
 	var check_val = check_val || true;
 
-
-
-	
-
 	//try to find by gps
-	return self.findByGPS(venue)
+	return this.findByGPS(venue)
 	
 
 	//try to find by name
@@ -626,7 +595,7 @@ venueSchema.statics.syncVenue = function(venue,check_val){
 
 
 				console.log('DB FULL VENUE MERGE:'.green,venue.name,d.name.inverse);
-				m_d = merge.venue(d,venue,null,check_val);
+				m_d = merge.venue(d,venue,null,check_val); //m_d = merge venue
 				if(m_d != false){
 					d.set(m_d);
 					pipe = p.pipe(d);
@@ -658,16 +627,9 @@ venueSchema.statics.syncVenue = function(venue,check_val){
 
 
 
-
-
-
-
 //Venue Id sync
 venueSchema.statics.syncVenueById = function(venue){
 
-
-
-	console.log(venue.platformIds)
 	return this.findOneAsync({
 		platformIds: {$in : venue.platformIds},
 		//'location.status': {$gt : min_gps_status}
@@ -695,30 +657,9 @@ venueSchema.statics.syncVenueById = function(venue){
 			doc.set(fields);
 		}
 
-		venue = undefined;
 		return saveVenue(doc)
 	})
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

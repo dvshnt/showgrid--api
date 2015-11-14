@@ -150,17 +150,13 @@ artistSchema.statics.findByName = function(artist){
 artistSchema.statics.Sync = function(artist){
 	var self = this;
 
-
-	console.log('creating new artist model')
-	artist = new Artist(artist);
-	console.log('done creating new artist model')
-
+	artist = new Artist(artist); //lots of memory allocation here
+	
 	p.sync(function(){
 		artist.validate(function(err){
 			if(err) return this.reject(new Error('artist validation error'));
 			else this.resolve(artist)
 		}.bind(this))
-
 		return this.promise;
 	})()
 
@@ -218,9 +214,6 @@ artistSchema.statics.Sync = function(artist){
 			return this.promise;
 		}));
 		
-	}).then(function(){
-		delete artist;
-		return p.pipe(null)
 	})
 }
 

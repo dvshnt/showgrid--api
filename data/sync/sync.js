@@ -40,7 +40,7 @@ function filterEmpty(data){
 		data['venue'] = _.filter(data['venue'],function(venue){
 			if(venue.events != null && venue.events.length > 0) return true;
 			
-			console.log('FILTER EMPTY VENUE [ %s ]'.yellow,venue.name);
+			console.log('FILTER EMPTY VENUE ['.yellow +' %s '.cyan + ('] -> %s').yellow,venue.name,venue.platforms[0].name);
 			return false ;
 		});		
 	}
@@ -195,9 +195,7 @@ var syncData = function(opt){
 
 	//sync artists.
 	.then(function(dat){
-
 		var total_n = dat['artist'].length, total = 0;
-
 		return Promise.map(dat['artist'],function(raw_artist_json){
 			return Artist.Sync(raw_artist_json).finally(function(){
 				console.log('synced artist',++total,'/',total_n,'\n\n');
@@ -206,7 +204,7 @@ var syncData = function(opt){
 		.then(function(){
 			return p.pipe(dat)
 		})
-	}) //node.js...NEVER AGAIN
+	})
 
 
 	//event.venue -> venue.events
@@ -223,17 +221,37 @@ var syncData = function(opt){
 
 
 		var pipe = p.pipe();
-
+		var total = 0;
+		var batch_count = 0;
 
 		//split models up into chunks of promise maps so that references get deleted and become available for the GC.
-		_.each(batches,function(batch){
+		_.each(batches,function(batch,i){
 			pipe = pipe.then(function(){
 				return Promise.map(batch,function(raw_venue_json){
-					return Venue.Sync(raw_venue_json,overwrite).reflect().tap(function(){
+					return Venue.Sync(raw_venue_json,overwrite).finally(function(){
 						succ++;
 						console.log('synced venue',++total,'/',total_n,'\n\n');
-					}).reflect();
-				},{concurrency:1})
+						
+						/* try and dereference? */
+						dat['venue'][total] = undefined;
+						raw_venue_json = undefined;
+					
+					}).catch(function(e){
+						console.log('failed synced venue'.bgRed,'\n',e);
+						if(e.stack != null){
+							console.log(e.stack.split('\n')[1])
+						}
+					})
+				},{concurrency:1}).finally(function(){
+
+
+					/* try and dereference? */
+					batch = undefined
+					batches[i] = undefined;
+					
+					util.logMem(); //log memory
+					if(++batch_count > 5) process.exit(0); //stop debug	
+				})
 			})
 		})
 
