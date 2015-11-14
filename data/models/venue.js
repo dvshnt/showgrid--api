@@ -127,7 +127,7 @@ venueSchema.pre('save',function(next){
 
 
 venueSchema.pre('validate',function(next){
-
+	if(this.banners == null) this.banners = [];
 	this.name = this.name.replace(/[\\\+\@\^\*\(\)]/,'')
 
 

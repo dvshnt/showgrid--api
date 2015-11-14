@@ -1,7 +1,7 @@
 //dependecies
 var morgan = require('morgan');
 var express = require('express'); //express for routing
-var debug = require('debug')('api');
+//var debug = require('debug')('api');
 var bodyParser = require('body-parser');
 var colors = require('colors');
 
@@ -17,10 +17,11 @@ app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x
 
 
 //Use Passport
+/*
 var passport = require('passport');
 app.use(passport.initialize());
 app.use(passport.session());
-
+*/
 
 
 //main API route.

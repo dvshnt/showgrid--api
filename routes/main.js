@@ -2,7 +2,7 @@ var cfg = require('../data/config.json');
 
 var router = require('express').Router();
 var data = require('../data/data');
-var update = require('../data/update');
+/*var update = require('../data/updateAll');*/
 var cities = require('cities');
 var Promise = require('bluebird');
 var p = require('../data/pFactory');
@@ -392,9 +392,9 @@ router.route('/artist/:id')
 	//.put(updateArtist)
 
 //UPDATE ROUTES
-router.route('/update')
+/*router.route('/update')
 	.get(updateAll)
-
+*/
 
 module.exports = router;
 

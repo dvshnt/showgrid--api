@@ -44,14 +44,14 @@ fb.getKey().then(function(fb_key){
 	return update({
 		//overwrite: true,
 		//sync: false, // default is true, if set to false will only save cache (if save_cache set to true)
-		filter_empty: false, //try and only save venues with events, other venues are useless
+		filter_empty: true, //try and only save venues with events, other venues are useless
 		min_gps_status: 2, //this or greater location status will be updated automatically, otherwise will try and find gps (again)
 
 		//use preexisting cache to sync/merge
 		//use_cache: true,
 		save_cache: true,
 
-		//clear_cache: true,
+		clear_cache: true,
 
 		//if these words are found in a venue name, that venue will be ignored. (default is library & church)
 		bad_words: [
@@ -64,7 +64,7 @@ fb.getKey().then(function(fb_key){
 
 		//parameters
 		params: {
-			zip: '89502',
+			zip: '37201',
 			country: 'US',
 			radius: 25,
 			query_size: q_size,
@@ -90,7 +90,7 @@ fb.getKey().then(function(fb_key){
 				},
 			},
 
-/*			'ticketfly': {
+			'ticketfly': {
 				endpoints: {'venue':{
 					radius: 0
 				}},
@@ -120,7 +120,7 @@ fb.getKey().then(function(fb_key){
 			 		get_delay: 600,
 			 		key : api_cfg.jambase.keys[3],
 			 	},
-			 }*/
+			 }
 		},
 	})
 }).tap(function(){
