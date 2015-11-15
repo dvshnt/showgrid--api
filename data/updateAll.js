@@ -1,6 +1,7 @@
 var Promise = require('bluebird');
 var _ = require('lodash');
 var db = require('./data.js');
+var mongoose = require('mongoose');
 var colors = require('colors');
 var fuzzy = require('fuzzyset.js'); //fuzzy matching for finding models that are similar.
 var p = require('./pFactory'); //promise factory shortucts.
@@ -22,10 +23,6 @@ if(db.venue == null) return console.error('RECURSIVE MODULE REQUIRE ERROR')
 
 Promise.longStackTraces();
 
-
-setInterval(function(){
-	util.logMem();
-}, 5000)
 
 //This function is not refactored and does not need to be bothered...pretty much hooks up parameters and functions from the ./scrapers.js file and passes the data to sync.js
 
@@ -81,21 +78,29 @@ var main = p.async(function(opt){
 					//filter delay.
 					.delay(params.filter_delay != null ? params.filter_delay*i : 0)
 					
+
+
 					//filter pipe wrapper
 					.then(function(){
+						if(doc == null) return p.pipe(null);
 						return p.pipe(scraper.filters[endpoint](doc))
 					})
 					
 					//fill cache if save_cache is set to true.
 					.then(function(raw_doc){
 						if(raw_doc != null && save_cache == true){
-							return util.fillCache([raw_doc])
+							return util.fillCache(raw_doc)
 							.then(function(){
+								delete mongoose.models['Cache'];
+								delete mongoose.connection.collections['caches'];
+								delete mongoose.modelSchemas['Cache'];
+								if(global != null && global.gc != null) global.gc(); //call garbage collector, if --expose-gc
+								util.logMem();
 								console.log('cache saved'.cyan,raw_doc.name);
 								return p.pipe(raw_doc)
 							});
-						} 
-						else return p.pipe(raw_doc)
+						}
+						else return p.pipe(null)
 					})
 
 

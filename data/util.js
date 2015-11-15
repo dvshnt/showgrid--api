@@ -74,7 +74,7 @@ module.exports.logMem = function(){
 
 //test doc
 var DocSchema = new mongoose.Schema({
-	id: {type:String/*,index:{unique: true}*/},
+	pid: {type:String,unique: true},
 	json: {type:String},
 	created: { type: Date, default: Date.now },
 });
@@ -84,7 +84,7 @@ var DocSchema = new mongoose.Schema({
 
 
 
-var Doc = mongoose.model('Doc',DocSchema);
+var Doc = mongoose.model('Cache',DocSchema);
 
 
 
@@ -97,35 +97,33 @@ module.exports.clearCache = function(){
 }
 
 
-module.exports.fillCache = function(data){
-	return Promise.settle(_.map(data,function(doc){
-		try{
-			n_doc = JSON.stringify(doc);
-		}catch(e){
-			n_doc = null;
-		}finally{
-			if(doc != null){
-				var vars = {json:n_doc};
-
-				//generate id
-				try{
-					vars.id = doc.platforms[0].name+'/'+doc.platforms[0].id;
-					
-				}catch(e){
-					vars.id = (Math.random()*10000).toString()
-					console.log('create cache err, could not generate id',e)
-				}
-
-
-				return new Doc(vars).save(function(e){
-					if(e){
-						console.log('save cache err'.red, e.message)
-					}
-					return(e != null ? null : doc);	
-				});
+module.exports.fillCache = function(doc){
+	var pid = doc.platforms[0].name+'/'+doc.platforms[0].id
+	//console.log('save cache id'.cyan,String(pid).bold.green);
+	return new Promise(function(res,rej){
+		Doc.findOne({
+			pid: pid
+		},function(err,found_doc){
+			if(found_doc){
+				console.log('cache found'.bold.cyan,pid)
+				found_doc.json = JSON.stringify(doc)
+				found_doc.save(function(e){
+					if(e) return rej(e);
+					else res(null);
+				})
+			}else{
+				console.log('new cache'.bold.yellow,pid)
+				var n_doc = new Doc({
+					pid: pid,
+					json: JSON.stringify(doc)
+				})
+				n_doc.save(function(e){
+					if(e) return rej(e);
+					else res(null);
+				})
 			}
-		}
-	}))
+		})
+	})
 }
 
 module.exports.getCache = function(size){

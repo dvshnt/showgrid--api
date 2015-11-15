@@ -184,6 +184,8 @@ var get = p.sync(function(uri,opt){
 	
 	//console.log(url + '?' + qs.stringify(q));
 	var get_fn = function(){
+
+		console.log('eventful get'.green, (url + '?' + qs.stringify(q)).grey )
 		request.get({
 			url : url + '?' + qs.stringify(q),
 			json: true
@@ -197,9 +199,7 @@ var get = p.sync(function(uri,opt){
 					.then(get_fn.bind(this));
 					return
 				}else{
-					if(tries > 1){
-						console.log('eventful get retry success'.cyan,'(',tries,')')
-					}
+					
 					return this.resolve(null)
 				}
 			}
@@ -209,7 +209,12 @@ var get = p.sync(function(uri,opt){
 				p.pipe()
 				.delay(500)
 				.then(get_fn.bind(this));
-			}else this.resolve(data);
+			}else{
+				if(tries > 1){
+					console.log('eventful get retry success'.bold.cyan,'(',tries,')')
+				}
+				this.resolve(data);
+			} 
 		}.bind(this)); 
 	}
 
@@ -467,7 +472,10 @@ module.exports.parseVenue = function(venue){
 
 		//get
 		function get(page){
+
+			if(page > 5) return this.resolve(data);
 			var url = 'http://'+city+'.eventful.com/json/esi/venues/list_events/'+id+'?page_number='+page;
+			console.log('eventful get venue all events'.green,url.grey);
 			req_get({
 				url: url,
 				json: true
@@ -489,13 +497,13 @@ module.exports.parseVenue = function(venue){
 					return this.resolve(data)
 				}
 			}.bind(this)).catch(function(e){
-				if(e.code == 'ECONNRESET'){
+				if(e.code == 'ECONNRESET' || e.code == 'ETIMEDOUT'){
 					console.log('get eventful venue events con reset, retrying in 500');
 					p.pipe(page).delay(500).then(get.bind(this));
 
 				}else{
 					console.log('get eventful venue events err'.bgRed,e,url);
-					this.resolve(data);
+					this.resolve(null);
 				}
 				
 			}.bind(this));
@@ -538,13 +546,16 @@ module.exports.parseVenue = function(venue){
 				id: e.seid,
 				delay: this.total*events_get_delay
 			})
-
 			//PUSH
 			.then(function(e){
 				e.tz_olson_path = e.tz_olson_path || TIMEZONE;
 				if(e != null) this.data.push(module.exports.parseEvent(e))
 				this.checkAsync();
-			}.bind(this));
+			}.bind(this)).timeout(5000).catch(function(e){
+				console.log('eventful get individual event timeout error'.red,e);
+				this.checkAsync();
+				return;
+			}.bind(this))
 
 		}.bind(this));
 
@@ -576,7 +587,7 @@ module.exports.parseVenue = function(venue){
 		return getAllEvents(host_city,venue.id)
 	})
 	.tap(function(evnts){
-		if(evnts!= null) console.log('eventful got events'.green,'(',evnts.length,')');
+		if(evnts!= null) console.log('eventful got events'.green,n_venue.name,'(',evnts.length,')');
 		else console.log('no events');
 	})
 	.then(getEvents)
@@ -589,7 +600,7 @@ module.exports.parseVenue = function(venue){
 		n_venue.events = dat;
 		venue = null;
 		return p.pipe(n_venue);
-	});
+	})
 };
 
 

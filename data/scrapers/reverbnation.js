@@ -130,9 +130,8 @@ function search(type,opt){
 
 
 			//LOG
-			process.stdout.clearLine();
-			process.stdout.cursorTo(0);
-			process.stdout.write(''+page.toString().gray+' '+results.length.toString().yellow+' / '+opt.query_size.toString().cyan);
+			console.log('reverbnation got venues'.green,String(results.length).gray,'/',String(opt.query_size).gray);
+			
 
 
 			

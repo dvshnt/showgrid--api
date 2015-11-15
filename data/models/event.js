@@ -114,10 +114,10 @@ eventSchema.pre('validate',function(next){
 	var self = this;
 
 	if(self.artists.headliners.length > 0 || self.artists.openers.length > 0){
-	//	console.log('EVENT HAS ARTISTS.'.bgGreen,self.artists.headliners.length,self.artists.openers.length)
-	}else{
-		console.log('EVENT HAS ARTISTS.'.grey,self.artists.headliners.length,self.artists.openers.length)
+		console.log('EVENT HAS ARTISTS.'.bgGreen,self.artists.headliners.length,self.artists.openers.length)
 	}
+	// //console.log('EVENT HAS ARTISTS.'.grey,self.artists.headliners.length,self.artists.openers.length)
+	// }
 	
 
 	var groups_promises = _.map({headliners:self.artists.headliners,openers:self.artists.openers},function(group,key){

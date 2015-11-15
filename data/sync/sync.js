@@ -191,10 +191,7 @@ var syncData = function(opt){
 	return splitByType(dataset)
 	.then(filterEmpty) //just bad data filters
 	.then(filterBad) //just bad data filters
-
-
-	//sync artists.
-	.then(function(dat){
+	.then(function(dat){ //sync artists.
 		var total_n = dat['artist'].length, total = 0;
 		return Promise.map(dat['artist'],function(raw_artist_json){
 			return Artist.Sync(raw_artist_json).finally(function(){
@@ -205,66 +202,40 @@ var syncData = function(opt){
 			return p.pipe(dat)
 		})
 	})
-
-
-	//event.venue -> venue.events
-	.then(flipEvents)
-
-
-	//sync venues
-	.then(function(dat){
-		var fail = 0;
-		var succ = 0;
-		var total_n = dat['venue'].length;
-		var total = 0;
-		var batches = _.chunk(dat['venue'],20);
-
-
+	.then(flipEvents) //event.venue -> venue.events
+	.then(function(dat){ //sync venues
 		var pipe = p.pipe();
-		var total = 0;
-		var batch_count = 0;
-
-		//split models up into chunks of promise maps so that references get deleted and become available for the GC.
-		_.each(batches,function(batch,i){
-			pipe = pipe.then(function(){
-				return Promise.map(batch,function(raw_venue_json){
-					return Venue.Sync(raw_venue_json,overwrite).finally(function(){
-						succ++;
-						console.log('synced venue',++total,'/',total_n,'\n\n');
-						
-						/* try and dereference? */
-						dat['venue'][total] = undefined;
-						raw_venue_json = undefined;
-					
-					}).catch(function(e){
-						console.log('failed synced venue'.bgRed,'\n',e);
-						if(e.stack != null){
-							console.log(e.stack.split('\n')[1])
-						}
-					})
-				},{concurrency:1}).finally(function(){
-
-
-					/* try and dereference? */
-					batch = undefined
-					batches[i] = undefined;
-					
-					util.logMem(); //log memory
-					if(++batch_count > 5) process.exit(0); //stop debug	
+		for(var i = 0; i<dat['venue'].length;i++){
+			pipe = pipe.then(function(i){
+				return Venue.Sync(dat['venue'][i],overwrite)
+				.catch(function(e){
+					console.log('failed synced venue'.bgRed,'\n',e);
+					if(e.stack != null) console.log(e.stack.split('\n')[1])	
 				})
-			})
-		})
+				.finally(function(){
+			
+					console.log('synced venue'.green,i+1,'/',dat['venue'].length,'\n\n');
+					
+					/* delete synced data */
+					delete db.models['Venue'];
+					delete db.connection.collections['venues'];
+					delete db.modelSchemas['Venue'];
+					dat['venue'][i] = undefined;
+					if(global != null && global.gc != null) global.gc(); //call garbage collector, if --expose-gc
+				
+					util.logMem();
 
-		return pipe.then(function(){
-			return [succ,total_n]
-		});
+				})
+			}.bind(null,i))
+		}
+		return pipe
 	})
 
 	//the end :)
-	.spread(function(succ,total_n){
-		console.log( (succ + ' / ' + total_n).bgCyan )
-		console.log('DONE W/ SYNC'.bgCyan)
-	})
+	// .spread(function(succ,total_n){
+	// 	console.log( (succ + ' / ' + total_n).bgCyan )
+	// 	console.log('DONE W/ SYNC'.bgCyan)
+	// })
 }
 
 

@@ -277,41 +277,52 @@ var	keys =
 
 var min_gps_status = 1;
 
+venueSchema.statics.Validate = function(venue){
+	return new Promise(function(res,rej){
+		venue.validate(function(err){
+			if(err) rej(err)
+			else{
+				console.log('venue validated'.green,venue.name);
+				res(null)
+			}
+		})
+	})
+};
+
+
 
 //MAIN SYNC LOGIC
 venueSchema.statics.Sync = function(raw_json,overwrite){
-
 	var self = this;
-	var venue = new Venue(raw_json); //large memory allocation happens here.
 
-	//validate raw json
-	return venue.validateAsync()
-	.then(function(){
+	var venue = new Venue(raw_json);
 
-		if(overwrite == true){
-			console.log('OVERWRITE VENUE'.red.bgYellow)
-			//fill gps and sync venue
-			return self.fillGPS(venue).then(self.syncVenueFull.bind(self))
-		}
-	
-		//try and syncvenue by ID
-		return self.syncVenueById(venue).then(function(res){
-
-			//SYNC VENUE BY ID GOOD
-			if(res != false){
-				res = undefined;
-				return p.pipe(venue);
-
-			//SYNC VENUE BY ID BAD, FILL GPS AND DO A FULL SYNC
-			}else{
-				console.log('could not sync venue by id..'.white.bg + ' (creating new entry)'.cyan)
+	return new Promise(function(res,rej){
+		venue.validateAsync().then(function(){
+			if(overwrite == true){
+				console.log('OVERWRITE VENUE'.red.bgYellow)
+				//fill gps and sync venue
 				return self.fillGPS(venue).then(self.syncVenueFull.bind(self))
 			}
-		})	
-	}).finally(function(){
-		console.log('done w/ sync venue, deleting...\n\n\n'.green)
-		delete venue;
-		venue = undefined;
+		
+			//try and syncvenue by ID
+			return self.syncVenueById(venue).then(function(res){
+
+				//SYNC VENUE BY ID GOOD
+				if(res != false){
+					delete res;
+					return p.pipe(null);
+				}else{
+					console.log('could not sync venue by id..'.yellow + ' (creating new entry)'.cyan)
+					return self.fillGPS(venue).then(self.syncVenueFull.bind(self))
+				}
+			})	
+		}).then(function(){
+			delete venue;
+			res(null)
+		}).catch(function(err){
+			rej(err)
+		})
 	})
 }
 
@@ -539,7 +550,7 @@ var saveVenue = p.sync(function(doc){
 		if(err) this.reject(err)
 		else{
 			console.log('VENUE SAVED'.bold.bgCyan,doc.name);
-			this.resolve(doc)
+			this.resolve(null)
 		}
 	}.bind(this));
 
@@ -651,12 +662,13 @@ venueSchema.statics.syncVenueById = function(venue){
 
 		if(fields == false){
 			console.log('VENUE MERGE FAILED'.bgRed)
+			delete fields;
 			return p.pipe(null)
 		}else{
 			//console.log('SYNC DB.VENUE BY ID FOUND'.bold.bgGreen)
 			doc.set(fields);
 		}
-
+		delete fields
 		return saveVenue(doc)
 	})
 }
