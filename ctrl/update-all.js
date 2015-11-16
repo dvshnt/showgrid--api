@@ -24,7 +24,7 @@ var fb_key = null;
 
 
 
-var q_size = 10;
+var q_size = 1000;
 var eventful_max = 1000; //eventful has too much data, most of it seems to be irrelevant and is sorted by popularity.
 
 
@@ -48,8 +48,8 @@ fb.getKey().then(function(fb_key){
 		min_gps_status: 2, //this or greater location status will be updated automatically, otherwise will try and find gps (again)
 
 		//use preexisting cache to sync/merge
-		//use_cache: true,
-		save_cache: true,
+		use_cache: true,
+	//	save_cache: true,
 		/*
 
 		#depreciated#
@@ -99,40 +99,40 @@ fb.getKey().then(function(fb_key){
 				},
 			},
 
-			// 'ticketfly': {
-			// 	endpoints: {'venue':{
-			// 		radius: 0
-			// 	}},
-			// },
+			 'ticketfly': {
+			 	endpoints: {'venue':{
+			 		radius: 0
+			 	}},
+			 },
 
-			//  'facebook': {
+			  'facebook': {
 				
-			//  	endpoints: {'venue':null},
-			//  	params: {
-			//  		filter_delay: 300,
-			//  		key: fb_key
-			//  	}
-			//  },
+			  	endpoints: {'venue':null},
+			  	params: {
+			  		filter_delay: 300,
+			  		key: fb_key
+			  	}
+			  },
 
-			//  'reverbnation' : {
-			//  	endpoints : {
-			//  		'venue' : {
-			//  			get_delay: 400,
-			//  			filter_delay: 500
-			//  		}
-			//  	},
-			//  	params: {
-			//  		query_size: 500,
-			//  	}
-			//  },
+			  'reverbnation' : {
+			  	endpoints : {
+			  		'venue' : {
+			  			get_delay: 400,
+			  			filter_delay: 500
+			  		}
+			  	},
+			  	params: {
+			  		query_size: 500,
+			  	}
+			  },
 
-			//  'jambase' : {
-			//  	endpoints : {'venue':null},
-			//  	params: {
-			//  		get_delay: 600,
-			//  		key : api_cfg.jambase.keys[3],
-			//  	},
-			//  }
+			  'jambase' : {
+			  	endpoints : {'venue':null},
+			  	params: {
+			  		get_delay: 600,
+			  		key : api_cfg.jambase.keys[3],
+			  	},
+			  }
 		},
 	})
 }).then(function(){
