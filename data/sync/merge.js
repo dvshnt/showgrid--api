@@ -57,7 +57,7 @@ function confirm(type,merged_v,old_v,new_v,check){
 	//console.log(old_1.name.bgRed,old_2.name.bgRed)
 	if(check == false){
 		console.log((type == 'venue' ? type.bold.cyan : type.bold.yellow),'auto-merge'.green,old_v.name.yellow,' + ',new_v.name.cyan);
-		return p.pipe(merged_v);
+		return merged_v;
 	}
 	var o_string = JSON.stringify(old_v,null,4);
 	var n_string = JSON.stringify(new_v,null,4);
@@ -119,19 +119,21 @@ function confirm(type,merged_v,old_v,new_v,check){
 		if( merged_v.events != null) console.log( ('merged (old+new) events # '+ merged_v.events.length).yellow )
 
 		console.log('do you want to merge \n',old_v.name.green,' + ',new_v.name.cyan,'(new) \n='.gray,'\n',merged_v.name.yellow);
-		console.log('[n | no for no] | [.* for yes]\n: ');
+		console.log('[n or no for NO] | [yes or y for YES]\n: ');
 		var answer = util.getLine();
+		console.log('[',answer,']');
 
-		if(answer === 'no' || answer === 'n'){
+		if(answer == 'no\n' || answer == 'n\n'){
 			console.log("NO".red,' will create new entry');
 			return(false)
-		}else{
+		}else if(answer == 'yes\n' || answer == 'y\n'){
 			console.log("YES".green,' the new model is', merged_v.name.yellow);
-
-			
-			
 			return(merged_v)
-		}
+		}else{
+
+			console.log('wrong answer, try again'.red);
+			return ask();
+		} 
 	}
 
 	return ask()	
