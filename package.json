@@ -25,7 +25,6 @@
     "node-schedule": "^0.2.9",
     "parse-address": "0.0.4",
     "querystring": "^0.2.0",
-    "readline-sync": "^1.2.19",
     "request": "^2.65.0",
     "sync": "^0.2.5"
   }

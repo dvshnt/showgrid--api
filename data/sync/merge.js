@@ -36,7 +36,7 @@ var _ = require('lodash')
 ,util = require('../util')
 ,readline = require('readline')
 Promise.longStackTraces();
-var rl = require('readline-sync');
+var rl = require('readline');
 
 
 
@@ -57,7 +57,7 @@ function confirm(type,merged_v,old_v,new_v,check){
 	//console.log(old_1.name.bgRed,old_2.name.bgRed)
 	if(check == false){
 		console.log((type == 'venue' ? type.bold.cyan : type.bold.yellow),'auto-merge'.green,old_v.name.yellow,' + ',new_v.name.cyan);
-		return merged_v;
+		return p.pipe(merged_v);
 	}
 	var o_string = JSON.stringify(old_v,null,4);
 	var n_string = JSON.stringify(new_v,null,4);
@@ -71,43 +71,43 @@ function confirm(type,merged_v,old_v,new_v,check){
 
 
 
-	console.log('\nOLD\n---------\n'.green);
-	if(o_string.length > max_char_count){
-		console.log('do you want to display this model? (over',max_char_count,')');
-		var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
-		if(answer === 'no' || answer === 'n'){}
-		else console.log(o_string.green)
-	}
+	// console.log('\nOLD\n---------\n'.green);
+	// if(o_string.length > max_char_count){
+	// 	console.log('do you want to display this model? (over',max_char_count,')');
+	// 	var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
+	// 	if(answer === 'no' || answer === 'n'){}
+	// 	else console.log(o_string.green)
+	// }
 
-	console.log('\nNEW\n---------\n'.cyan);
-	if(n_string.length > max_char_count){
-		console.log('do you want to display this model? (over',max_char_count,')');
-		var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
-		if(answer === 'no' || answer === 'n'){}
-		else console.log(n_string.cyan)
-	}
+	// console.log('\nNEW\n---------\n'.cyan);
+	// if(n_string.length > max_char_count){
+	// 	console.log('do you want to display this model? (over',max_char_count,')');
+	// 	var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
+	// 	if(answer === 'no' || answer === 'n'){}
+	// 	else console.log(n_string.cyan)
+	// }
 	
-	console.log('\nMERGED\n---------\n'.yellow);
-	if(m_string.length > max_char_count){
-		console.log('do you want to display this model? (over',max_char_count,')');
-		var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
-		if(answer === 'no' || answer === 'n'){}
-		else 	
-			_.each(m_string.split('\n'),function(str){
-				var n_matched = n_string.indexOf(str);
+	// console.log('\nMERGED\n---------\n'.yellow);
+	// if(m_string.length > max_char_count){
+	// 	console.log('do you want to display this model? (over',max_char_count,')');
+	// 	var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
+	// 	if(answer === 'no' || answer === 'n'){}
+	// 	else 	
+	// 		_.each(m_string.split('\n'),function(str){
+	// 			var n_matched = n_string.indexOf(str);
 				
-				var o_matched = o_string.indexOf(str);
+	// 			var o_matched = o_string.indexOf(str);
 
 
-				if(n_matched != -1 && o_matched != -1) return console.log(str.yellow);
-				if(n_matched != -1) return console.log(str.cyan);
-				if(o_matched != -1) return console.log(str.green);
+	// 			if(n_matched != -1 && o_matched != -1) return console.log(str.yellow);
+	// 			if(n_matched != -1) return console.log(str.cyan);
+	// 			if(o_matched != -1) return console.log(str.green);
 				
 
-				console.log(str.yellow);
-			});
+	// 			console.log(str.yellow);
+	// 		});
 
-	}
+	// }
 
 
 	function ask(){
@@ -119,7 +119,9 @@ function confirm(type,merged_v,old_v,new_v,check){
 		if( merged_v.events != null) console.log( ('merged (old+new) events # '+ merged_v.events.length).yellow )
 
 		console.log('do you want to merge \n',old_v.name.green,' + ',new_v.name.cyan,'(new) \n='.gray,'\n',merged_v.name.yellow);
-		var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
+		console.log('[n | no for no] | [.* for yes]\n: ');
+		var answer = util.getLine();
+
 		if(answer === 'no' || answer === 'n'){
 			console.log("NO".red,' will create new entry');
 			return(false)
