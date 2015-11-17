@@ -119,10 +119,8 @@ function confirm(type,merged_v,old_v,new_v,check){
 		if( merged_v.events != null) console.log( ('merged (old+new) events # '+ merged_v.events.length).yellow )
 
 		console.log('do you want to merge \n',old_v.name.green,' + ',new_v.name.cyan,'(new) \n='.gray,'\n',merged_v.name.yellow);
-		console.log('[n or no for NO] | [yes or y for YES]\n: ');
+		console.log('[n or no for NO] | [yes or y for YES]: ');
 		var answer = util.getLine();
-		console.log('[',answer,']');
-
 		if(answer == 'no\n' || answer == 'n\n'){
 			console.log("NO".red,' will create new entry');
 			return(false)
