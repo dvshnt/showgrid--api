@@ -49,7 +49,7 @@ fb.getKey().then(function(fb_key){
 
 		//use preexisting cache to sync/merge
 		use_cache: true,
-	//	save_cache: true,
+		//save_cache: true,
 		/*
 
 		#depreciated#
@@ -93,7 +93,7 @@ fb.getKey().then(function(fb_key){
 						host_city: 'nashville',
 						query_size: eventful_max,
 						get_delay: 200, //try not to scrape over 500 venues...otherwise ECONN RESET ERR.
-						filter_delay: 300, //try not to scrape over 500 venues...otherwise ECONN RESET ERR.
+						filter_delay: 350, //try not to scrape over 500 venues...otherwise ECONN RESET ERR.
 						get_empty: false, //DO NOT SCRAPE VENUES THAT ARE EMPTY.
 					}
 				},

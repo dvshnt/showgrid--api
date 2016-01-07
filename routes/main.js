@@ -9,6 +9,7 @@ var p = require('../data/pFactory');
 var gps = require('../data/gps');
 var _ = require('lodash');
 var util = require('../data/util');
+var pack = require('../package.json');
 
 
 
@@ -28,19 +29,19 @@ function paginate(type, opt) {
 	opt.limit = util.clamp(opt.limit || cfg.limits.venue[1], cfg.limits.venue[0], cfg.limits.venue[2]);
 	
 	return data
-		.find[type](opt)
-		.spread(function(count, dat) {
-			var r = {
-				total: count,
-				type: type,
-				data: dat || [],
-			};
+	.find[type](opt)
+	.spread(function(count, dat) {
+		var r = {
+			total: count,
+			type: type,
+			data: dat || [],
+		};
 
-			if (dat.length >= opt.limit) {
-				r.next = dat[dat.length-1]._id
-			}
-	
-			return p.pipe(r)
+		if (dat.length >= opt.limit) {
+			r.next = dat[dat.length-1]._id
+		}
+
+		return p.pipe(r)
 	});
 }
 
@@ -358,9 +359,8 @@ function updateArtist(req,res,next){
 }
 
 
-
-router.get('/',function(req,res,next){
-	res.json({api_version:'0.0.1'})
+router.get('/',function(req,res){
+	res.send(pack.version)
 })
 
 //VENUE ROUTES

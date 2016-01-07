@@ -4,7 +4,7 @@ var express = require('express'); //express for routing
 //var debug = require('debug')('api');
 var bodyParser = require('body-parser');
 var colors = require('colors');
-
+var pack = require('./package.json');
 //initialize express app
 var app = express();
 
@@ -25,22 +25,11 @@ app.use(passport.session());
 
 
 //main API route.
-var api = require('./routes/main');
-
-app.get('/test',function(req,res,next){
-    res.send('asd');
-});
-
-
-var router = express.Router();
-router.get('/',function(req,res,next){
-    res.send('asd');
+app.get('/version',function(req,res,next){
+    res.send(pack.version)
 })
 
-
-
-app.use('/api',api);
-
+app.use('/api',require('./routes/main'));
 
 
 
