@@ -8,6 +8,7 @@ var merge = require('../sync/merge'); //merge methods
 var match = require('../sync/match'); //match methods
 var util = require('../util.js'); //util methods
 var colors = require('colors');
+var venueSchema = require('./venue');
 var max_banners = 20;
 
 
@@ -71,6 +72,7 @@ var eventSchema = new db.Schema({
 		height: Number,
 		url: String,
 	}],
+	venue: venueSchema, //all events for this venue
 });
 
 
@@ -151,4 +153,15 @@ eventSchema.path('platformIds').validate(function(value){
 
 
 
-module.exports = eventSchema
+//mongodb event document
+
+var Event = db.model('Event',artistSchema);
+
+Promise.promisifyAll(Event);
+Promise.promisifyAll(Event.prototype);
+
+module.exports = Event;
+
+
+
+

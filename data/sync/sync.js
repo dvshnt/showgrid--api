@@ -29,6 +29,7 @@ function filterBad(data){
 				return false
 			}
 		})
+		console.log("FILTERED".red,venue.name.yellow);
 		return !bad;
 	});
 	return p.pipe(data);
@@ -163,6 +164,7 @@ var flipEvents = function(dat){
 
 
 var syncData = function(opt){
+	
 	var dataset = opt.docs;
 	var overw = opt.overwrite
 	var status = opt.min_gps_status
@@ -174,6 +176,7 @@ var syncData = function(opt){
 	bad_words = _.map(bad_words,function(word){
 		return new RegExp(word,'i')
 	});
+	console.log("bad words regexp");
 
 	if(filter_e == false) filter_empty = false;
 	min_gps_status = status || min_gps_status;

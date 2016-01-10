@@ -225,6 +225,72 @@ match.artist = function(a1,a2){
 
 
 
+
+
+
+
+
+/*
+
+CHECKS
+
+these get called inside merge.[venue,event,artist]
+
+*/
+var check = {};
+
+
+
+
+
+
+//venue double check after merge (NOT A MATCHER)
+check.venue = function(e1,e2,final){
+	if(e1.name == e2.name) return false
+	var name_match = fuzzy([e1.name]).get(e2.name);
+	if(name_match[0][0] > 0.9) return false;
+
+	if(e1.location.address == e2.location.address && name_match[0][0] > 0.6) return false;
+
+	if((e1.location.status == 2 && e1.location.status == 2) && (e1.location.address != e2.location.address)) return true
+	return true
+}
+
+//event double check after merge (NOT A MATCHER)
+check.event = function(e1,e2,check_val){
+	if(match.checkID(e1.platforms,e2.platforms)) return false;
+
+	if(e1.date.start == e2.date.start){
+		console.log('MATCHED EVENTS BY DATE'.bold.yellow,e1.name,e2.name.inverse);
+		return false;
+	}
+
+	return false;
+}
+
+//artist double check after merge (NOT A MATCHER)
+check.artist = function(e1,e2){
+	if(e1.name == e2.name) return false;
+	var name_match = fuzzy([e1.name]).get(e2.name);
+	if(name_match[0][0] > 0.9) return false;
+	
+	console.log('fuzzy match:',name_match)
+
+	return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 module.exports.venue = match.venue;
 module.exports.event = match.event;
 module.exports.artist = match.artist;

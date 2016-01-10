@@ -17,7 +17,9 @@ var parseGPS = gps.toArray //functions from the gps file
 var formatGPS = gps.toObj //functions from the gps file
 var null_filter = require('../util').null_filter //remove any items that are null from an array
 var trimName = require('../util').trimName; //some handy name trimming, mod as you see fit.
-var eventSchema = require('./event');
+
+var Event = require('./event');
+
 
 
 
@@ -67,7 +69,7 @@ var venueSchema = new db.Schema({
 	}],
 	colors: [Number],
 	age: Number,
-	events: [eventSchema], //all events for this venue
+	events: [{type:db.Schema.Types.ObjectId, ref: 'Event'}], //all events for this venue
 });
 
 
@@ -275,25 +277,34 @@ var	keys =
 
 
 
-var min_gps_status = 1;
 
-venueSchema.statics.Validate = function(venue){
-	return new Promise(function(res,rej){
-		venue.validate(function(err){
-			if(err) rej(err)
-			else{
-				console.log('venue validated'.green,venue.name);
-				res(null)
-			}
-		})
-	})
-};
+
 
 
 
 //MAIN SYNC LOGIC
+
+
+/* 
+	since the events are seperate documents, they need to be saved seperately.
+
+	When venue merge happens and we are diffing events within that venue, we check to see if the event is an actual document or just raw json data.
+	when merge finishes, we get back a mix of json data and documents. after venue is saved, we need to save each of its events seperately and reference them.
+
+	
+	venues merged,
+	events are extracted and referenced back to venue when venue gets saved.
+	after events are saved 
+
+
+*/
+
+
+
 venueSchema.statics.Sync = function(raw_json,overwrite){
 	var self = this;
+
+	//raw_json.events = extractEventsJSON(raw_json);
 
 	var venue = new Venue(raw_json);
 
@@ -325,6 +336,126 @@ venueSchema.statics.Sync = function(raw_json,overwrite){
 		})
 	})
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+var min_gps_status = 1;
+
+venueSchema.statics.Validate = function(venue){
+	return new Promise(function(res,rej){
+		venue.validate(function(err){
+			if(err) rej(err)
+			else{
+				console.log('venue validated'.green,venue.name);
+				res(null)
+			}
+		})
+	})
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//extract nested events json objects from venues and save them as seperate doucments, returning and array of ID's to be saved in the venue
+
+var extractEventsJSON = function(venue){
+	var id_array = [];
+	var pipe = Promise.resolve();
+
+
+	return Promise.map(venue.events,function(event_json){
+
+
+		//bad venue events json.
+		if(typeof event_json != 'object'){
+			console.log("extractEventsJSON did not recieve a proper event object, (may have been an ID or null ? ) ".bgRed);
+			return promise.resolve(null);
+		}
+
+
+		//event has no id (new event)
+		if(event_json.id == null){
+			
+			var event_doc = new Event(event_json);
+			console.log("Create a new Event ("+String(even_doc.id).green+") for venue [",String(venue.name).magenta,']');
+			
+			id_array.push(event_doc.id);
+			
+			event_doc.save(function(err,succ){
+				if(err){
+					console.log("EVENT SAVE FAILED".bgRed,err);
+				}
+			})
+			return Promise.resolve(null);			
+		}
+
+
+		//event json has id, try and find event in database.
+		return Event.findOneAsync(event_json.id).then(function(event_doc){
+
+			//could not find event in database, create new.
+			if(event_doc == null){
+				event_doc = new Event(event_json);
+				console.log("Faild to find Event in Database, Create a new Event ("+String(even_doc.id).green+") for venue [",String(venue.name).magenta,']');
+			
+
+			//found event in database, save it with the new json data.
+			}else{
+	
+				event_doc.set(event_json);
+				console.log("Save Existing Event ("+String(even_doc.id).green+") for venue [",String(venue.name).magenta,']');
+			
+			}
+
+			id_array.push(event_doc.id);
+
+			event_doc.save(function(err,succ){
+				if(err){
+					console.log("EVENT SAVE FAILED".bgRed,err);
+				}
+			})
+		})
+	}).then(function(){
+		venue.events = id_array;
+		return Promise.resolve(venue)
+	})
+}
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -540,12 +671,7 @@ venueSchema.statics.findByName = function(venue){
 
 
 
-
-
-
-
 var saveVenue = p.sync(function(doc){
-
 	doc.save(function(err){
 		if(err) this.reject(err)
 		else{
@@ -553,9 +679,9 @@ var saveVenue = p.sync(function(doc){
 			this.resolve(null)
 		}
 	}.bind(this));
-
 	return this.promise;
 });
+venueSchema.statics.saveVenue = saveVenue;
 
 
 
@@ -564,6 +690,44 @@ var saveVenue = p.sync(function(doc){
 
 
 
+
+
+
+
+
+
+venueSchema.statics.checkMerge = function(doc,venue_json){
+	var self = this;
+
+
+	//double check that venues are MATCHING.
+	if(match.venue(doc,venue_json)){
+
+		//do a query on venue again to populate all venue events with json data.
+		return Venue.findById(doc.id).populate('events').execAsync().then(function(found_doc){
+
+			//merge the venues with new events json data
+			return merge.venue(found_doc,json,null)
+
+			//extract merged events data and create new Events, returning the final venue json with events as array of ids.
+			.then(self.extractEventsJSON).then(function(new_json){
+
+				//set new venue json and return document.
+				found_doc.set(new_json);
+				return Promise.resolve(found_doc);
+			
+
+			})
+		})
+		//save.
+		.then(self.saveVenue) 
+
+
+		console.log('DB FULL VENUE MERGE:'.bold.green,venue.name,doc.name.inverse);
+	}else{
+		return Promise.resolve(null)
+	}
+}
 
 
 
@@ -599,19 +763,13 @@ venueSchema.statics.syncVenueFull = function(venue,check_val){
 		
 		//else merge
 		}else{
-			console.log('VENUE MATCHES..'.bgGreen,_.map(docs,function(d){return d.name}))
+			console.log('VENUE MATCHES..'.bgGreen,_.map(docs,function(d){return d.name.bold.cyan}))
 			//go through all text search matches and do a single merge + return if a good match, otherwise go to end
 			_.each(docs,function(d){
-				
 
+				var merge_pipe = checkMerge(d,venue);
+				if(merge_pipe != null) pipe = pipe.then(merge_pipe);
 
-				console.log('DB FULL VENUE MERGE:'.green,venue.name,d.name.inverse);
-				m_d = merge.venue(d,venue,null,check_val); //m_d = merge venue
-				if(m_d != false){
-					d.set(m_d);
-					pipe = p.pipe(d);
-					return false;
-				}
 			});
 			
 			//Failed to merge, probably because answered NO to all prompts.
@@ -620,7 +778,7 @@ venueSchema.statics.syncVenueFull = function(venue,check_val){
 				pipe = p.pipe(venue);				
 			}
 		}
-		return pipe.then(saveVenue);
+		return pipe
 	});
 };
 
@@ -643,33 +801,13 @@ venueSchema.statics.syncVenueById = function(venue){
 
 	return this.findOneAsync({
 		platformIds: {$in : venue.platformIds},
-		//'location.status': {$gt : min_gps_status}
 	}).then(function(doc){
 
+		if(doc == null) return p.pipe(null);
 		
-		//when we return null, we can later find by full search
-		if(doc == null){
-			//console.log('could not find venue by platform id '.red.bgYellow+venue.name.inverse);
-			return p.pipe(false);
-		}
-		
-
-		//This is guaranteed to work!
 		console.log('FOUND DB.VENUE BY ID'.bold.white.bgGreen,venue.name,doc.name.inverse);
+		return checkMerge(doc,venue);
 
-		var fields = merge.venue(doc,venue,null,false);
-
-
-		if(fields == false){
-			console.log('VENUE MERGE FAILED'.bgRed)
-			delete fields;
-			return p.pipe(null)
-		}else{
-			//console.log('SYNC DB.VENUE BY ID FOUND'.bold.bgGreen)
-			doc.set(fields);
-		}
-		delete fields
-		return saveVenue(doc)
 	})
 }
 

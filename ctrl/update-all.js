@@ -49,13 +49,8 @@ fb.getKey().then(function(fb_key){
 
 		//use preexisting cache to sync/merge
 		use_cache: true,
-		//save_cache: true,
-		/*
+		save_cache: false,
 
-		#depreciated#
-		clear_cache:true,
-
-		*/
 		//if these words are found in a venue name, that venue will be ignored.
 		bad_words: [
 			'department',
@@ -99,40 +94,40 @@ fb.getKey().then(function(fb_key){
 				},
 			},
 
-			 'ticketfly': {
-			 	endpoints: {'venue':{
-			 		radius: 0
-			 	}},
-			 },
+			'ticketfly': {
+				endpoints: {'venue':{
+					radius: 0
+				}},
+			},
 
-			  'facebook': {
-				
-			  	endpoints: {'venue':null},
-			  	params: {
-			  		filter_delay: 300,
-			  		key: fb_key
-			  	}
-			  },
+			'facebook': {
 
-			  'reverbnation' : {
-			  	endpoints : {
-			  		'venue' : {
-			  			get_delay: 400,
-			  			filter_delay: 500
-			  		}
-			  	},
-			  	params: {
-			  		query_size: 500,
-			  	}
-			  },
+				endpoints: {'venue':null},
+				params: {
+					filter_delay: 300,
+					key: fb_key
+				}
+			},
 
-			  'jambase' : {
-			  	endpoints : {'venue':null},
-			  	params: {
-			  		get_delay: 600,
-			  		key : api_cfg.jambase.keys[3],
-			  	},
-			  }
+			'reverbnation' : {
+				endpoints : {
+					'venue' : {
+						get_delay: 400,
+						filter_delay: 500
+					}
+				},
+				params: {
+					query_size: 500,
+				}
+			},
+
+			'jambase' : {
+				endpoints : {'venue':null},
+				params: {
+					get_delay: 600,
+					key : api_cfg.jambase.keys[3],
+				},
+			}
 		},
 	})
 }).then(function(){

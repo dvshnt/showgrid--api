@@ -1,3 +1,15 @@
+var _ = require('lodash')
+,Promise = require('bluebird')
+,fuzzy = require('fuzzyset.js') // fuzzy matching
+,p = require('../pFactory.js')
+,colors = require('colors')
+,match = require('./match')
+,util = require('../util')
+,readline = require('readline')
+Promise.longStackTraces();
+var rl = require('readline');
+
+
 
 //settings
 var MergeDemandPriority = {
@@ -27,164 +39,106 @@ var MergePriority = {
 
 
 
-var _ = require('lodash')
-,Promise = require('bluebird')
-,fuzzy = require('fuzzyset.js') // fuzzy matching
-,p = require('../pFactory.js')
-,colors = require('colors')
-,match = require('./match')
-,util = require('../util')
-,readline = require('readline')
-Promise.longStackTraces();
-var rl = require('readline');
 
 
+// /*
+// CONFIRM
 
-/*
-CONFIRM
+// this method cofirms merges to double check that we are not merging bad stuff items.
 
-this method cofirms merges to double check that we are not merging bad stuff items.
+// - type     : venue,event,artist
+// - merged_v : merged object,
+// - old_v    : old object (this usually means the one thats stored in the database or has the most old data)
+// - new_v    : fresh data
+// - check    : do we double check that we are not doing a BAD merge? otherwise this whole function gets ignored at the beginning base case
 
-- type     : venue,event,artist
-- merged_v : merged object,
-- old_v    : old object (this usually means the one thats stored in the database or has the most old data)
-- new_v    : fresh data
-- check    : do we double check that we are not doing a BAD merge? otherwise this whole function gets ignored at the beginning base case
-
-*/
-var max_char_count = 7000;
-function confirm(type,merged_v,old_v,new_v,check){
-	//console.log(old_1.name.bgRed,old_2.name.bgRed)
-	if(check == false){
-		console.log((type == 'venue' ? type.bold.cyan : type.bold.yellow),'auto-merge'.green,old_v.name.yellow,' + ',new_v.name.cyan);
-		return merged_v;
-	}
-	var o_string = JSON.stringify(old_v,null,4);
-	var n_string = JSON.stringify(new_v,null,4);
-	var m_string = JSON.stringify(merged_v,null,4);
+// */
+// var max_char_count = 7000;
+// function confirm(type,merged_v,old_v,new_v,check){
+// 	//console.log(old_1.name.bgRed,old_2.name.bgRed)
+// 	if(check == false){
+// 		console.log((type == 'venue' ? type.bold.cyan : type.bold.yellow),'auto-merge'.green,old_v.name.yellow,' + ',new_v.name.cyan);
+// 		return merged_v;
+// 	}
+// 	var o_string = JSON.stringify(old_v,null,4);
+// 	var n_string = JSON.stringify(new_v,null,4);
+// 	var m_string = JSON.stringify(merged_v,null,4);
 
 	
 	
 	
 
-	console.log('\n\n\nCURRATING MERGE '.bgRed,old_v.name.green,' + ',new_v.name.cyan,'(new)',' -> ',merged_v.name.yellow)
+// 	console.log('\n\n\nCURRATING MERGE '.bgRed,old_v.name.green,' + ',new_v.name.cyan,'(new)',' -> ',merged_v.name.yellow)
 
 
 
-	// console.log('\nOLD\n---------\n'.green);
-	// if(o_string.length > max_char_count){
-	// 	console.log('do you want to display this model? (over',max_char_count,')');
-	// 	var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
-	// 	if(answer === 'no' || answer === 'n'){}
-	// 	else console.log(o_string.green)
-	// }
+// 	// console.log('\nOLD\n---------\n'.green);
+// 	// if(o_string.length > max_char_count){
+// 	// 	console.log('do you want to display this model? (over',max_char_count,')');
+// 	// 	var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
+// 	// 	if(answer === 'no' || answer === 'n'){}
+// 	// 	else console.log(o_string.green)
+// 	// }
 
-	// console.log('\nNEW\n---------\n'.cyan);
-	// if(n_string.length > max_char_count){
-	// 	console.log('do you want to display this model? (over',max_char_count,')');
-	// 	var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
-	// 	if(answer === 'no' || answer === 'n'){}
-	// 	else console.log(n_string.cyan)
-	// }
+// 	// console.log('\nNEW\n---------\n'.cyan);
+// 	// if(n_string.length > max_char_count){
+// 	// 	console.log('do you want to display this model? (over',max_char_count,')');
+// 	// 	var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
+// 	// 	if(answer === 'no' || answer === 'n'){}
+// 	// 	else console.log(n_string.cyan)
+// 	// }
 	
-	// console.log('\nMERGED\n---------\n'.yellow);
-	// if(m_string.length > max_char_count){
-	// 	console.log('do you want to display this model? (over',max_char_count,')');
-	// 	var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
-	// 	if(answer === 'no' || answer === 'n'){}
-	// 	else 	
-	// 		_.each(m_string.split('\n'),function(str){
-	// 			var n_matched = n_string.indexOf(str);
+// 	// console.log('\nMERGED\n---------\n'.yellow);
+// 	// if(m_string.length > max_char_count){
+// 	// 	console.log('do you want to display this model? (over',max_char_count,')');
+// 	// 	var answer = rl.question('[n | no for no] | [.* for yes]\n: ');
+// 	// 	if(answer === 'no' || answer === 'n'){}
+// 	// 	else 	
+// 	// 		_.each(m_string.split('\n'),function(str){
+// 	// 			var n_matched = n_string.indexOf(str);
 				
-	// 			var o_matched = o_string.indexOf(str);
+// 	// 			var o_matched = o_string.indexOf(str);
 
 
-	// 			if(n_matched != -1 && o_matched != -1) return console.log(str.yellow);
-	// 			if(n_matched != -1) return console.log(str.cyan);
-	// 			if(o_matched != -1) return console.log(str.green);
+// 	// 			if(n_matched != -1 && o_matched != -1) return console.log(str.yellow);
+// 	// 			if(n_matched != -1) return console.log(str.cyan);
+// 	// 			if(o_matched != -1) return console.log(str.green);
 				
 
-	// 			console.log(str.yellow);
-	// 		});
+// 	// 			console.log(str.yellow);
+// 	// 		});
 
-	// }
-
-
-	function ask(){
-		if(old_v.location != null){
-			console.log(JSON.stringify(old_v.location, null, 4).green,'\n',JSON.stringify(new_v.location,null,4).cyan)
-		}
-		if( old_v.events != null ) console.log( ('old events # '+old_v.events.length).blue )
-		if( new_v.events != null ) console.log( ('new events # '+new_v.events.length).green )
-		if( merged_v.events != null) console.log( ('merged (old+new) events # '+ merged_v.events.length).yellow )
-
-		console.log('do you want to merge \n',old_v.name.green,' + ',new_v.name.cyan,'(new) \n='.gray,'\n',merged_v.name.yellow);
-		console.log('[n or no for NO] | [yes or y for YES]: ');
-		var answer = util.getLine();
-		if(answer == 'no\n' || answer == 'n\n'){
-			console.log("NO".red,' will create new entry');
-			return(false)
-		}else if(answer == 'yes\n' || answer == 'y\n'){
-			console.log("YES".green,' the new model is', merged_v.name.yellow);
-			return(merged_v)
-		}else{
-
-			console.log('wrong answer, try again'.red);
-			return ask();
-		} 
-	}
-
-	return ask()	
-};
+// 	// }
 
 
+// 	function ask(){
+// 		if(old_v.location != null){
+// 			console.log(JSON.stringify(old_v.location, null, 4).green,'\n',JSON.stringify(new_v.location,null,4).cyan)
+// 		}
+// 		if( old_v.events != null ) console.log( ('old events # '+old_v.events.length).blue )
+// 		if( new_v.events != null ) console.log( ('new events # '+new_v.events.length).green )
+// 		if( merged_v.events != null) console.log( ('merged (old+new) events # '+ merged_v.events.length).yellow )
+
+// 		console.log('do you want to merge \n',old_v.name.green,' + ',new_v.name.cyan,'(new) \n='.gray,'\n',merged_v.name.yellow);
+// 		console.log('[n or no for NO] | [yes or y for YES]: ');
+// 		var answer = util.getLine();
+// 		if(answer == 'no\n' || answer == 'n\n'){
+// 			console.log("NO".red,' will create new entry');
+// 			return(false)
+// 		}else if(answer == 'yes\n' || answer == 'y\n'){
+// 			console.log("YES".green,' the new model is', merged_v.name.yellow);
+// 			return(merged_v)
+// 		}else{
+
+// 			console.log('wrong answer, try again'.red);
+// 			return ask();
+// 		} 
+// 	}
+
+// 	return ask()	
+// };
 
 
-
-/*
-
-CHECKS
-
-these get called inside merge.[venue,event,artist]
-
-*/
-var check = {};
-
-
-//venue double check after merge (NOT A MATCHER)
-check.venue = function(e1,e2){
-	if(e1.name == e2.name) return false;
-	var name_match = fuzzy([e1.name]).get(e2.name);
-	if(name_match[0][0] > 0.9) return false;
-
-	if(e1.location.address == e2.location.address && name_match[0][0] > 0.6) return false;
-
-	if((e1.location.status == 2 && e1.location.status == 2) && (e1.location.address != e2.location.address)) return true
-	return true
-}
-
-//event double check after merge (NOT A MATCHER)
-check.event = function(e1,e2,check_val){
-	if(match.checkID(e1.platforms,e2.platforms)) return false;
-
-	if(e1.date.start == e2.date.start){
-		console.log('MATCHED EVENTS BY DATE'.bold.yellow,e1.name,e2.name.inverse);
-		return false;
-	}
-
-	return false;
-}
-
-//artist double check after merge (NOT A MATCHER)
-check.artist = function(e1,e2){
-	if(e1.name == e2.name) return false;
-	var name_match = fuzzy([e1.name]).get(e2.name);
-	if(name_match[0][0] > 0.9) return false;
-	
-	console.log('fuzzy match:',name_match)
-
-	return true;
-}
 
 
 
@@ -202,8 +156,53 @@ MERGE
 var merge = {};
 
 
+//returns array with new json data.
+mergeVenueEvents = function(arr1,arr2){
+
+	//if one or the other is not an array, resolve either one.
+	if(!_.isArray(arr1) || !_.isArray(arr2)) return Promise.resolve(_.clone(arr1 || arr2))
+
+
+	events = [];
+	var events = _.union(arr1,arr2);
+
+	//var events = _.unqiue()
+	
+	//console.log(events);
+	var l = events.length;
+	//console.log('merge venue events','total:',l,'e1:',e1.events.length,'e2:',e2.events.length);
+	for(var i = 0;i<l;i++){
+		if(events[i] == null) continue;
+		for(var j = 0;j<l;j++){
+			if(j == i || events[j] == null || events[i] == null) continue;
+			if(match.event(events[i],events[j])){
+				var new_e = merge.event(events[i],events[j]);
+				if(new_e != false){
+					events[i] = new_e;
+					events[j] = undefined;
+				}
+			}
+		}
+	}
+
+	return Promise.resolve(util.null_filter(events));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //MERGE VENUE
-merge.venue = function(e1,e2,priority,check_val){
+merge.venue = function(e1,e2,priority){
 	var merged,weight;
 
 
@@ -299,34 +298,7 @@ merge.venue = function(e1,e2,priority,check_val){
 
 
 
-	//events 10
-	if(!_.isArray(e2.events) || !_.isArray(e1.events)){
 
-		merged.events = _.clone(e2.events || e1.events);
-	
-	}else{
-		merged.events = [];
-		var events = _.union(e2.events,e1.events);
-		
-		//console.log(events);
-		var l = events.length;
-		console.log('merge venue events','total:',l,'e1:',e1.events.length,'e2:',e2.events.length);
-		for(var i = 0;i<l;i++){
-			if(events[i] == null) continue;
-			for(var j = 0;j<l;j++){
-				if(j == i || events[j] == null || events[i] == null) continue;
-				if(match['event'](events[i],events[j])){
-					var new_e = merge['event'](events[i],events[j]);
-					if(new_e != false){
-						events[i] = new_e;
-						events[j] = undefined;
-					}
-				}
-			}
-		}
-
-		merged.events = util.null_filter(events);
-	}
 
 	//colors 11
 	if(i1 >= i2 && e1.phone != null) merged.colors = e1.colors;
@@ -341,9 +313,29 @@ merge.venue = function(e1,e2,priority,check_val){
 
 
 	//double check to make sure everything is okay before we merge!	
-	if(check_val !== false) check_val = check.venue(e1,e2);
-	return confirm('venue',merged,e1,e2,check_val);
+	//if(check_val !== false) check_val = check.venue(e1,e2);
+
+
+	//events 10
+	merged.events = mergeVenueEvents(e2.events,e1.events;
+
+	
+	return Promise.resolve(merged);
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 //MERGE EVENT
@@ -518,17 +510,7 @@ merge.event = function(e1,e2,priority,check_val){
 		})
 	}
 
-
-	try{
-		if(check_val !== false) check_val = check.event(e1,e2);
-		return confirm('event',merged,e1,e2,check_val);
-	}catch(e){
-		console.log('BAD EVENT'.bgRed)
-		console.log(e1.name)
-		console.log(e2.name);
-		console.log(e);
-	}
-	
+	return Promise.resolve(merged)
 }
 
 
@@ -631,14 +613,8 @@ merge.artist = function(e1,e2,priority,check_val){
 	}
 
 
-	if(check_val !== false) check_val = check.artist(e1,e2);
-	return confirm('artist',merged,e1,e2,check_val);
+	return Promise.resolve(merged)
 }
-
-
-
-
-
 
 
 
@@ -651,16 +627,16 @@ merge.artist = function(e1,e2,priority,check_val){
 
 
 /*
-not very smart demand merging
 
-demand wieght is equal to merge priority of each platform
-
-This will probably need more work!
+Extra merge utils
 
 */
+
+
+
+
+/* pointless */
 function mergeDemand(doc1,doc2){
-
-
 	var i1 = _.reduce(doc1.platforms,function(total,plat){return total+MergeDemandPriority[plat.name]});
 	var i2 = _.reduce(doc2.platforms,function(total,plat){return total+MergeDemandPriority[plat.name]});
 	
@@ -670,17 +646,6 @@ function mergeDemand(doc1,doc2){
 	else return (doc1.demand*i1 + doc2.demand*i2)/(i1+i2);
 }
 
-
-
-
-
-
-
-
-
-
-
-
 function defaultWeight(e1,e2){
 
 	var i1 = _.reduce(e1.platforms,function(total,plat){return total+MergePriority[plat.name]});
@@ -689,25 +654,10 @@ function defaultWeight(e1,e2){
 	return [i1,i2]
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 function artistWeight(e1,e2){
 	var w = defaultWeight(e1,e2)
 	i1 = w[0]
 	i2 = w[1]
-
-
 
 	if(e1.created != null && e2.created != null){
 		if(e1.created < e2.created){
@@ -715,8 +665,6 @@ function artistWeight(e1,e2){
 		}
 	}
 	
-	
-
 	return [i1,i2]
 }
 

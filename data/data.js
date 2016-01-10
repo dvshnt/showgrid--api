@@ -251,67 +251,69 @@ var findVenues_GPS = p.async(function(opt){
 
 
 //FIND EVENTS
-var findEvents = p.sync(function(opt){
+var findEvents = function(opt){
 	if(opt.zip != null){
 		//FIND BY ZIP
-		gps(null,null,opt.zip).then(function(loc){
+		return gps(null,null,opt.zip)
+		.then(function(loc){
 			if(_.isString(loc)) return this.resolve(null,loc);
 			opt.lat = loc.gps.lat;
 			opt.lon = loc.gps.lon;
-			this.resolve(findEvents_GPS(opt))
-		}.bind(this));
+			return findEvents_GPS(opt)
+		});
 
 	}else if(opt.lat != null && opt.lon != null){
 		//FIND BY GPS (a bit faster)
-		this.resolve(findEvents_GPS(opt));
-	}else{
-		return this.resolve([null,'INVALID PARAMS']);
+		return findEvents_GPS(opt);
 	}
-
-	return this.promise;
-});
+		
+	return Promise.resolve([0,'INVALID PARAMS']);
+};
 
 
 
 //FIND EVENTS GPS
-var findEvents_GPS = p.sync(function(opt){
+var findEvents_GPS = function(opt){
+
+	console.log("FIND EVENTS GPS",opt)
 	
-	var db_q = {
-		location:{gps:{
-			$nearSphere : {
-				$geometry : {type: "Point", coordinates : [opt.lat,opt.lon]},
-				$maxDistance : parseInt(opt.radius) || 50
-			},
-		}},
-		events: {
-			date : {$gt: opt.mindate || Date.now(), $lt: opt.maxdate || Date.now()+oneyear},
-		},
+	db_q = {};
+	db_q["location._gps"] = {
+		$nearSphere : {
+			$geometry : {type: "Point", coordinates : [opt.lon,opt.lat]},
+			$maxDistance : parseInt(opt.radius*meters_in_a_mile) || 50*meters_in_a_mile
+		}
 	}
 
+	// db_q['events'] = {
+	// 	date : {$gt: opt.mindate || new Date(), $lt: opt.maxdate || new Date(Date.now()+oneyear)},
+	// }
+	
 	if(opt.cursor != null){
 		db_q._id = {$gt: opt.cursor}
 	}
 
 
 
-	if(opt.active) db_q.events = {$exists: true, $not: {$size: 0}};
+	db_q.events = {$exists: true, $not: {$size: 0}};
 
 	return Venue.find(db_q)
 		.select({events: 1})
-		.spread(function(docs){
-			if(err) this.resolve([null,'INTERNAL ERR']);
-			if(docs == null) this.resolve([[],null]);
-			var events = _.takeRight(
-				_.sortBy(_.union(
-					_.map(docs,function(doc){
-						return doc.events
-					})
-				),function(event){
-					return Date.parse(event.date.start)
-				}),(opt.limit != null && opt.limit < 500) ? Math.floor(parseInt(opt.limit)) : 100)
-			this.resolve([events,null]);
-		}.bind(this));
-});
+		.limit(10)
+		.then(function(docs){
+			console.log(docs.length);
+			
+			if(docs == null) return Promise.resolve([0,null]);
+			//console.log(docs);
+			var events = _.flatten(
+				_.map(docs,function(doc){
+					return doc.events
+				})
+			)
+			console.log("RETURN",events.length)
+			return Promise.resolve([events.length,events]);
+		})
+};
 
 
 
@@ -369,7 +371,7 @@ var findArtists_GPS = p.sync(function(opt){
 			},
 		}},
 		events: {
-			date : {$gt: opt.mindate || Date.now(), $lt: opt.maxdate || new Date(Date.parse(Date())+oneweek)},
+			date : {$gt: opt.mindate || Date.now(), $lt: opt.maxdate || new Date(Date.now()+oneyear)},
 		},
 	}
 

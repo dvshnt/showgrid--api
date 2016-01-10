@@ -37,7 +37,7 @@ function paginate(type, opt) {
 			data: dat || [],
 		};
 
-		if (dat.length >= opt.limit) {
+		if ( dat != null && dat.length >= opt.limit) {
 			r.next = dat[dat.length-1]._id
 		}
 

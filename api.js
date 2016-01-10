@@ -16,12 +16,6 @@ app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x
 
 
 
-//Use Passport
-/*
-var passport = require('passport');
-app.use(passport.initialize());
-app.use(passport.session());
-*/
 
 
 //main API route.
